@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const CONFIG_FILE = path.join(ROOT, 'config.json');
+// MCDASH_CONFIG lets a second instance (e.g. for testing) run fully isolated
+const CONFIG_FILE = process.env.MCDASH_CONFIG || path.join(ROOT, 'config.json');
 
 // serverDir is stored relative to the project root so the same config.json
 // works when the project is copied between machines/OSes.

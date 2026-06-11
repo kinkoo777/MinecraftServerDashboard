@@ -69,6 +69,13 @@ function clearFails(ip) {
   fails.delete(ip);
 }
 
+// keep the in-memory maps from growing forever
+setInterval(() => {
+  const now = Date.now();
+  for (const [t, s] of sessions) if (now > s.expires) sessions.delete(t);
+  for (const [ip, f] of fails) if (now > f.until) fails.delete(ip);
+}, 3600000).unref();
+
 module.exports = {
   isSetup, setPassword, verifyPassword,
   createSession, destroySession, tokenFrom, authed,

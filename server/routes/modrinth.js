@@ -49,7 +49,10 @@ router.post('/install', async (req, res) => {
 
     const destDir = path.join(serverDir(), MOD_LOADERS.includes(loader) ? 'mods' : 'plugins');
     fs.mkdirSync(destDir, { recursive: true });
-    const name = file.filename.split(/[\\/]/).pop();
+    const name = (file.filename || '').split(/[\\/]/).pop();
+    if (!/^[\w.\-+ ]{1,200}\.jar$/i.test(name)) {
+      return res.status(400).json({ error: `Unexpected file name from Modrinth: ${name}` });
+    }
     const dl = await fetch(file.url);
     if (!dl.ok) throw new Error(`Download failed (HTTP ${dl.status})`);
     await finished(Readable.fromWeb(dl.body).pipe(fs.createWriteStream(path.join(destDir, name))));
