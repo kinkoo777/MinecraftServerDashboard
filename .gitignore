@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# the actual Minecraft server (jar, world, logs, player data) — never commit
+mc-server/
+
+# world backups
+backups/
+
+# machine-local state
+config.json
+schedules.json
+*.log
+
+# local installers
+*.msi
+*.exe

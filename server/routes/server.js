@@ -1,0 +1,103 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const pidusage = require('pidusage');
+const mc = require('../minecraft');
+const { getConfig, serverDir } = require('../config');
+const { levelName } = require('../utils/backup');
+const history = require('../history');
+
+const router = express.Router();
+
+// Recently seen players: playerdata file mtimes mapped to names via usercache.json
+function recentPlayers() {
+  let byUuid = {};
+  const uc = path.join(serverDir(), 'usercache.json');
+  if (fs.existsSync(uc)) {
+    try { byUuid = Object.fromEntries(JSON.parse(fs.readFileSync(uc, 'utf8')).map(p => [p.uuid, p.name])); } catch (e) { /* ignore */ }
+  }
+  const dir = path.join(serverDir(), levelName(), 'playerdata');
+  let entries = [];
+  if (fs.existsSync(dir)) {
+    entries = fs.readdirSync(dir)
+      .filter(f => f.endsWith('.dat'))
+      .map(f => {
+        const name = byUuid[f.slice(0, -4)];
+        return name ? { name, lastSeen: fs.statSync(path.join(dir, f)).mtimeMs } : null;
+      })
+      .filter(Boolean);
+  }
+  const online = new Set([...mc.players].map(n => n.toLowerCase()));
+  for (const p of mc.players) {
+    if (!entries.some(e => e.name.toLowerCase() === p.toLowerCase())) {
+      entries.push({ name: p, lastSeen: Date.now() });
+    }
+  }
+  for (const e of entries) e.online = online.has(e.name.toLowerCase());
+  entries.sort((a, b) => (b.online - a.online) || (b.lastSeen - a.lastSeen));
+  return entries.slice(0, 8);
+}
+
+router.get('/overview', (req, res) => {
+  res.json({ history: history.list(), recent: recentPlayers() });
+});
+
+function eulaState() {
+  const file = path.join(serverDir(), 'eula.txt');
+  if (!fs.existsSync(file)) return 'missing';
+  return /^\s*eula\s*=\s*true\s*$/m.test(fs.readFileSync(file, 'utf8')) ? 'accepted' : 'declined';
+}
+
+router.get('/status', (req, res) => {
+  const cfg = getConfig();
+  res.json({
+    status: mc.status,
+    players: [...mc.players],
+    uptime: mc.uptime,
+    jarExists: fs.existsSync(path.join(serverDir(), cfg.jarFile)),
+    jarFile: cfg.jarFile,
+    eula: eulaState()
+  });
+});
+
+router.get('/stats', async (req, res) => {
+  if (!mc.pid) return res.json({ cpu: 0, memory: 0, uptime: 0, online: false });
+  try {
+    const s = await pidusage(mc.pid);
+    res.json({ cpu: s.cpu, memory: s.memory, uptime: mc.uptime, online: true });
+  } catch (e) {
+    res.json({ cpu: 0, memory: 0, uptime: mc.uptime, online: true });
+  }
+});
+
+router.post('/start', (req, res) => {
+  mc.start(getConfig());
+  res.json({ ok: true });
+});
+
+router.post('/stop', async (req, res) => {
+  await mc.stop();
+  res.json({ ok: true });
+});
+
+router.post('/restart', async (req, res) => {
+  await mc.stop();
+  mc.start(getConfig());
+  res.json({ ok: true });
+});
+
+router.post('/command', (req, res) => {
+  const { command } = req.body;
+  if (!command || !command.trim()) {
+    return res.status(400).json({ error: 'No command given' });
+  }
+  mc.sendCommand(command.trim());
+  res.json({ ok: true });
+});
+
+router.post('/eula', (req, res) => {
+  fs.writeFileSync(path.join(serverDir(), 'eula.txt'), 'eula=true\n');
+  res.json({ ok: true });
+});
+
+module.exports = router;
