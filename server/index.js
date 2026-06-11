@@ -4,6 +4,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const mc = require('./minecraft');
 const auth = require('./auth');
+const reports = require('./reports');
 const { getConfig, serverDir } = require('./config');
 const { notify } = require('./utils/discord');
 require('./scheduler');
@@ -33,6 +34,7 @@ app.use('/api/files', require('./routes/files'));
 app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/jars', require('./routes/jars'));
 app.use('/api/modrinth', require('./routes/modrinth'));
+app.use('/api/reports', require('./routes/reports'));
 
 // Uniform JSON errors for thrown route errors
 app.use((err, req, res, next) => {
@@ -62,6 +64,15 @@ mc.on('crashed', (code) => notify(`💥 **Server crashed** (exit code ${code}) �
 mc.on('join', (name) => notify(`▶ **${name}** joined the game`));
 mc.on('leave', (name) => notify(`◀ **${name}** left the game`));
 
+// Daily report aggregation
+mc.on('crashed', () => reports.event('crash'));
+mc.on('join', () => reports.event('join'));
+reports.onRollover((r) => notify(
+  `📊 **Daily report — ${r.date}**\n` +
+  `Peak players: **${r.peakPlayers}** · Unique: **${r.uniquePlayers.length}** · Uptime: **${Math.floor(r.uptimeMinutes / 60)}h ${r.uptimeMinutes % 60}m**\n` +
+  `Avg TPS: **${r.avgTps ?? 'n/a'}** · Peak RAM: **${r.peakMemMB} MB** · Crashes: **${r.crashes}** · Backups: **${r.backups}**`
+));
+
 wss.on('connection', (ws, req) => {
   if (!auth.authed(req)) {
     ws.close(4001, 'unauthorized');
@@ -87,6 +98,7 @@ setInterval(async () => {
     stats.tps = (mc.lastTpsAt && Date.now() - mc.lastTpsAt < 180000) ? mc.lastTps : null;
   }
   history.record(stats, mc.players.size);
+  reports.record(stats, [...mc.players]);
   if (wss.clients.size > 0) broadcast('stats', stats);
 }, 2000);
 
