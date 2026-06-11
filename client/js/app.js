@@ -121,6 +121,9 @@ const App = {
       a.classList.toggle('active', a.dataset.page === name));
     const el = document.getElementById('content');
     el.innerHTML = '';
+    el.classList.remove('page-anim');
+    void el.offsetWidth; // restart the entrance animation
+    el.classList.add('page-anim');
     page.render(el);
   },
 
@@ -236,6 +239,11 @@ const App = {
     if (line.startsWith('>')) cls = 'log-cmd';
     else if (/\/(WARN|WARNING)\]/.test(line)) cls = 'log-warn';
     else if (/\/(ERROR|FATAL)\]/.test(line) || line.includes('[dashboard] Failed')) cls = 'log-error';
-    return `<div class="${cls}">${this.esc(line)}</div>`;
+    // dim the "[12:34:56] [Server thread/INFO]:" prefix so the message stands out
+    const html = this.esc(line).replace(
+      /^(\[\d{2}:\d{2}:\d{2}\] \[[^\]]*\]:?|\[dashboard\])/,
+      '<span class="log-meta">$1</span>'
+    );
+    return `<div class="${cls}">${html}</div>`;
   }
 };
