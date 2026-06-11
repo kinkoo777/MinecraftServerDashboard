@@ -3,9 +3,13 @@ const EventEmitter = require('events');
 const path = require('path');
 const fs = require('fs');
 
+const LOG_DIR = path.join(__dirname, '..', 'console-logs');
+const MAX_SAVED_LOGS = 30;
+
 const DONE_RE = /\]: Done \([\d.,]+s\)!/;
 const JOIN_RE = /\]: ([A-Za-z0-9_]+)(?: \[[^\]]*\])? joined the game/;
 const LEAVE_RE = /\]: ([A-Za-z0-9_]+) left the game/;
+const TICK_RE = /Average time per tick: ([\d.]+)\s*ms/i;
 
 class MinecraftServer extends EventEmitter {
   constructor() {
@@ -16,6 +20,10 @@ class MinecraftServer extends EventEmitter {
     this.logBuffer = [];
     this.startedAt = null;
     this.stopTimer = null;
+    this.stopping = false;    // true while a user/dashboard-requested stop is in progress
+    this.crashCount = 0;
+    this.lastTps = null;
+    this.lastTpsAt = 0;
   }
 
   setStatus(s) {
@@ -37,9 +45,17 @@ class MinecraftServer extends EventEmitter {
     if ((m = JOIN_RE.exec(line))) {
       this.players.add(m[1]);
       this.emit('players', [...this.players]);
+      this.emit('join', m[1]);
     } else if ((m = LEAVE_RE.exec(line))) {
       this.players.delete(m[1]);
       this.emit('players', [...this.players]);
+      this.emit('leave', m[1]);
+    } else if ((m = TICK_RE.exec(line))) {
+      const ms = parseFloat(m[1]);
+      if (ms > 0) {
+        this.lastTps = Math.min(20, Math.round((1000 / ms) * 10) / 10);
+        this.lastTpsAt = Date.now();
+      }
     }
   }
 
@@ -82,18 +98,45 @@ class MinecraftServer extends EventEmitter {
 
     this.proc.on('exit', (code) => {
       clearTimeout(this.stopTimer);
+      const wasIntentional = this.stopping;
+      const ranForMs = this.startedAt ? Date.now() - this.startedAt : 0;
+      this.stopping = false;
       this.proc = null;
       this.players.clear();
       this.startedAt = null;
+      this.lastTps = null;
+      this.lastTpsAt = 0;
       this.emit('players', []);
+      const crashed = !wasIntentional && code !== 0 && code != null;
       this.pushLog(`[dashboard] Server process exited (code ${code ?? 'unknown'})`);
+      const saved = this.saveConsoleLog(crashed ? 'crash' : 'stop');
+      if (saved) this.pushLog(`[dashboard] Console log saved: ${saved}`);
       this.setStatus('offline');
+
+      if (crashed) {
+        this.emit('crashed', code);
+        if (ranForMs > 10 * 60000) this.crashCount = 0; // ran fine for a while: fresh slate
+        const cfg = require('./config').getConfig();
+        if (cfg.autoRestart && this.crashCount < 3) {
+          this.crashCount++;
+          this.pushLog(`[dashboard] Auto-restart in 5s (attempt ${this.crashCount}/3)`);
+          setTimeout(() => {
+            if (this.status !== 'offline') return;
+            try { this.start(require('./config').getConfig()); } catch (e) {
+              this.pushLog(`[dashboard] Auto-restart failed: ${e.message}`);
+            }
+          }, 5000);
+        } else if (cfg.autoRestart) {
+          this.pushLog('[dashboard] Auto-restart gave up after 3 quick crashes — check the saved console logs');
+        }
+      }
     });
   }
 
   stop() {
     if (!this.proc) return Promise.resolve();
     return new Promise((resolve) => {
+      this.stopping = true;
       this.setStatus('stopping');
       this.proc.once('exit', () => resolve());
       this.proc.stdin.write('stop\n');
@@ -107,9 +150,25 @@ class MinecraftServer extends EventEmitter {
     });
   }
 
-  sendCommand(cmd) {
+  // Dump the in-memory console buffer to console-logs/, pruning old files.
+  saveConsoleLog(reason) {
+    if (!this.logBuffer.length) return null;
+    try {
+      if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const name = `console-${stamp}-${reason}.log`;
+      fs.writeFileSync(path.join(LOG_DIR, name), this.logBuffer.join('\n') + '\n');
+      const files = fs.readdirSync(LOG_DIR).filter(f => f.endsWith('.log')).sort();
+      while (files.length > MAX_SAVED_LOGS) fs.unlinkSync(path.join(LOG_DIR, files.shift()));
+      return name;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  sendCommand(cmd, opts = {}) {
     if (!this.proc) throw new Error('Server is not running');
-    this.pushLog(`> ${cmd}`);
+    if (!opts.quiet) this.pushLog(`> ${cmd}`);
     this.proc.stdin.write(cmd + '\n');
   }
 

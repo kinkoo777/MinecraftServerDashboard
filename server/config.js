@@ -13,7 +13,10 @@ const DEFAULTS = {
   minRam: '1G',
   maxRam: '2G',
   jvmArgs: '',
-  dashboardPort: 8080
+  dashboardPort: 8080,
+  autoRestart: true,
+  backupKeep: 10,
+  discordWebhook: ''
 };
 
 let cache = null;

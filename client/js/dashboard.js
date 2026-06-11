@@ -31,6 +31,7 @@ App.pages.dashboard = {
               <button data-ct="players">Players</button>
               <button data-ct="cpu">CPU</button>
               <button data-ct="mem">RAM</button>
+              <button data-ct="tps">TPS</button>
             </div>
           </div>
           <canvas id="db-chart" height="160"></canvas>
@@ -52,6 +53,8 @@ App.pages.dashboard = {
     document.querySelectorAll('#db-chart-tabs button').forEach(b => {
       b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
     });
+
+    window.onresize = () => { if (App.currentName === 'dashboard') this.renderChart(); };
 
     this.onStatus(App.status);
     this.onPlayers(App.players);
@@ -98,25 +101,29 @@ App.pages.dashboard = {
     ctx.clearRect(0, 0, w, h);
     ctx.font = '10px system-ui, sans-serif';
 
-    const pts = this.overview.history;
+    let pts = this.overview.history;
+    if (this.chartTab === 'tps') pts = pts.filter(p => p.tps != null);
     if (pts.length < 2) {
       ctx.fillStyle = muted;
       ctx.textAlign = 'center';
-      ctx.fillText('Collecting data — the chart fills in as the dashboard runs…', w / 2, h / 2);
+      ctx.fillText(this.chartTab === 'tps'
+        ? 'No TPS data yet — appears about a minute after the server is online.'
+        : 'Collecting data — the chart fills in as the dashboard runs…', w / 2, h / 2);
       return;
     }
 
-    const val = { players: p => p.players, cpu: p => p.cpu, mem: p => p.mem / 1048576 }[this.chartTab];
+    const val = { players: p => p.players, cpu: p => p.cpu, mem: p => p.mem / 1048576, tps: p => p.tps }[this.chartTab];
     const fmt = {
       players: v => String(Math.round(v)),
       cpu: v => Math.round(v) + '%',
-      mem: v => v >= 1024 ? (v / 1024).toFixed(1) + ' GB' : Math.round(v) + ' MB'
+      mem: v => v >= 1024 ? (v / 1024).toFixed(1) + ' GB' : Math.round(v) + ' MB',
+      tps: v => v.toFixed(0)
     }[this.chartTab];
 
     const padL = 8, padR = 44, padT = 10, padB = 18;
     const cw = w - padL - padR, ch = h - padT - padB;
     const rawMax = Math.max(...pts.map(val));
-    const max = { players: Math.max(4, Math.ceil(rawMax)), cpu: Math.max(25, Math.ceil(rawMax / 25) * 25), mem: Math.max(256, Math.ceil(rawMax / 256) * 256) }[this.chartTab];
+    const max = { players: Math.max(4, Math.ceil(rawMax)), cpu: Math.max(25, Math.ceil(rawMax / 25) * 25), mem: Math.max(256, Math.ceil(rawMax / 256) * 256), tps: 20 }[this.chartTab];
     const x = i => padL + (i / (pts.length - 1)) * cw;
     const y = v => padT + ch - (v / max) * ch;
 

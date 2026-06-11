@@ -14,7 +14,8 @@ function record(stats, playerCount) {
     players: playerCount,
     cpu: Math.round(stats.cpu * 10) / 10,
     mem: stats.memory,
-    online: stats.online
+    online: stats.online,
+    tps: stats.tps ?? null
   });
   if (history.length > MAX_POINTS) history.shift();
 }

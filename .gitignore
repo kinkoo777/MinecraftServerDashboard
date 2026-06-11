@@ -10,6 +10,7 @@ backups/
 # machine-local state
 config.json
 schedules.json
+console-logs/
 *.log
 
 # local installers

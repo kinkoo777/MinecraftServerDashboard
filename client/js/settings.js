@@ -51,15 +51,49 @@ App.pages.settings = {
     el.innerHTML = `
       <div class="page-head"><h1>Settings</h1></div>
       <div class="card">
+        <h2>Server jar</h2>
+        <p class="muted" style="margin-bottom:12px">Download a ready-to-run server jar straight from Paper or Mojang. The server must be stopped.</p>
+        <div class="btn-row" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label>Type</label>
+            <select id="jar-type" style="width:130px"><option value="paper">Paper</option><option value="vanilla">Vanilla</option></select></div>
+          <div class="field" style="margin:0"><label>Version</label>
+            <select id="jar-version" style="width:150px"><option value="">Loading…</option></select></div>
+          <button id="jar-dl" class="btn-primary">${App.icon('download', 14)} Download</button>
+        </div>
+        <div class="hint muted" id="jar-note" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
         <h2>Launch settings</h2>
         <div class="form-grid" id="cfg-grid">
           <div class="field"><label>Server jar file</label><input id="cfg-jarFile"></div>
           <div class="field"><label>Java path</label><input id="cfg-javaPath"><div class="hint">"java" if it's on PATH</div></div>
           <div class="field"><label>Min RAM</label><input id="cfg-minRam"><div class="hint">e.g. 1G or 512M</div></div>
           <div class="field"><label>Max RAM</label><input id="cfg-maxRam"><div class="hint">e.g. 4G</div></div>
+          <div class="field"><label>Backups to keep</label><input type="number" id="cfg-backupKeep" min="0" max="1000"><div class="hint">oldest are deleted; 0 = unlimited</div></div>
+          <div class="field"><label>Auto-restart on crash</label>
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 0">
+              <span class="switch"><input type="checkbox" id="cfg-autoRestart"><span class="track" onclick="document.getElementById('cfg-autoRestart').click()"></span></span>
+              <span class="muted" style="font-size:12px">up to 3 tries</span>
+            </label>
+          </div>
           <div class="field" style="grid-column:1/-1"><label>Extra JVM arguments</label><input id="cfg-jvmArgs" placeholder="-XX:+UseG1GC …"></div>
+          <div class="field" style="grid-column:1/-1"><label>Discord webhook — notifies on start/stop/crash, joins and backups</label>
+            <div style="display:flex;gap:8px">
+              <input id="cfg-discordWebhook" placeholder="https://discord.com/api/webhooks/… (empty = off)">
+              <button id="cfg-discord-test" class="btn-sm" style="flex-shrink:0">Test</button>
+            </div>
+          </div>
         </div>
         <button id="cfg-save" class="btn-primary">Save launch settings</button>
+      </div>
+      <div class="card">
+        <h2>Backup & restore configuration</h2>
+        <p class="muted" style="margin-bottom:12px">Exports launch settings, server.properties and all schedules as one JSON file — import it on another machine (or after a reinstall) to restore everything.</p>
+        <div class="btn-row">
+          <a class="btn" href="/api/settings/export">${App.icon('download', 14)} Export config</a>
+          <button id="cfg-import-btn">${App.icon('upload', 14)} Import config…</button>
+          <input type="file" id="cfg-import-file" accept=".json,application/json" style="display:none">
+        </div>
       </div>
       <div class="card">
         <h2>server.properties</h2>
@@ -72,22 +106,89 @@ App.pages.settings = {
 
     const cfg = await App.tryApi('/settings/config');
     if (cfg) {
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook']) {
         document.getElementById(`cfg-${k}`).value = cfg[k] || '';
       }
+      document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
+      document.getElementById('cfg-autoRestart').checked = cfg.autoRestart !== false;
     }
     document.getElementById('cfg-save').onclick = async () => {
       const body = {};
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook']) {
         body[k] = document.getElementById(`cfg-${k}`).value;
       }
+      body.backupKeep = Number(document.getElementById('cfg-backupKeep').value);
+      body.autoRestart = document.getElementById('cfg-autoRestart').checked;
       await App.tryApi('/settings/config', { method: 'PUT', body }, 'Launch settings saved');
+    };
+    document.getElementById('cfg-discord-test').onclick = () =>
+      App.tryApi('/settings/discord-test', { method: 'POST' }, 'Test message sent — check Discord');
+
+    this.initJarDownloader();
+
+    document.getElementById('cfg-import-btn').onclick = () => document.getElementById('cfg-import-file').click();
+    document.getElementById('cfg-import-file').onchange = async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      let body;
+      try { body = JSON.parse(await file.text()); } catch (err) {
+        return App.toast('Not a valid JSON file', true);
+      }
+      const r = await App.tryApi('/settings/import', { method: 'POST', body });
+      if (r) {
+        const parts = [];
+        if (r.config) parts.push('launch settings');
+        if (r.properties) parts.push('server.properties');
+        if (r.schedules) parts.push(`${r.schedules} schedule(s)`);
+        App.toast(parts.length ? `Imported: ${parts.join(', ')}${r.schedulesSkipped ? ` (${r.schedulesSkipped} invalid skipped)` : ''}` : 'File contained nothing to import');
+        this.render(document.getElementById('content'));
+      }
     };
 
     this.props = await App.tryApi('/settings/properties');
     this.renderProps();
 
     document.getElementById('props-save').onclick = () => this.saveProps();
+  },
+
+  async initJarDownloader() {
+    const typeSel = document.getElementById('jar-type');
+    const verSel = document.getElementById('jar-version');
+    const note = document.getElementById('jar-note');
+    const btn = document.getElementById('jar-dl');
+
+    const versions = await App.tryApi('/jars/versions');
+    if (!versions) {
+      if (verSel) verSel.innerHTML = '<option value="">unavailable</option>';
+      return;
+    }
+    const fill = () => {
+      if (!verSel) return;
+      verSel.innerHTML = versions[typeSel.value].map(v => `<option>${App.esc(v)}</option>`).join('');
+    };
+    typeSel.onchange = fill;
+    fill();
+
+    btn.onclick = async () => {
+      if (!verSel.value) return;
+      btn.disabled = true;
+      btn.textContent = 'Downloading…';
+      note.textContent = 'This can take a minute depending on your connection.';
+      const r = await App.tryApi('/jars/download', {
+        method: 'POST',
+        body: { type: typeSel.value, version: verSel.value }
+      }, null);
+      btn.disabled = false;
+      btn.innerHTML = `${App.icon('download', 14)} Download`;
+      if (r) {
+        note.textContent = `Done — ${typeSel.value} ${verSel.value} saved as server.jar (${App.fmtBytes(r.size)}).`;
+        App.toast('Server jar installed');
+        document.getElementById('cfg-jarFile').value = r.jarFile;
+      } else {
+        note.textContent = '';
+      }
+    };
   },
 
   renderProps() {

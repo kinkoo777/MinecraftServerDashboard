@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MC Dashboard</title>
+  <meta name="theme-color" content="#0f1115">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/main.css">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
@@ -27,6 +29,7 @@
       <span id="side-status-dot" class="dot offline"></span>
       <span id="side-status-text">Offline</span>
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark theme"></button>
+      <button id="logout-btn" class="theme-toggle" style="margin-left:4px" title="Log out"></button>
     </div>
   </aside>
 
@@ -43,6 +46,9 @@
   <script src="js/files.js"></script>
   <script src="js/plugins.js"></script>
   <script src="js/schedules.js"></script>
-  <script>App.init()</script>
+  <script>
+    App.init();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  </script>
 </body>
 </html>

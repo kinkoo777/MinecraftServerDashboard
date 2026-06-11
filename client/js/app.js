@@ -25,7 +25,9 @@ const ICONS = {
   file: '<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>',
   archive: '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
   restore: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
-  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
 };
 
 /* Shared app shell: hash router, WebSocket, API helper, toasts */
@@ -43,7 +45,7 @@ const App = {
     return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
   },
 
-  init() {
+  async init() {
     document.querySelectorAll('#nav a').forEach(a => {
       const s = a.querySelector('.icon');
       if (s) s.innerHTML = this.icon(a.dataset.page, 16);
@@ -54,9 +56,55 @@ const App = {
       localStorage.setItem('theme', next);
       this.applyTheme(next);
     };
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn.innerHTML = this.icon('logout', 14);
+    logoutBtn.onclick = async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.reload();
+    };
+
+    let st = { setup: false, authed: false };
+    try { st = await (await fetch('/api/auth/status')).json(); } catch (e) { /* server down; boot will retry via WS */ }
+    if (!st.authed) return this.renderAuth(st.setup);
+    this.boot();
+  },
+
+  boot() {
     window.addEventListener('hashchange', () => this.route());
     this.connect();
     this.route();
+  },
+
+  renderAuth(isSetup) {
+    const ov = document.createElement('div');
+    ov.id = 'auth-overlay';
+    ov.innerHTML = `
+      <form class="auth-card" id="auth-form">
+        <div class="logo" style="border:none;justify-content:center;padding:0"><img src="icon.svg" class="logo-img" alt=""><span>MC Dashboard</span></div>
+        <h1 style="text-align:center;margin:4px 0">${isSetup ? 'Log in' : 'Create a password'}</h1>
+        ${isSetup ? '' : '<p class="muted" style="text-align:center">First run — protect your dashboard before anything else.</p>'}
+        <input type="password" id="auth-pw" placeholder="Password" autocomplete="${isSetup ? 'current-password' : 'new-password'}">
+        ${isSetup ? '' : '<input type="password" id="auth-pw2" placeholder="Repeat password" autocomplete="new-password">'}
+        <button class="btn-primary" type="submit">${isSetup ? 'Log in' : 'Set password & enter'}</button>
+        <div id="auth-err" class="auth-err"></div>
+      </form>`;
+    document.body.appendChild(ov);
+    const err = (m) => { ov.querySelector('#auth-err').textContent = m; };
+    ov.querySelector('#auth-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const password = ov.querySelector('#auth-pw').value;
+      if (!isSetup && password !== ov.querySelector('#auth-pw2').value) return err('Passwords do not match');
+      const res = await fetch(`/api/auth/${isSetup ? 'login' : 'setup'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) return err(j.error || 'Something went wrong');
+      ov.remove();
+      this.boot();
+    };
+    ov.querySelector('#auth-pw').focus();
   },
 
   applyTheme(theme) {
@@ -104,7 +152,10 @@ const App = {
         if (this.current?.onPlayers) this.current.onPlayers(data);
       }
     };
-    this.ws.onclose = () => setTimeout(() => this.connect(), 2000);
+    this.ws.onclose = (e) => {
+      if (e.code === 4001) return location.reload(); // logged out
+      setTimeout(() => this.connect(), 2000);
+    };
   },
 
   updateSidebar() {
@@ -120,6 +171,10 @@ const App = {
       opts.headers = { 'Content-Type': 'application/json', ...opts.headers };
     }
     const res = await fetch(`/api${path}`, opts);
+    if (res.status === 401) {
+      location.reload(); // session expired -> back to login
+      throw new Error('Session expired');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
