@@ -10,6 +10,12 @@ require('./scheduler');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
 // Auth: /api/auth is open (it is the login door); everything else under /api needs a session

@@ -16,7 +16,11 @@ const upload = multer({
       } catch (e) { cb(e); }
     },
     // strip any path prefix; Windows browsers may send "C:\fakepath\name.jar"
-    filename: (req, file, cb) => cb(null, file.originalname.split(/[\\/]/).pop())
+    filename: (req, file, cb) => {
+      let name = (file.originalname || '').split(/[\\/]/).pop();
+      if (!name || name === '.' || name === '..') name = 'upload.bin';
+      cb(null, name);
+    }
   }),
   limits: { fileSize: 1024 * 1024 * 1024 } // 1 GB
 });

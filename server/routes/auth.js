@@ -3,7 +3,11 @@ const auth = require('../auth');
 
 const router = express.Router();
 
-const COOKIE = (token) => `mcdash=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`;
+// add Secure when the request arrived over HTTPS (directly or via reverse proxy)
+const COOKIE = (token, req) => {
+  const https = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  return `mcdash=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict${https ? '; Secure' : ''}`;
+};
 
 router.get('/status', (req, res) => {
   res.json({ setup: auth.isSetup(), authed: auth.authed(req) });
@@ -14,7 +18,7 @@ router.post('/setup', (req, res) => {
   const pw = String(req.body.password || '');
   if (pw.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   auth.setPassword(pw);
-  res.setHeader('Set-Cookie', COOKIE(auth.createSession()));
+  res.setHeader('Set-Cookie', COOKIE(auth.createSession(), req));
   res.json({ ok: true });
 });
 
@@ -26,7 +30,7 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'Wrong password' });
   }
   auth.clearFails(ip);
-  res.setHeader('Set-Cookie', COOKIE(auth.createSession()));
+  res.setHeader('Set-Cookie', COOKIE(auth.createSession(), req));
   res.json({ ok: true });
 });
 

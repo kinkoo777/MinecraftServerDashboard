@@ -21,6 +21,15 @@ function dirSize(dir) {
   return total;
 }
 
+// Strict backup-name validation: plain zip name, resolved path must stay inside backups/
+function safeBackupFile(name) {
+  if (!/^[\w.\- ]{1,150}\.zip$/.test(name || '') || name.includes('..')) return null;
+  const dir = backupsDir();
+  const file = path.resolve(dir, name);
+  if (!file.startsWith(dir + path.sep)) return null;
+  return file;
+}
+
 function requireOffline(res) {
   if (mc.status !== 'offline') {
     res.status(409).json({ error: 'Stop the server first' });
@@ -57,21 +66,22 @@ router.post('/backup', async (req, res) => {
 });
 
 router.get('/backup/:name', (req, res) => {
-  const file = path.join(backupsDir(), path.basename(req.params.name));
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Backup not found' });
+  const file = safeBackupFile(req.params.name);
+  if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'Backup not found' });
   res.download(file);
 });
 
 router.delete('/backup/:name', (req, res) => {
-  const file = path.join(backupsDir(), path.basename(req.params.name));
+  const file = safeBackupFile(req.params.name);
+  if (!file) return res.status(400).json({ error: 'Invalid backup name' });
   if (fs.existsSync(file)) fs.unlinkSync(file);
   res.json({ ok: true });
 });
 
 router.post('/restore', async (req, res) => {
   if (!requireOffline(res)) return;
-  const file = path.join(backupsDir(), path.basename(req.body.name || ''));
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Backup not found' });
+  const file = safeBackupFile(req.body.name || '');
+  if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'Backup not found' });
   const worldDir = path.join(serverDir(), levelName());
   if (fs.existsSync(worldDir)) fs.rmSync(worldDir, { recursive: true, force: true });
   await extractZip(file, { dir: serverDir() });
