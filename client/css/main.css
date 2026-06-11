@@ -364,6 +364,55 @@ tr:hover .file-actions { opacity: 1; }
 .recent-row .recent-name { font-weight: 500; flex: 1; }
 .recent-row .recent-time { font-size: 12px; }
 
+/* ---------- History / reports ---------- */
+.report-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+.report-row:last-child { border-bottom: none; }
+.report-row:hover { background: var(--card-hover); }
+.report-when { width: 110px; flex-shrink: 0; }
+.report-date { font-weight: 600; }
+.report-spark { flex-shrink: 0; }
+.report-metrics {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+.report-metrics span { display: inline-flex; align-items: center; gap: 5px; }
+.report-metrics .ico { opacity: 0.7; }
+.report-bad { color: var(--red); }
+
+.hist-players { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.hist-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.hist-player:hover { border-color: var(--accent); }
+.hist-player img { width: 22px; height: 22px; border-radius: 5px; image-rendering: pixelated; }
+
+@media (max-width: 800px) {
+  .report-row { gap: 10px; flex-wrap: wrap; }
+  .report-metrics { width: 100%; margin-left: 0; }
+}
+
 /* ---------- Player modal ---------- */
 .modal-overlay {
   position: fixed;

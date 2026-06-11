@@ -20,3 +20,5 @@ console-logs/
 # test instance state
 .test-config.json
 .test-server/
+
+reports.json

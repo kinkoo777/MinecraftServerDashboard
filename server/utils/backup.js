@@ -40,6 +40,7 @@ function createBackup() {
     const archive = archiver('zip', { zlib: { level: 6 } });
     output.on('close', () => {
       try { prune(); } catch (e) { /* pruning is best-effort */ }
+      try { require('../reports').event('backup'); } catch (e) { /* reports optional */ }
       resolve({ file: path.basename(file), size: archive.pointer() });
     });
     archive.on('error', reject);
