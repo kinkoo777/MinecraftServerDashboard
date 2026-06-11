@@ -2,8 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 const mc = require('../minecraft');
-const { serverDir } = require('../config');
+const { serverDir, getConfig } = require('../config');
 const { readProperties } = require('./properties');
+
+// keep only the newest N backups (0 = unlimited)
+function prune() {
+  const keep = getConfig().backupKeep;
+  if (!keep) return;
+  const dir = backupsDir();
+  const zips = fs.readdirSync(dir)
+    .filter(f => f.endsWith('.zip'))
+    .map(f => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t);
+  for (const z of zips.slice(keep)) fs.unlinkSync(path.join(dir, z.f));
+}
 
 function backupsDir() {
   const dir = path.join(serverDir(), '..', 'backups');
@@ -26,7 +38,10 @@ function createBackup() {
     const file = path.join(backupsDir(), `${name}-${stamp}.zip`);
     const output = fs.createWriteStream(file);
     const archive = archiver('zip', { zlib: { level: 6 } });
-    output.on('close', () => resolve({ file: path.basename(file), size: archive.pointer() }));
+    output.on('close', () => {
+      try { prune(); } catch (e) { /* pruning is best-effort */ }
+      resolve({ file: path.basename(file), size: archive.pointer() });
+    });
     archive.on('error', reject);
     archive.pipe(output);
     archive.directory(worldDir, name);

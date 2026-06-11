@@ -8,6 +8,8 @@ App.pages.console = {
       <div class="page-head">
         <h1>Console</h1>
         <div class="btn-row">
+          <select id="con-saved" style="min-width:200px;width:auto"><option value="">Saved logs…</option></select>
+          <button id="con-saved-dl" class="btn-icon" title="Download selected log" disabled>${App.icon('download', 14)}</button>
           <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
             Auto-scroll
             <span class="switch"><input type="checkbox" id="con-auto" checked><span class="track"></span></span>
@@ -30,6 +32,22 @@ App.pages.console = {
     auto.onchange = () => { this.autoScroll = auto.checked; };
 
     document.getElementById('con-clear').onclick = () => { log.innerHTML = ''; };
+
+    const savedSel = document.getElementById('con-saved');
+    const savedDl = document.getElementById('con-saved-dl');
+    App.tryApi('/server/console-logs').then(logs => {
+      if (!logs || !savedSel.isConnected) return;
+      for (const l of logs) {
+        const o = document.createElement('option');
+        o.value = l.name;
+        o.textContent = `${l.name} (${App.fmtBytes(l.size)})`;
+        savedSel.appendChild(o);
+      }
+    });
+    savedSel.onchange = () => { savedDl.disabled = !savedSel.value; };
+    savedDl.onclick = () => {
+      if (savedSel.value) location.href = `/api/server/console-logs/${encodeURIComponent(savedSel.value)}`;
+    };
 
     const input = document.getElementById('con-input');
     const send = async () => {

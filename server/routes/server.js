@@ -95,6 +95,26 @@ router.post('/command', (req, res) => {
   res.json({ ok: true });
 });
 
+const LOG_DIR = path.join(__dirname, '..', '..', 'console-logs');
+
+router.get('/console-logs', (req, res) => {
+  if (!fs.existsSync(LOG_DIR)) return res.json([]);
+  const files = fs.readdirSync(LOG_DIR)
+    .filter(f => f.endsWith('.log'))
+    .map(f => {
+      const st = fs.statSync(path.join(LOG_DIR, f));
+      return { name: f, size: st.size, created: st.mtimeMs };
+    })
+    .sort((a, b) => b.created - a.created);
+  res.json(files);
+});
+
+router.get('/console-logs/:name', (req, res) => {
+  const file = path.join(LOG_DIR, path.basename(req.params.name));
+  if (!file.endsWith('.log') || !fs.existsSync(file)) return res.status(404).json({ error: 'Log not found' });
+  res.download(file);
+});
+
 router.post('/eula', (req, res) => {
   fs.writeFileSync(path.join(serverDir(), 'eula.txt'), 'eula=true\n');
   res.json({ ok: true });

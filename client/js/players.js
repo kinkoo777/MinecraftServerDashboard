@@ -111,7 +111,65 @@ App.pages.players = {
       </p>`;
       invHtml = `<h2>Inventory</h2>${this.inventoryHtml(s.inventory)}`;
     } else {
-      statsHtml = `<p class="muted" style="margin-bottom:8px">${d.dataError ? App.esc(d.dataError) : 'No saved player data yet — stats and inventory appear after the player has joined this world.'}</p>`;
+      const msg = d.dataError ? App.esc(d.dataError)
+        : !d.uuid ? 'This player has never joined this server, so there are no stats or inventory to show yet.'
+        : 'No saved player data found yet — it appears shortly after the player joins the world.';
+      statsHtml = `<p class="muted" style="margin-bottom:8px">${msg}</p>`;
+    }
+
+    let statsExtra = '';
+    if (d.stats) {
+      const rows = [
+        ['Playtime', `${d.stats.playTimeHours} h`], ['Deaths', d.stats.deaths],
+        ['Mob kills', d.stats.mobKills], ['Player kills', d.stats.playerKills],
+        ['Distance', `${d.stats.distanceKm} km`], ['Jumps', d.stats.jumps]
+      ];
+      statsExtra = `<h2 style="margin-top:6px">Statistics</h2>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          ${rows.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${v}</div>`).join('')}
+        </div>`;
+    }
+
+    let manageHtml = '';
+    if (d.online && !offline) {
+      const gmOpts = ['survival', 'creative', 'adventure', 'spectator'].map(g =>
+        `<option value="${g}" ${d.data && d.data.gamemode === g ? 'selected' : ''}>${g}</option>`).join('');
+      const tpTargets = App.players.filter(p => p.toLowerCase() !== d.name.toLowerCase());
+      const pos = d.data && d.data.pos ? d.data.pos : ['', '', ''];
+      manageHtml = `
+        <h2 style="margin-top:18px">Manage</h2>
+        <div class="btn-row" style="margin-bottom:12px">
+          <button class="btn-sm" data-quick="heal">Heal</button>
+          <button class="btn-sm" data-quick="feed">Feed</button>
+          <button class="btn-sm" data-quick="clear-effects">Clear effects</button>
+          <button class="btn-sm btn-danger" data-quick="kill">Kill</button>
+        </div>
+        <div class="manage-row">
+          <span class="manage-label">Gamemode</span>
+          <select id="pm-gm">${gmOpts}</select>
+          <button class="btn-sm" id="pm-gm-go">Apply</button>
+        </div>
+        <div class="manage-row">
+          <span class="manage-label">Teleport to</span>
+          <input id="pm-x" type="number" placeholder="x" value="${pos[0]}">
+          <input id="pm-y" type="number" placeholder="y" value="${pos[1]}">
+          <input id="pm-z" type="number" placeholder="z" value="${pos[2]}">
+          <button class="btn-sm" id="pm-tp-go">Teleport</button>
+        </div>
+        ${tpTargets.length ? `
+        <div class="manage-row">
+          <span class="manage-label">TP to player</span>
+          <select id="pm-tp-target">${tpTargets.map(p => `<option>${App.esc(p)}</option>`).join('')}</select>
+          <button class="btn-sm" id="pm-tpp-go">Teleport</button>
+        </div>` : ''}
+        <div class="manage-row">
+          <span class="manage-label">Give item</span>
+          <input id="pm-item" placeholder="minecraft:diamond">
+          <input id="pm-count" type="number" value="1" min="1" max="6400" style="max-width:80px">
+          <button class="btn-sm" id="pm-give-go">Give</button>
+        </div>`;
+    } else if (d.online && offline) {
+      manageHtml = '';
     }
 
     box.innerHTML = `
@@ -127,7 +185,9 @@ App.pages.players = {
           </div>
           <div class="btn-row" style="margin-bottom:18px">${actions}</div>
           ${statsHtml}
+          ${statsExtra}
           ${invHtml}
+          ${manageHtml}
         </div>
       </div>`;
 
@@ -147,6 +207,30 @@ App.pages.players = {
         }
       };
     });
+
+    const act = (action, args, msg) =>
+      App.tryApi('/players/action', { method: 'POST', body: { action, name: d.name, args } }, msg);
+
+    box.querySelectorAll('[data-quick]').forEach(btn => {
+      btn.onclick = () => {
+        if (btn.dataset.quick === 'kill' && !confirm(`Kill ${d.name}?`)) return;
+        act(btn.dataset.quick, {}, 'Done');
+      };
+    });
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on('pm-gm-go', () =>
+      act('gamemode', { mode: document.getElementById('pm-gm').value }, 'Gamemode changed'));
+    on('pm-tp-go', () => act('tp-coords', {
+      x: document.getElementById('pm-x').value,
+      y: document.getElementById('pm-y').value,
+      z: document.getElementById('pm-z').value
+    }, 'Teleported'));
+    on('pm-tpp-go', () =>
+      act('tp-player', { target: document.getElementById('pm-tp-target').value }, 'Teleported'));
+    on('pm-give-go', () => act('give', {
+      item: document.getElementById('pm-item').value.trim(),
+      count: document.getElementById('pm-count').value
+    }, 'Item given'));
   },
 
   inventoryHtml(items) {

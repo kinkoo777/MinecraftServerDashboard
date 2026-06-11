@@ -107,7 +107,7 @@ nav a .icon { width: 20px; display: flex; align-items: center; justify-content: 
 .theme-toggle:hover { color: var(--text); border: none; }
 
 /* ---------- Main ---------- */
-main { flex: 1; padding: 28px 32px; max-width: 1200px; }
+main { flex: 1; padding: 28px 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
 h1 { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
 h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
@@ -203,6 +203,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 .field .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 18px; }
+
+.sched-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 4px 18px;
+  margin-bottom: 14px;
+}
 
 /* toggle switch */
 .switch { position: relative; width: 36px; height: 20px; display: inline-block; flex-shrink: 0; }
@@ -394,6 +401,22 @@ tr:hover .file-actions { opacity: 1; }
 }
 .pstat .label { display: block; color: var(--muted); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 
+.manage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.manage-row .manage-label {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.manage-row input, .manage-row select { width: auto; flex: 1; min-width: 70px; }
+.manage-row button { flex-shrink: 0; }
+
 .inv-section { margin-bottom: 14px; }
 .inv-section .label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 
@@ -423,6 +446,53 @@ body.light .slot.filled { border-color: #b9c0cc; }
   font-size: 11px;
   color: var(--accent);
   text-shadow: 0 0 4px var(--bg);
+}
+
+/* ---------- Login ---------- */
+#auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-card h1 { font-size: 18px; }
+.auth-err { color: var(--red); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* ---------- Modrinth results ---------- */
+.mr-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.mr-row:last-child { border-bottom: none; }
+.mr-row img { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); object-fit: cover; flex-shrink: 0; }
+.mr-info { flex: 1; min-width: 0; }
+.mr-info .t { font-weight: 600; }
+.mr-info .d {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* ---------- Toasts ---------- */
@@ -477,10 +547,99 @@ body.light .slot.filled { border-color: #b9c0cc; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a4150; }
 
+/* ---------- Touch devices: keep hover-revealed actions visible ---------- */
+@media (hover: none) {
+  .file-actions { opacity: 1; }
+}
+
+/* ---------- Tablet ---------- */
+@media (max-width: 1100px) {
+  main { padding: 22px; }
+  .sidebar { width: 190px; min-width: 190px; }
+}
+
+/* ---------- Mobile: sidebar becomes a sticky top bar with scrollable icon nav ---------- */
 @media (max-width: 800px) {
   body { flex-direction: column; }
-  .sidebar { width: 100%; min-width: 0; height: auto; position: static; }
-  nav { flex-direction: row; flex-wrap: wrap; }
-  .sidebar-status { display: none; }
-  main { padding: 18px; }
+
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo { padding: 12px 16px; border-bottom: none; }
+
+  .sidebar-status {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border-top: none;
+    padding: 6px;
+  }
+
+  nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 10px 10px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+
+  nav a {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    padding: 8px 10px;
+    min-width: 62px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  nav a .icon { width: auto; }
+
+  main { padding: 14px; }
+  h1 { font-size: 18px; }
+  .page-head { flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .card { padding: 14px; overflow-x: auto; }
+
+  .stat-card .value { font-size: 20px; }
+  th, td { padding: 8px; font-size: 13px; }
+
+  /* settings rows stack */
+  .prop-row { flex-wrap: wrap; }
+  .prop-row .prop-control { width: 100%; justify-content: flex-start; }
+
+  .console-full { height: calc(100vh - 280px); }
+  .console-input-row { flex-wrap: nowrap; }
+
+  .modal { padding: 16px; max-height: 92vh; }
+  .player-head h1 { font-size: 16px; }
+  .inv-grid .slot { font-size: 7px; padding: 2px; }
+
+  /* 16px stops iOS Safari from zooming into focused inputs */
+  input, select, textarea { font-size: 16px; }
+  button, .btn { min-height: 38px; }
+  .btn-icon { min-height: 34px; }
+  td { word-break: break-word; }
+  main { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .manage-row .manage-label { width: 100%; }
+}
+
+/* ---------- Large / 4K displays ---------- */
+@media (min-width: 2000px) {
+  body { font-size: 15px; }
+  .sidebar { width: 260px; min-width: 260px; }
+  main { max-width: 1500px; padding: 40px 48px; }
+  .stat-card .value { font-size: 28px; }
+  .console { font-size: 14px; }
+  .console-full { height: calc(100vh - 220px); }
+  nav a { padding: 12px 14px; }
 }

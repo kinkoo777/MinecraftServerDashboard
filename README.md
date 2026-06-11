@@ -6,15 +6,19 @@ A minimalistic web dashboard for managing a Minecraft server — start/stop, liv
 
 ## Features
 
-- **Dashboard** — server status, start/stop/restart, live CPU/RAM/player stats, activity chart, recent players
-- **Console** — real-time log stream over WebSocket, command input with history
-- **Players** — online/whitelist/ops/banned lists; click any player for details, actions (op, whitelist, ban, kick) and an **inventory viewer** (reads playerdata NBT directly, works for offline players too)
-- **Settings** — Java/RAM launch options plus a full `server.properties` editor with grouped, typed controls
-- **World** — seed/size info, one-click zip backups, restore, download
+- **Password login** — first run asks you to set a password; sessions, rate-limited attempts, protected WebSocket
+- **Dashboard** — server status, start/stop/restart, live CPU/RAM/player stats, activity chart (players / CPU / RAM / TPS), recent players
+- **Server jar downloader** — install Paper or Vanilla (any recent version) with one click, straight from the official APIs
+- **Crash auto-restart** — automatic restart after a crash (up to 3 quick retries), with the console log of every run saved to `console-logs/`
+- **Discord notifications** — optional webhook for start/stop/crash, player joins/leaves and finished backups
+- **Console** — real-time log stream over WebSocket, command input with history, downloadable logs of past runs
+- **Players** — online/whitelist/ops/banned lists; click any player for details, inventory viewer (reads playerdata NBT, works offline), playtime/deaths/kills statistics, and actions: op, whitelist, ban, kick, heal, feed, kill, gamemode, teleport, give items. Whitelist/op/ban editing works even while the server is stopped
+- **Settings** — Java/RAM launch options, full `server.properties` editor with grouped typed controls, config export/import
+- **World** — seed/size info, one-click zip backups with retention, restore, download
 - **Files** — file browser with upload, rename, delete and inline text editing
-- **Plugins/Mods** — manage `.jar` files in `plugins/` or `mods/`
-- **Schedules** — daily automatic restarts, backups or commands
-- Dark & light theme
+- **Plugins/Mods** — manage `.jar` files, search & install directly from Modrinth
+- **Schedules** — daily or interval tasks (restart / backup / command), in-game warnings ("restart in 5 minutes"), "only when no players online" option
+- Dark & light theme, responsive from phones to 4K, installable as a PWA
 
 ## Quick start
 
@@ -25,9 +29,9 @@ npm install
 npm start
 ```
 
-Open http://localhost:8080, drop a `server.jar` (e.g. [Paper](https://papermc.io/downloads) or vanilla) into the `mc-server/` folder — or upload it via the Files page — accept the EULA from the dashboard, and press Start.
+Open http://localhost:8080, set your dashboard password, download a server jar from the Settings page (or drop your own `server.jar` into `mc-server/`), accept the EULA from the dashboard, and press Start.
 
-Works on Windows and Linux. To run as a service on Linux see `systemd` example below.
+Works on Windows and Linux. To run as a service on Linux:
 
 ```ini
 # /etc/systemd/system/mc-dashboard.service
@@ -45,9 +49,9 @@ User=minecraft
 WantedBy=multi-user.target
 ```
 
-## ⚠️ Security
+## Security
 
-The dashboard has **no authentication** and its file manager has full access to the server folder. Run it on a trusted LAN or behind a VPN (e.g. Tailscale). Do **not** expose port 8080 directly to the internet.
+The dashboard requires a password (set on first run) and all API/WebSocket traffic is session-protected. Still, it is plain HTTP — for access over the internet put it behind HTTPS (a reverse proxy like Caddy, or a VPN such as Tailscale). The logged-in file manager has full access to the server folder, so treat the password accordingly.
 
 ## Configuration
 
@@ -61,3 +65,6 @@ The dashboard has **no authentication** and its file manager has full access to 
 | `minRam` / `maxRam` | `1G` / `2G` | JVM heap |
 | `jvmArgs` | _empty_ | extra JVM flags |
 | `dashboardPort` | `8080` | web UI port |
+| `autoRestart` | `true` | restart automatically after a crash |
+| `backupKeep` | `10` | newest backups to keep (0 = unlimited) |
+| `discordWebhook` | _empty_ | Discord notifications (empty = off) |
