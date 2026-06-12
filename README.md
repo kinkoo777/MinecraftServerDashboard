@@ -17,7 +17,14 @@ A minimalistic web dashboard for managing a Minecraft server — start/stop, liv
 - **World** — seed/size info, one-click zip backups with retention, restore, download
 - **Files** — file browser with upload, rename, delete and inline text editing
 - **Plugins/Mods** — manage `.jar` files, search & install directly from Modrinth
-- **Schedules** — daily or interval tasks (restart / backup / command), in-game warnings ("restart in 5 minutes"), "only when no players online" option
+- **Schedules** — daily or interval tasks (restart / backup / command / announce), colored in-game warnings ("restart in 5 minutes"), "only when no players online" option
+- **World Map** — elevation map rendered from the world's region files, with dimension switch, zoom and coordinate readout
+- **History** — daily reports (peak/avg players, uptime, crashes, backups, who played) with per-hour Players/CPU/RAM/TPS graphs; kept 120 days
+- **Multiple server profiles** — run several independent servers (survival, creative, …) from one dashboard and switch between them
+- **Notifications** — Discord webhook and/or ntfy.sh phone push for start/stop/crash, joins, backups and daily reports
+- **Server jar downloader & update checker** — install Paper/Vanilla and get notified when a newer build exists
+- **Players** — inventory viewer, statistics, playtime leaderboard, admin notes, and actions (op/ban/kick/heal/teleport/give/gamemode…)
+- **server.properties presets** — one-click survival / creative / hardcore / peaceful / anarchy bundles
 - Dark & light theme, responsive from phones to 4K, installable as a PWA
 
 ## Quick start

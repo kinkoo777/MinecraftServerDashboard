@@ -6,7 +6,7 @@ const mc = require('./minecraft');
 const auth = require('./auth');
 const reports = require('./reports');
 const { getConfig, serverDir } = require('./config');
-const { notify } = require('./utils/discord');
+const { notifyAll: notify } = require('./utils/notify');
 require('./scheduler');
 
 const app = express();
@@ -35,6 +35,7 @@ app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/jars', require('./routes/jars'));
 app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/map', require('./routes/map'));
 
 // Uniform JSON errors for thrown route errors
 app.use((err, req, res, next) => {
@@ -57,12 +58,12 @@ mc.on('players', (players) => broadcast('players', players));
 
 // Discord notifications
 mc.on('status', (status) => {
-  if (status === 'online') notify('✅ **Server is online**');
-  else if (status === 'offline') notify('⬛ Server stopped');
+  if (status === 'online') notify('✅ **Server is online**', 'Server online');
+  else if (status === 'offline') notify('⬛ Server stopped', 'Server stopped');
 });
-mc.on('crashed', (code) => notify(`💥 **Server crashed** (exit code ${code}) — check the saved console log`));
-mc.on('join', (name) => notify(`▶ **${name}** joined the game`));
-mc.on('leave', (name) => notify(`◀ **${name}** left the game`));
+mc.on('crashed', (code) => notify(`💥 **Server crashed** (exit code ${code}) — check the saved console log`, '⚠ Server crashed'));
+mc.on('join', (name) => notify(`▶ **${name}** joined the game`, 'Player joined'));
+mc.on('leave', (name) => notify(`◀ **${name}** left the game`, 'Player left'));
 
 // Daily report aggregation
 mc.on('crashed', () => reports.event('crash'));
@@ -70,7 +71,8 @@ mc.on('join', () => reports.event('join'));
 reports.onRollover((r) => notify(
   `📊 **Daily report — ${r.date}**\n` +
   `Peak players: **${r.peakPlayers}** · Unique: **${r.uniquePlayers.length}** · Uptime: **${Math.floor(r.uptimeMinutes / 60)}h ${r.uptimeMinutes % 60}m**\n` +
-  `Avg TPS: **${r.avgTps ?? 'n/a'}** · Peak RAM: **${r.peakMemMB} MB** · Crashes: **${r.crashes}** · Backups: **${r.backups}**`
+  `Avg TPS: **${r.avgTps ?? 'n/a'}** · Peak RAM: **${r.peakMemMB} MB** · Crashes: **${r.crashes}** · Backups: **${r.backups}**`,
+  `Daily report ${r.date}`
 ));
 
 wss.on('connection', (ws, req) => {

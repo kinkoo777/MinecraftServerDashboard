@@ -16,6 +16,7 @@ App.pages.players = {
         <button data-tab="whitelist">Whitelist</button>
         <button data-tab="ops">Ops</button>
         <button data-tab="banned">Banned</button>
+        <button data-tab="leaderboard">Leaderboard</button>
       </div>
       <div class="card" id="pl-list"></div>`;
 
@@ -46,6 +47,8 @@ App.pages.players = {
     const box = document.getElementById('pl-list');
     if (!box) return;
 
+    if (this.tab === 'leaderboard') return this.renderLeaderboard(box);
+
     const rows = {
       online: this.data.online.map(n => this.row(n)),
       whitelist: this.data.whitelist.map(n => this.row(n)),
@@ -63,6 +66,29 @@ App.pages.players = {
     box.querySelectorAll('[data-open]').forEach(tr => {
       tr.onclick = () => this.openModal(tr.dataset.open);
     });
+  },
+
+  async renderLeaderboard(box) {
+    box.innerHTML = `<div class="empty">Loading…</div>`;
+    const rows = await App.tryApi('/players/leaderboard');
+    if (!rows || this.tab !== 'leaderboard') return;
+    if (!rows.length) {
+      box.innerHTML = `<div class="empty">No player statistics yet — they appear once players have joined and the world has saved.</div>`;
+      return;
+    }
+    box.innerHTML = `<table>
+      <thead><tr><th>#</th><th>Player</th><th>Playtime</th><th>Deaths</th><th>Mob kills</th><th>Distance</th></tr></thead>
+      <tbody>${rows.map((r, i) => `
+        <tr data-open="${App.esc(r.name)}" style="cursor:pointer">
+          <td class="muted">${i + 1}</td>
+          <td><img class="avatar" src="https://mc-heads.net/avatar/${App.esc(r.name)}/24" alt="">${App.esc(r.name)}</td>
+          <td>${r.playTimeHours} h</td>
+          <td>${r.deaths}</td>
+          <td>${r.mobKills}</td>
+          <td class="muted">${r.distanceKm} km</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+    box.querySelectorAll('[data-open]').forEach(tr => { tr.onclick = () => this.openModal(tr.dataset.open); });
   },
 
   row(name, extra) {
@@ -188,6 +214,9 @@ App.pages.players = {
           ${statsExtra}
           ${invHtml}
           ${manageHtml}
+          <h2 style="margin-top:18px">Admin notes</h2>
+          <textarea id="pm-note" rows="2" placeholder="Private notes about this player…" style="resize:vertical">${App.esc(d.note || '')}</textarea>
+          <div class="btn-row" style="margin-top:8px"><button class="btn-sm" id="pm-note-save">Save note</button></div>
         </div>
       </div>`;
 
@@ -218,6 +247,9 @@ App.pages.players = {
       };
     });
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on('pm-note-save', () => App.tryApi('/players/note', {
+      method: 'PUT', body: { name: d.name, note: document.getElementById('pm-note').value }
+    }, 'Note saved'));
     on('pm-gm-go', () =>
       act('gamemode', { mode: document.getElementById('pm-gm').value }, 'Gamemode changed'));
     on('pm-tp-go', () => act('tp-coords', {

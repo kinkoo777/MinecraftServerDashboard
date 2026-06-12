@@ -6,7 +6,7 @@ const { createBackup } = require('./utils/backup');
 
 const FILE = path.join(__dirname, '..', 'schedules.json');
 const UNIT_MS = { minutes: 60000, hours: 3600000, days: 86400000 };
-const ACTION_LABEL = { restart: 'Server restart', backup: 'World backup', command: 'Scheduled command' };
+const ACTION_LABEL = { restart: 'Server restart', backup: 'World backup', command: 'Scheduled command', announce: 'Announcement' };
 const ACTION_COLOR = { restart: 'red', backup: 'aqua', command: 'light_purple' };
 
 // Colored in-chat warning via tellraw, plus an action-bar pop for visibility.
@@ -77,10 +77,16 @@ async function run(s, now) {
     } else if (s.action === 'backup') {
       const r = await createBackup();
       mc.pushLog(`[dashboard] Scheduled backup complete: ${r.file}`);
-      require('./utils/discord').notify(`💾 Scheduled world backup complete: \`${r.file}\``);
+      require('./utils/notify').notifyAll(`💾 Scheduled world backup complete: \`${r.file}\``, 'Backup complete');
     } else if (s.action === 'command') {
       if (mc.status === 'online') mc.sendCommand(s.command);
       else mc.pushLog('[dashboard] Skipped scheduled command: server is offline');
+    } else if (s.action === 'announce') {
+      if (mc.status === 'online') {
+        const json = JSON.stringify(['', { text: '[Server] ', color: 'aqua', bold: true }, { text: s.command, color: 'white' }]);
+        mc.sendCommand(`tellraw @a ${json}`, { quiet: true });
+        mc.pushLog(`[dashboard] Announced: ${s.command}`);
+      }
     }
   } catch (e) {
     mc.pushLog(`[dashboard] Scheduled task failed: ${e.message}`);
@@ -122,8 +128,10 @@ function tick() {
 setInterval(tick, 15000);
 
 function validationError(s) {
-  if (!['restart', 'backup', 'command'].includes(s.action)) return 'Unknown action';
-  if (s.action === 'command' && !(s.command || '').trim()) return 'Command is required';
+  if (!['restart', 'backup', 'command', 'announce'].includes(s.action)) return 'Unknown action';
+  if ((s.action === 'command' || s.action === 'announce') && !(s.command || '').trim()) {
+    return s.action === 'announce' ? 'Announcement text is required' : 'Command is required';
+  }
   if (s.type === 'interval') {
     if (!Number.isInteger(s.intervalValue) || s.intervalValue < 1 || s.intervalValue > 365) return 'Repeat interval must be a whole number between 1 and 365';
     if (!['minutes', 'hours', 'days'].includes(s.intervalUnit)) return 'Invalid interval unit';

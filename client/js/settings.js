@@ -51,7 +51,17 @@ App.pages.settings = {
     el.innerHTML = `
       <div class="page-head"><h1>Settings</h1></div>
       <div class="card">
+        <h2>Server profiles</h2>
+        <p class="muted" style="margin-bottom:12px">Run several independent servers (e.g. survival and creative) from one dashboard. Each profile has its own folder, jar and settings. Switch only while the server is stopped.</p>
+        <div id="srv-list"><div class="empty">Loading…</div></div>
+        <div class="btn-row" style="margin-top:12px">
+          <input id="srv-new-name" placeholder="New profile name…" style="width:200px">
+          <button id="srv-add" class="btn-sm">${App.icon('plus', 14)} Add profile</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Server jar</h2>
+        <div id="jar-update"></div>
         <p class="muted" style="margin-bottom:12px">Download a ready-to-run server jar straight from Paper or Mojang. The server must be stopped.</p>
         <div class="btn-row" style="align-items:flex-end">
           <div class="field" style="margin:0"><label>Type</label>
@@ -83,6 +93,12 @@ App.pages.settings = {
               <button id="cfg-discord-test" class="btn-sm" style="flex-shrink:0">Test</button>
             </div>
           </div>
+          <div class="field" style="grid-column:1/-1"><label>ntfy.sh topic — free phone push notifications (install the ntfy app, subscribe to this topic)</label>
+            <div style="display:flex;gap:8px">
+              <input id="cfg-ntfyTopic" placeholder="my-mc-server-a1b2 (empty = off)">
+              <button id="cfg-ntfy-test" class="btn-sm" style="flex-shrink:0">Test</button>
+            </div>
+          </div>
         </div>
         <button id="cfg-save" class="btn-primary">Save launch settings</button>
       </div>
@@ -97,6 +113,11 @@ App.pages.settings = {
       </div>
       <div class="card">
         <h2>server.properties</h2>
+        <div class="btn-row" style="margin-bottom:14px;align-items:center">
+          <span class="muted" style="font-size:12px">Quick preset:</span>
+          <select id="props-preset" style="width:170px"><option value="">Choose…</option></select>
+          <button id="props-preset-apply" class="btn-sm">Apply preset</button>
+        </div>
         <div id="props-box"><div class="empty">Loading…</div></div>
         <div class="btn-row" style="margin-top:14px">
           <button id="props-save" class="btn-primary">Save properties</button>
@@ -106,15 +127,18 @@ App.pages.settings = {
 
     const cfg = await App.tryApi('/settings/config');
     if (cfg) {
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook', 'ntfyTopic']) {
         document.getElementById(`cfg-${k}`).value = cfg[k] || '';
       }
       document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
       document.getElementById('cfg-autoRestart').checked = cfg.autoRestart !== false;
     }
+    this.loadServers();
+    this.loadPresets();
+    this.checkUpdate();
     document.getElementById('cfg-save').onclick = async () => {
       const body = {};
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook', 'ntfyTopic']) {
         body[k] = document.getElementById(`cfg-${k}`).value;
       }
       body.backupKeep = Number(document.getElementById('cfg-backupKeep').value);
@@ -123,6 +147,27 @@ App.pages.settings = {
     };
     document.getElementById('cfg-discord-test').onclick = () =>
       App.tryApi('/settings/discord-test', { method: 'POST' }, 'Test message sent — check Discord');
+    document.getElementById('cfg-ntfy-test').onclick = () =>
+      App.tryApi('/settings/ntfy-test', { method: 'POST' }, 'Test push sent — check the ntfy app');
+
+    document.getElementById('srv-add').onclick = async () => {
+      const name = document.getElementById('srv-new-name').value.trim();
+      if (!name) return App.toast('Enter a profile name', true);
+      if (await App.tryApi('/settings/servers', { method: 'POST', body: { name } }, 'Profile added')) {
+        document.getElementById('srv-new-name').value = '';
+        this.loadServers();
+      }
+    };
+
+    document.getElementById('props-preset-apply').onclick = async () => {
+      const name = document.getElementById('props-preset').value;
+      if (!name) return;
+      if (!confirm(`Apply the "${name}" preset to server.properties? This overwrites the related keys.`)) return;
+      if (await App.tryApi(`/settings/presets/${name}`, { method: 'POST' }, 'Preset applied')) {
+        this.props = await App.tryApi('/settings/properties');
+        this.renderProps();
+      }
+    };
 
     this.initJarDownloader();
 
@@ -150,6 +195,59 @@ App.pages.settings = {
     this.renderProps();
 
     document.getElementById('props-save').onclick = () => this.saveProps();
+  },
+
+  async loadServers() {
+    const box = document.getElementById('srv-list');
+    if (!box) return;
+    const servers = await App.tryApi('/settings/servers');
+    if (!servers) return;
+    const offline = App.status === 'offline';
+    box.innerHTML = servers.map(s => `
+      <div class="srv-row ${s.active ? 'active' : ''}">
+        ${App.icon('server', 16)}
+        <div class="srv-info"><div class="srv-name">${App.esc(s.name)}${s.active ? ' <span class="chip chip-green">active</span>' : ''}</div>
+          <div class="muted" style="font-size:11px">${App.esc(s.serverDir)} · ${App.esc(s.jarFile)}</div></div>
+        <div class="btn-row">
+          ${s.active ? '' : `<button class="btn-sm" data-switch="${s.id}" ${offline ? '' : 'disabled title="Stop the server first"'}>Switch to</button>`}
+          ${servers.length > 1 ? `<button class="btn-icon btn-danger" data-del="${s.id}" title="Delete profile">${App.icon('trash', 14)}</button>` : ''}
+        </div>
+      </div>`).join('');
+    box.querySelectorAll('[data-switch]').forEach(b => {
+      b.onclick = async () => {
+        if (await App.tryApi('/settings/servers/active', { method: 'POST', body: { id: Number(b.dataset.switch) } }, 'Switched server — reloading')) {
+          setTimeout(() => location.reload(), 600);
+        }
+      };
+    });
+    box.querySelectorAll('[data-del]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Delete this profile? The server files on disk are NOT deleted, only the profile entry.')) return;
+        if (await App.tryApi(`/settings/servers/${b.dataset.del}`, { method: 'DELETE' }, 'Profile deleted')) this.loadServers();
+      };
+    });
+  },
+
+  async loadPresets() {
+    const sel = document.getElementById('props-preset');
+    const presets = await App.tryApi('/settings/presets');
+    if (!presets || !sel) return;
+    const labels = { survival: 'Survival', creative: 'Creative', hardcore: 'Hardcore', peaceful: 'Peaceful build', anarchy: 'Anarchy' };
+    sel.innerHTML = '<option value="">Choose…</option>' +
+      Object.keys(presets).map(k => `<option value="${k}">${labels[k] || k}</option>`).join('');
+  },
+
+  async checkUpdate() {
+    const box = document.getElementById('jar-update');
+    if (!box) return;
+    let info;
+    try { info = await App.api('/jars/check'); } catch (e) { return; }
+    if (!info || !info.installed) return;
+    if (info.updateAvailable) {
+      box.innerHTML = `<div class="notice" style="margin-bottom:12px"><span class="notice-text">Update available: ${App.esc(info.type)} <b>${App.esc(info.latest)}</b> (you have ${App.esc(info.version)}). Pick it below and download — the server must be stopped.</span></div>`;
+    } else {
+      box.innerHTML = `<p class="muted" style="margin-bottom:12px">✓ ${App.esc(info.installed)} is up to date.</p>`;
+    }
   },
 
   async initJarDownloader() {

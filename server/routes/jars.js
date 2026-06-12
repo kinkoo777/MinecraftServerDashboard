@@ -4,7 +4,7 @@ const path = require('path');
 const { Readable } = require('stream');
 const { finished } = require('stream/promises');
 const mc = require('../minecraft');
-const { serverDir, saveConfig } = require('../config');
+const { serverDir, saveConfig, getConfig } = require('../config');
 
 const router = express.Router();
 
@@ -23,6 +23,25 @@ router.get('/versions', async (req, res) => {
     });
   } catch (e) {
     res.status(502).json({ error: `Could not reach version APIs: ${e.message}` });
+  }
+});
+
+// Compare the installed jar against the newest available build of the same line
+router.get('/check', async (req, res) => {
+  const installed = getConfig().installedJar; // "paper 1.21.4" or ""
+  if (!installed) return res.json({ installed: null });
+  const [type, version] = installed.split(' ');
+  try {
+    if (type === 'paper') {
+      const data = await (await fetch(PAPER_API)).json();
+      const latest = data.versions[data.versions.length - 1];
+      return res.json({ installed, type, version, latest, updateAvailable: latest !== version });
+    }
+    const manifest = await (await fetch(MOJANG_MANIFEST)).json();
+    const latest = manifest.latest.release;
+    return res.json({ installed, type, version, latest, updateAvailable: latest !== version });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
   }
 });
 
@@ -60,7 +79,7 @@ router.post('/download', async (req, res) => {
       throw new Error('Downloaded file is suspiciously small — aborted');
     }
     fs.renameSync(tmp, path.join(serverDir(), 'server.jar'));
-    saveConfig({ jarFile: 'server.jar' });
+    saveConfig({ jarFile: 'server.jar', installedJar: `${type} ${version}` });
     mc.pushLog(`[dashboard] Downloaded ${type} ${version} (${(size / 1048576).toFixed(1)} MB) as server.jar`);
     res.json({ ok: true, size, jarFile: 'server.jar' });
   } catch (e) {
