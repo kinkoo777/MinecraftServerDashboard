@@ -21,7 +21,7 @@ function freshDay(date) {
     tpsMin: null, tpsSum: 0, tpsSamples: 0,
     crashes: 0, backups: 0, joins: 0,
     unique: {},
-    hourly: Array.from({ length: 24 }, () => ({ peak: 0, online: 0 }))
+    hourly: Array.from({ length: 24 }, () => ({ peak: 0, online: 0, cpuSum: 0, memSum: 0, samples: 0, tpsSum: 0, tpsSamples: 0 }))
   };
 }
 
@@ -52,7 +52,10 @@ function finalize(c) {
     crashes: c.crashes,
     backups: c.backups,
     hourlyPlayers: c.hourly.map(h => h.peak),
-    hourlyOnline: c.hourly.map(h => (h.online > 0 ? 1 : 0))
+    hourlyOnline: c.hourly.map(h => (h.online > 0 ? 1 : 0)),
+    hourlyCpu: c.hourly.map(h => (h.samples ? Math.round(h.cpuSum / h.samples) : 0)),
+    hourlyMem: c.hourly.map(h => (h.samples ? Math.round(h.memSum / h.samples / 1048576) : 0)),
+    hourlyTps: c.hourly.map(h => (h.tpsSamples ? Math.round(h.tpsSum / h.tpsSamples * 10) / 10 : null))
   };
 }
 
@@ -100,10 +103,16 @@ function record(stats, names) {
     c.cpuSum += stats.cpu;
     if (stats.memory > c.memPeak) c.memPeak = stats.memory;
     c.memSum += stats.memory;
+    // per-hour resource accumulation (|| 0 guards reports.json from before this field existed)
+    h.cpuSum = (h.cpuSum || 0) + stats.cpu;
+    h.memSum = (h.memSum || 0) + stats.memory;
+    h.samples = (h.samples || 0) + 1;
     if (stats.tps != null) {
       c.tpsSum += stats.tps;
       c.tpsSamples++;
       if (c.tpsMin == null || stats.tps < c.tpsMin) c.tpsMin = stats.tps;
+      h.tpsSum = (h.tpsSum || 0) + stats.tps;
+      h.tpsSamples = (h.tpsSamples || 0) + 1;
     }
   }
   for (const n of names) c.unique[n] = true;

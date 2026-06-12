@@ -1,6 +1,7 @@
 App.pages.history = {
   data: { today: null, days: [] },
   selected: null, // date string; null = today
+  metric: 'players', // players | cpu | mem | tps
 
   async render(el) {
     el.innerHTML = `
@@ -66,14 +67,26 @@ App.pages.history = {
         <div class="grid grid-4" style="margin-bottom:18px">
           ${tiles.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${v}</div>`).join('')}
         </div>
-        <div class="chart-head"><h2 style="margin:0;font-size:13px">Players by hour</h2></div>
+        <div class="chart-head">
+          <h2 style="margin:0;font-size:13px">By hour</h2>
+          <div class="chart-tabs" id="hist-metric">
+            <button data-m="players">Players</button>
+            <button data-m="cpu">CPU</button>
+            <button data-m="mem">RAM</button>
+            <button data-m="tps">TPS</button>
+          </div>
+        </div>
         <canvas id="hist-chart" height="150"></canvas>
         ${r.uniquePlayers.length ? `<div style="margin-top:14px"><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px">Players seen</span>
           <div class="hist-players">${r.uniquePlayers.map(n => `
             <span class="hist-player" data-name="${App.esc(n)}"><img src="https://mc-heads.net/avatar/${App.esc(n)}/22" alt="">${App.esc(n)}</span>`).join('')}</div></div>` : ''}
       </div>`;
 
-    this.drawHourly(document.getElementById('hist-chart'), r, 150, true);
+    document.querySelectorAll('#hist-metric button').forEach(b => {
+      b.classList.toggle('active', b.dataset.m === this.metric);
+      b.onclick = () => { this.metric = b.dataset.m; this.renderDetail(); };
+    });
+    this.drawHourly(document.getElementById('hist-chart'), r, 150, true, this.metric);
     box.querySelectorAll('.hist-player').forEach(p => {
       p.onclick = () => App.pages.players.openModal(p.dataset.name);
     });
@@ -115,13 +128,24 @@ App.pages.history = {
     });
   },
 
-  // Bar chart of 24 hourly player peaks. detailed=true draws axis labels.
-  drawHourly(canvas, r, h, detailed) {
+  // Bar chart of 24 hourly values. detailed=true draws axis labels.
+  // metric: players | cpu | mem | tps (row sparklines always use players).
+  drawHourly(canvas, r, h, detailed, metric = 'players') {
     if (!canvas) return;
     const css = getComputedStyle(document.body);
     const accent = css.getPropertyValue('--accent').trim();
     const border = css.getPropertyValue('--border').trim();
     const muted = css.getPropertyValue('--muted').trim();
+
+    const series = {
+      players: r.hourlyPlayers, cpu: r.hourlyCpu, mem: r.hourlyMem, tps: r.hourlyTps
+    }[metric] || r.hourlyPlayers || [];
+    const online = r.hourlyOnline || [];
+    const fmt = {
+      players: v => Math.round(v), cpu: v => Math.round(v) + '%',
+      mem: v => v + ' MB', tps: v => (v == null ? '' : v.toFixed(0))
+    }[metric];
+    const maxScale = metric === 'tps' ? 20 : Math.max(1, ...series.map(v => v || 0));
 
     const w = detailed ? (canvas.parentElement.clientWidth - 36) : canvas.width;
     const dpr = window.devicePixelRatio || 1;
@@ -133,31 +157,34 @@ App.pages.history = {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
 
-    const peaks = r.hourlyPlayers || [];
-    const online = r.hourlyOnline || [];
-    const max = Math.max(1, ...peaks);
     const padB = detailed ? 16 : 2, padT = detailed ? 6 : 2;
+    const padR = detailed ? 40 : 0;
     const ch = h - padB - padT;
     const gap = detailed ? 3 : 1.5;
-    const bw = (w - gap * 23) / 24;
+    const bw = (w - padR - gap * 23) / 24;
 
     if (detailed) {
       ctx.strokeStyle = border;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, padT + ch);
-      ctx.lineTo(w, padT + ch);
+      ctx.lineTo(w - padR, padT + ch);
       ctx.stroke();
+      ctx.fillStyle = muted;
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(fmt(maxScale), w - padR + 5, padT + 8);
     }
 
     for (let i = 0; i < 24; i++) {
       const x = i * (bw + gap);
-      const bh = Math.max(peaks[i] > 0 ? 2 : 0, (peaks[i] / max) * ch);
-      // faint baseline tick for hours the server was online but empty
+      const val = series[i];
+      const has = val != null && val > 0;
+      const bh = has ? Math.max(2, (val / maxScale) * ch) : 0;
       if (bh === 0 && online[i]) {
         ctx.fillStyle = border;
         ctx.fillRect(x, padT + ch - 1.5, bw, 1.5);
-      } else {
+      } else if (bh > 0) {
         ctx.fillStyle = accent;
         ctx.globalAlpha = online[i] ? 1 : 0.5;
         ctx.fillRect(x, padT + ch - bh, bw, bh);
@@ -167,7 +194,6 @@ App.pages.history = {
 
     if (detailed) {
       ctx.fillStyle = muted;
-      ctx.font = '10px system-ui, sans-serif';
       ctx.textAlign = 'center';
       for (const hr of [0, 6, 12, 18, 23]) {
         ctx.fillText(`${hr}:00`, hr * (bw + gap) + bw / 2, h - 3);

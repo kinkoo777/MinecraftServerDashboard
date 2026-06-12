@@ -12,6 +12,7 @@ App.pages.schedules = {
               <option value="restart">Restart server</option>
               <option value="backup">Backup world</option>
               <option value="command">Run command</option>
+              <option value="announce">Announce message</option>
             </select>
           </div>
           <div class="field"><label>Repeat</label>
@@ -47,7 +48,7 @@ App.pages.schedules = {
               <span class="muted" style="font-size:12px">skip if players online</span>
             </label>
           </div>
-          <div class="field" id="sc-cmd-field" style="display:none"><label>Command</label><input id="sc-command" placeholder="say Hello everyone"></div>
+          <div class="field" id="sc-cmd-field" style="display:none"><label id="sc-cmd-label">Command</label><input id="sc-command" placeholder="say Hello everyone"></div>
         </div>
         <div class="btn-row">
           <button id="sc-save" class="btn-primary">${App.icon('plus', 14)} Add schedule</button>
@@ -61,7 +62,10 @@ App.pages.schedules = {
     const syncFields = () => {
       document.getElementById('sc-time-field').style.display = typeSel.value === 'daily' ? '' : 'none';
       document.getElementById('sc-int-field').style.display = typeSel.value === 'interval' ? '' : 'none';
-      document.getElementById('sc-cmd-field').style.display = actionSel.value === 'command' ? '' : 'none';
+      const needsText = actionSel.value === 'command' || actionSel.value === 'announce';
+      document.getElementById('sc-cmd-field').style.display = needsText ? '' : 'none';
+      document.getElementById('sc-cmd-label').textContent = actionSel.value === 'announce' ? 'Message' : 'Command';
+      document.getElementById('sc-command').placeholder = actionSel.value === 'announce' ? 'Welcome! Join our Discord at…' : 'say Hello everyone';
     };
     typeSel.onchange = syncFields;
     actionSel.onchange = syncFields;
@@ -122,7 +126,7 @@ App.pages.schedules = {
   },
 
   describe(s) {
-    const labels = { restart: 'Restart server', backup: 'Backup world', command: 'Run command' };
+    const labels = { restart: 'Restart server', backup: 'Backup world', command: 'Run command', announce: 'Announce' };
     const when = s.type === 'interval'
       ? `every ${s.intervalValue} ${s.intervalUnit}`
       : `daily at ${s.time}`;

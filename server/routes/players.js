@@ -39,6 +39,54 @@ async function lookupUuid(name) {
   return null;
 }
 
+/* ---- Admin notes per player (keyed by lowercased name, stored per server) ---- */
+function notesFile() { return path.join(serverDir(), 'dashboard-notes.json'); }
+function readNotes() {
+  const f = notesFile();
+  if (!fs.existsSync(f)) return {};
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return {}; }
+}
+
+router.put('/note', (req, res) => {
+  const { name, note } = req.body;
+  if (!name || !NAME_RE.test(name)) return res.status(400).json({ error: 'Invalid player name' });
+  const notes = readNotes();
+  const key = name.toLowerCase();
+  if ((note || '').trim()) notes[key] = String(note).slice(0, 500);
+  else delete notes[key];
+  fs.writeFileSync(notesFile(), JSON.stringify(notes, null, 2));
+  res.json({ ok: true });
+});
+
+/* ---- Playtime leaderboard from the world's stats/*.json files ---- */
+router.get('/leaderboard', (req, res) => {
+  const statsDir = path.join(serverDir(), levelName(), 'stats');
+  if (!fs.existsSync(statsDir)) return res.json([]);
+  const byUuid = {};
+  const uc = path.join(serverDir(), 'usercache.json');
+  if (fs.existsSync(uc)) {
+    try { JSON.parse(fs.readFileSync(uc, 'utf8')).forEach(p => { byUuid[p.uuid] = p.name; }); } catch (e) { /* ignore */ }
+  }
+  const rows = [];
+  for (const f of fs.readdirSync(statsDir)) {
+    if (!f.endsWith('.json')) continue;
+    const uuid = f.slice(0, -5);
+    try {
+      const c = (JSON.parse(fs.readFileSync(path.join(statsDir, f), 'utf8')).stats || {})['minecraft:custom'] || {};
+      const ticks = c['minecraft:play_time'] ?? c['minecraft:play_one_minute'] ?? 0;
+      rows.push({
+        name: byUuid[uuid] || uuid.slice(0, 8),
+        playTimeHours: Math.round(ticks / 72000 * 10) / 10,
+        deaths: c['minecraft:deaths'] || 0,
+        mobKills: c['minecraft:mob_kills'] || 0,
+        distanceKm: Math.round(((c['minecraft:walk_one_cm'] || 0) + (c['minecraft:sprint_one_cm'] || 0)) / 100000 * 10) / 10
+      });
+    } catch (e) { /* skip unreadable */ }
+  }
+  rows.sort((a, b) => b.playTimeHours - a.playTimeHours);
+  res.json(rows.slice(0, 25));
+});
+
 function editJson(file, fn) {
   const p = path.join(serverDir(), file);
   let arr = [];
@@ -120,6 +168,7 @@ router.get('/detail/:name', async (req, res) => {
     op: readJson('ops.json').some(p => p.name.toLowerCase() === lower),
     whitelisted: readJson('whitelist.json').some(p => p.name.toLowerCase() === lower),
     banned: readJson('banned-players.json').some(p => p.name.toLowerCase() === lower),
+    note: readNotes()[lower] || '',
     data: null
   };
 

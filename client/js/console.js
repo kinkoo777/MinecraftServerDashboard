@@ -8,7 +8,14 @@ App.pages.console = {
       <div class="page-head">
         <h1>Console</h1>
         <div class="btn-row">
-          <select id="con-saved" style="min-width:200px;width:auto"><option value="">Saved logs…</option></select>
+          <input id="con-search" placeholder="Filter…" style="width:130px" autocomplete="off">
+          <select id="con-level" style="width:auto">
+            <option value="">All</option>
+            <option value="warn">Warnings</option>
+            <option value="error">Errors</option>
+            <option value="cmd">Commands</option>
+          </select>
+          <select id="con-saved" style="min-width:160px;width:auto"><option value="">Saved logs…</option></select>
           <button id="con-saved-dl" class="btn-icon" title="Download selected log" disabled>${App.icon('download', 14)}</button>
           <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
             Auto-scroll
@@ -24,8 +31,12 @@ App.pages.console = {
       </div>`;
 
     const log = document.getElementById('con-log');
-    log.innerHTML = App.logBuffer.map(l => App.logLineHtml(l)).join('');
-    log.scrollTop = log.scrollHeight;
+    this.repaint();
+
+    const search = document.getElementById('con-search');
+    const level = document.getElementById('con-level');
+    search.oninput = () => this.repaint();
+    level.onchange = () => this.repaint();
 
     const auto = document.getElementById('con-auto');
     auto.checked = this.autoScroll;
@@ -73,18 +84,32 @@ App.pages.console = {
     input.focus();
   },
 
-  onLog(line) {
+  matches(line) {
+    const search = document.getElementById('con-search');
+    const level = document.getElementById('con-level');
+    if (search && search.value && !line.toLowerCase().includes(search.value.toLowerCase())) return false;
+    const lv = level ? level.value : '';
+    if (!lv) return true;
+    if (lv === 'cmd') return line.startsWith('>');
+    if (lv === 'warn') return /\/(WARN|WARNING)\]/.test(line);
+    if (lv === 'error') return /\/(ERROR|FATAL)\]/.test(line) || line.includes('[dashboard] Failed');
+    return true;
+  },
+
+  repaint() {
     const log = document.getElementById('con-log');
     if (!log) return;
+    log.innerHTML = App.logBuffer.filter(l => this.matches(l)).map(l => App.logLineHtml(l)).join('');
+    log.scrollTop = log.scrollHeight;
+  },
+
+  onLog(line) {
+    const log = document.getElementById('con-log');
+    if (!log || !this.matches(line)) return;
     log.insertAdjacentHTML('beforeend', App.logLineHtml(line));
     while (log.children.length > 1000) log.firstChild.remove();
     if (this.autoScroll) log.scrollTop = log.scrollHeight;
   },
 
-  onInit() {
-    const log = document.getElementById('con-log');
-    if (!log) return;
-    log.innerHTML = App.logBuffer.map(l => App.logLineHtml(l)).join('');
-    log.scrollTop = log.scrollHeight;
-  }
+  onInit() { this.repaint(); }
 };

@@ -366,6 +366,44 @@ tr:hover .file-actions { opacity: 1; }
 .recent-row .recent-name { font-weight: 500; flex: 1; }
 .recent-row .recent-time { font-size: 12px; }
 
+/* ---------- World map ---------- */
+.map-viewport {
+  overflow: auto;
+  max-height: calc(100vh - 320px);
+  min-height: 300px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(45deg, #0a0c0f 0 10px, #0c0e12 10px 20px);
+}
+.map-canvas { position: relative; }
+.map-tile { position: absolute; image-rendering: pixelated; display: block; }
+.map-origin {
+  position: absolute;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent);
+  pointer-events: none;
+}
+
+/* ---------- Server profiles ---------- */
+.srv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.srv-row.active { border-color: var(--accent); background: var(--accent-dim); }
+.srv-row .ico { color: var(--muted); flex-shrink: 0; }
+.srv-row.active .ico { color: var(--accent); }
+.srv-info { flex: 1; min-width: 0; }
+.srv-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+
 /* ---------- History / reports ---------- */
 .report-row {
   display: flex;
