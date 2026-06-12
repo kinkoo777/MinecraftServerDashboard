@@ -9,14 +9,42 @@ App.pages.map = {
         <div class="btn-row" id="map-dims"></div>
       </div>
       <div class="card">
-        <p class="muted" style="margin-bottom:12px">Elevation map rendered from the world's region files — green lowlands, blue water, brown mountains, white peaks. Spawn is near the center (block 0,0). Hover to read coordinates.</p>
+        <h2>Generate area from your seed</h2>
+        <p class="muted" style="margin-bottom:12px">The map can only show terrain that's been generated. A map can't be drawn from the seed number alone — but the running server can generate the area for you (it uses your seed), then it appears here. The server must be online; this briefly loads it.</p>
+        <div class="btn-row" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label>Radius (chunks from spawn)</label>
+            <input type="number" id="map-gen-radius" value="6" min="1" max="12" style="width:120px"></div>
+          <button id="map-gen" class="btn-primary">${App.icon('map', 14)} Generate around spawn</button>
+          <span class="muted" id="map-gen-note" style="align-self:center;font-size:12px"></span>
+        </div>
+      </div>
+      <div class="card">
+        <p class="muted" style="margin-bottom:12px">Elevation map — green lowlands, blue water, brown mountains, white peaks. Spawn is the marked center (block 0,0). Hover to read coordinates.</p>
         <div class="btn-row" style="margin-bottom:12px">
           <button id="map-zoom-out" class="btn-sm">−</button>
           <button id="map-zoom-in" class="btn-sm">+</button>
+          <button id="map-refresh" class="btn-sm">Refresh</button>
           <span class="muted" id="map-coord" style="align-self:center;font-family:var(--mono);font-size:12px"></span>
         </div>
         <div id="map-viewport" class="map-viewport"><div class="empty">Loading…</div></div>
       </div>`;
+
+    const genBtn = document.getElementById('map-gen');
+    genBtn.disabled = App.status !== 'online';
+    if (App.status !== 'online') document.getElementById('map-gen-note').textContent = 'Server must be online';
+    genBtn.onclick = async () => {
+      const radius = Number(document.getElementById('map-gen-radius').value);
+      genBtn.disabled = true;
+      const r = await App.tryApi('/map/pregenerate', { method: 'POST', body: { radius } });
+      if (r) {
+        App.toast(`Generating ${r.chunks} chunks — refresh the map in about ${r.estSeconds}s`);
+        document.getElementById('map-gen-note').textContent = `Generating ${r.chunks} chunks… refreshing automatically.`;
+        setTimeout(() => { document.getElementById('map-gen-note').textContent = ''; genBtn.disabled = App.status !== 'online'; this.load(); }, (r.estSeconds + 2) * 1000);
+      } else {
+        genBtn.disabled = App.status !== 'online';
+      }
+    };
+    document.getElementById('map-refresh').onclick = () => this.load();
     await this.load();
   },
 
