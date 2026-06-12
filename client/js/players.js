@@ -221,6 +221,7 @@ App.pages.players = {
       </div>`;
 
     const overlay = document.getElementById('pm-overlay');
+    this.loadItemIcons(box);
     overlay.onclick = (e) => { if (e.target === overlay) box.innerHTML = ''; };
     document.getElementById('pm-close').onclick = () => { box.innerHTML = ''; };
     const esc = (e) => { if (e.key === 'Escape') { box.innerHTML = ''; document.removeEventListener('keydown', esc); } };
@@ -265,6 +266,26 @@ App.pages.players = {
     }, 'Item given'));
   },
 
+  // Item texture URLs (vanilla assets mirror); item/ then block/ then text fallback.
+  itemIconUrls(id) {
+    const v = '1.21.4';
+    const base = `https://assets.mcasset.cloud/${v}/assets/minecraft/textures`;
+    return [`${base}/item/${id}.png`, `${base}/block/${id}.png`];
+  },
+
+  loadItemIcons(root) {
+    root.querySelectorAll('.slot.filled[data-item]').forEach(el => {
+      const urls = this.itemIconUrls(el.dataset.item);
+      const img = new Image();
+      img.className = 'slot-icon';
+      let i = 0;
+      img.onerror = () => { if (++i < urls.length) img.src = urls[i]; else img.remove(); };
+      img.onload = () => { const f = el.querySelector('.slot-fallback'); if (f) f.style.display = 'none'; };
+      img.src = urls[0];
+      el.insertBefore(img, el.firstChild);
+    });
+  },
+
   inventoryHtml(items) {
     const bySlot = {};
     for (const it of items) bySlot[it.slot] = it;
@@ -274,7 +295,7 @@ App.pages.players = {
       if (!it) return `<div class="slot"></div>`;
       const id = (it.id || '').replace('minecraft:', '');
       const label = id.replace(/_/g, ' ');
-      return `<div class="slot filled" title="${App.esc(id)} ×${it.count}">${App.esc(label)}${it.count > 1 ? `<span class="cnt">${it.count}</span>` : ''}</div>`;
+      return `<div class="slot filled" data-item="${App.esc(id)}" title="${App.esc(id)} ×${it.count}"><span class="slot-fallback">${App.esc(label)}</span>${it.count > 1 ? `<span class="cnt">${it.count}</span>` : ''}</div>`;
     };
     const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => slot(a + i)).join('');
 
