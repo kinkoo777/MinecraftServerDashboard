@@ -6,6 +6,7 @@ const mc = require('../minecraft');
 const { serverDir } = require('../config');
 const { levelName } = require('../utils/backup');
 const { readProperties } = require('../utils/properties');
+const { playerDataFile, statsFile, statsDir } = require('../utils/worldpaths');
 const nbt = require('../utils/nbt');
 
 const router = express.Router();
@@ -60,19 +61,19 @@ router.put('/note', (req, res) => {
 
 /* ---- Playtime leaderboard from the world's stats/*.json files ---- */
 router.get('/leaderboard', (req, res) => {
-  const statsDir = path.join(serverDir(), levelName(), 'stats');
-  if (!fs.existsSync(statsDir)) return res.json([]);
+  const dir = statsDir();
+  if (!dir) return res.json([]);
   const byUuid = {};
   const uc = path.join(serverDir(), 'usercache.json');
   if (fs.existsSync(uc)) {
     try { JSON.parse(fs.readFileSync(uc, 'utf8')).forEach(p => { byUuid[p.uuid] = p.name; }); } catch (e) { /* ignore */ }
   }
   const rows = [];
-  for (const f of fs.readdirSync(statsDir)) {
+  for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.json')) continue;
     const uuid = f.slice(0, -5);
     try {
-      const c = (JSON.parse(fs.readFileSync(path.join(statsDir, f), 'utf8')).stats || {})['minecraft:custom'] || {};
+      const c = (JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).stats || {})['minecraft:custom'] || {};
       const ticks = c['minecraft:play_time'] ?? c['minecraft:play_one_minute'] ?? 0;
       rows.push({
         name: byUuid[uuid] || uuid.slice(0, 8),
@@ -173,8 +174,8 @@ router.get('/detail/:name', async (req, res) => {
   };
 
   if (detail.uuid) {
-    const file = path.join(serverDir(), levelName(), 'playerdata', `${detail.uuid}.dat`);
-    if (fs.existsSync(file)) {
+    const file = playerDataFile(detail.uuid);
+    if (file) {
       try {
         const d = nbt.parse(fs.readFileSync(file));
         detail.lastSaved = fs.statSync(file).mtimeMs;
@@ -194,10 +195,10 @@ router.get('/detail/:name', async (req, res) => {
         detail.dataError = `Could not read player data: ${e.message}`;
       }
     }
-    const statsFile = path.join(serverDir(), levelName(), 'stats', `${detail.uuid}.json`);
-    if (fs.existsSync(statsFile)) {
+    const sFile = statsFile(detail.uuid);
+    if (sFile) {
       try {
-        const c = (JSON.parse(fs.readFileSync(statsFile, 'utf8')).stats || {})['minecraft:custom'] || {};
+        const c = (JSON.parse(fs.readFileSync(sFile, 'utf8')).stats || {})['minecraft:custom'] || {};
         const km = (n) => Math.round((n || 0) / 100000 * 10) / 10;
         detail.stats = {
           playTimeHours: Math.round((c['minecraft:play_time'] ?? c['minecraft:play_one_minute'] ?? 0) / 72000 * 10) / 10,

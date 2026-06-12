@@ -4,6 +4,9 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 // MCDASH_CONFIG lets a second instance (e.g. for testing) run fully isolated
 const CONFIG_FILE = process.env.MCDASH_CONFIG || path.join(ROOT, 'config.json');
+// reports.json / schedules.json live next to the config file, so an isolated
+// test instance keeps its own state instead of writing the real files
+const DATA_DIR = path.dirname(CONFIG_FILE);
 
 // Fields that belong to an individual server profile (vs. global dashboard settings)
 const PER_SERVER = ['name', 'serverDir', 'jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'installedJar'];
@@ -144,5 +147,5 @@ function removeServer(i) {
 module.exports = {
   getConfig, saveConfig, serverDir, safePath,
   listServers, addServer, setActiveServer, removeServer,
-  PER_SERVER
+  PER_SERVER, DATA_DIR
 };

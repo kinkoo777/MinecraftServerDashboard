@@ -76,13 +76,17 @@ router.get('/export', (req, res) => {
 
 router.post('/import', (req, res) => {
   const b = req.body || {};
-  const result = { config: false, properties: false, schedules: 0, schedulesSkipped: 0 };
+  const result = { config: false, properties: false, schedules: 0, schedulesSkipped: 0, warnings: [] };
 
   if (b.config && typeof b.config === 'object') {
     const { patch, error } = configPatch(b.config);
-    if (error) return res.status(400).json({ error: `Launch settings: ${error}` });
-    saveConfig(patch);
-    result.config = true;
+    if (error) {
+      // don't abort the whole import — skip config, still apply properties & schedules
+      result.warnings.push(`Launch settings skipped: ${error}`);
+    } else {
+      saveConfig(patch);
+      result.config = true;
+    }
   }
   if (b.properties && typeof b.properties === 'object') {
     const props = {};

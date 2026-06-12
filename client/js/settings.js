@@ -187,6 +187,7 @@ App.pages.settings = {
         if (r.properties) parts.push('server.properties');
         if (r.schedules) parts.push(`${r.schedules} schedule(s)`);
         App.toast(parts.length ? `Imported: ${parts.join(', ')}${r.schedulesSkipped ? ` (${r.schedulesSkipped} invalid skipped)` : ''}` : 'File contained nothing to import');
+        if (r.warnings && r.warnings.length) r.warnings.forEach(w => App.toast(w, true));
         this.render(document.getElementById('content'));
       }
     };
