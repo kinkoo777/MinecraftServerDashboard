@@ -7,6 +7,29 @@ const { createBackup } = require('./utils/backup');
 const FILE = path.join(__dirname, '..', 'schedules.json');
 const UNIT_MS = { minutes: 60000, hours: 3600000, days: 86400000 };
 const ACTION_LABEL = { restart: 'Server restart', backup: 'World backup', command: 'Scheduled command' };
+const ACTION_COLOR = { restart: 'red', backup: 'aqua', command: 'light_purple' };
+
+// Colored in-chat warning via tellraw, plus an action-bar pop for visibility.
+function sendWarning(s) {
+  const label = ACTION_LABEL[s.action] || 'Scheduled task';
+  const color = ACTION_COLOR[s.action] || 'yellow';
+  const mins = s.warnMinutes;
+  const unit = mins === 1 ? 'minute' : 'minutes';
+  const chat = JSON.stringify(['',
+    { text: '⚠ ', color: 'gold', bold: true },
+    { text: '[Server] ', color: 'gray' },
+    { text: label, color, bold: true },
+    { text: ' in ', color: 'gray' },
+    { text: `${mins} ${unit}`, color: 'yellow', bold: true },
+    { text: '!', color: 'gray' }
+  ]);
+  const bar = JSON.stringify({ text: `⚠ ${label} in ${mins} ${unit}`, color, bold: true });
+  try {
+    mc.sendCommand(`tellraw @a ${chat}`, { quiet: true });
+    mc.sendCommand(`title @a actionbar ${bar}`, { quiet: true });
+    mc.pushLog(`[dashboard] Warned players: ${label} in ${mins} ${unit}`);
+  } catch (e) { /* ignore */ }
+}
 
 // Older schedules.json entries only had {id, enabled, time, action, command}
 function normalize(s) {
@@ -83,7 +106,7 @@ function tick() {
     if (warnMs > 0 && next - now <= warnMs && warned.get(s.id) !== next) {
       warned.set(s.id, next);
       if (mc.status === 'online') {
-        try { mc.sendCommand(`say ${ACTION_LABEL[s.action]} in ${s.warnMinutes} minute(s)!`); } catch (e) { /* ignore */ }
+        sendWarning(s);
         // task is due right now (e.g. overdue after downtime): still give players the full warning window
         if (next - now < 20000) {
           s._hold = now + warnMs;

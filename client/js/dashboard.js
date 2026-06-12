@@ -35,6 +35,7 @@ App.pages.dashboard = {
             </div>
           </div>
           <canvas id="db-chart" height="160"></canvas>
+          <div id="db-chart-cap" class="chart-cap muted"></div>
         </div>
         <div class="card">
           <h2>Recent players</h2>
@@ -83,6 +84,15 @@ App.pages.dashboard = {
     if (!canvas) return;
     document.querySelectorAll('#db-chart-tabs button').forEach(b =>
       b.classList.toggle('active', b.dataset.ct === this.chartTab));
+
+    const caps = {
+      players: 'Number of players connected over time.',
+      cpu: 'CPU used by the server process. Brief spikes during world generation or chunk loading are normal.',
+      mem: 'RAM used by the server process. It usually climbs then plateaus near your Max RAM setting.',
+      tps: 'TPS = ticks per second, the server’s heartbeat (20 ticks = 1 second of game time). 20 is perfect; a flat line at 20 means no lag. If it drops below ~18 and stays there, the server is struggling to keep up — that’s lag. Needs a server that answers /tick query (MC 1.20.3+).'
+    };
+    const cap = document.getElementById('db-chart-cap');
+    if (cap) cap.textContent = caps[this.chartTab] || '';
 
     const css = getComputedStyle(document.body);
     const accent = css.getPropertyValue('--accent').trim();
