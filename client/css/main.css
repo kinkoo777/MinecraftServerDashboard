@@ -349,6 +349,8 @@ tr:hover .file-actions { opacity: 1; }
 .chart-tabs button:hover { color: var(--text); }
 .chart-tabs button.active { background: var(--card-hover); color: var(--accent); }
 
+.chart-cap { font-size: 12px; margin-top: 10px; line-height: 1.5; }
+
 .recent-list { display: flex; flex-direction: column; }
 .recent-row {
   display: flex;
