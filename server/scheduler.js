@@ -4,7 +4,7 @@ const mc = require('./minecraft');
 const { getConfig } = require('./config');
 const { createBackup } = require('./utils/backup');
 
-const FILE = path.join(__dirname, '..', 'schedules.json');
+const FILE = path.join(require('./config').DATA_DIR, 'schedules.json');
 const UNIT_MS = { minutes: 60000, hours: 3600000, days: 86400000 };
 const ACTION_LABEL = { restart: 'Server restart', backup: 'World backup', command: 'Scheduled command', announce: 'Announcement' };
 const ACTION_COLOR = { restart: 'red', backup: 'aqua', command: 'light_purple' };

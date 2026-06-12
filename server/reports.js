@@ -5,7 +5,7 @@ const path = require('path');
    rolls over at local midnight, gets finalized, and is kept (last 120 days)
    in reports.json. Survives restarts by persisting the in-progress day too. */
 
-const FILE = path.join(__dirname, '..', 'reports.json');
+const FILE = path.join(require('./config').DATA_DIR, 'reports.json');
 const SAMPLE_MS = 2000; // must match the sampler interval in index.js
 const MAX_DAYS = 120;
 
