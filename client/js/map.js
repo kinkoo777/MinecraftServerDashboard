@@ -12,13 +12,15 @@ App.pages.map = {
       </div>
       <div class="card">
         <h2>Generate area from your seed</h2>
-        <p class="muted" style="margin-bottom:12px">A map can't be drawn from the seed number alone — but the running server can generate the area for you (it uses your seed), then it appears below. Server must be online; this briefly loads it, so keep the radius modest.</p>
+        <p class="muted" style="margin-bottom:12px">A map can't be drawn from the seed number alone (that needs Minecraft's own generator). Instead the running server generates the area for you, gently in the background, and it fills in below as it goes. The server stays playable while it runs.</p>
         <div class="btn-row" style="align-items:flex-end">
           <div class="field" style="margin:0"><label>Radius (chunks from spawn)</label>
-            <input type="number" id="map-gen-radius" value="6" min="1" max="12" style="width:120px"></div>
+            <input type="number" id="map-gen-radius" value="8" min="1" max="16" style="width:120px"></div>
           <button id="map-gen" class="btn-primary">${App.icon('map', 14)} Generate around spawn</button>
+          <button id="map-gen-stop" class="btn-danger" style="display:none">Stop</button>
           <span class="muted" id="map-gen-note" style="align-self:center;font-size:12px"></span>
         </div>
+        <div id="map-gen-bar" class="gen-bar" style="display:none"><div id="map-gen-fill" class="gen-fill"></div></div>
       </div>
       <div class="card">
         <div class="btn-row" style="margin-bottom:10px;align-items:center">
@@ -50,18 +52,55 @@ App.pages.map = {
 
   setupGenerate() {
     const genBtn = document.getElementById('map-gen');
+    const stopBtn = document.getElementById('map-gen-stop');
     const note = document.getElementById('map-gen-note');
     genBtn.disabled = App.status !== 'online';
     if (App.status !== 'online') note.textContent = 'Server must be online';
+
     genBtn.onclick = async () => {
       const radius = Number(document.getElementById('map-gen-radius').value);
       genBtn.disabled = true;
       const r = await App.tryApi('/map/pregenerate', { method: 'POST', body: { radius } });
       if (!r) { genBtn.disabled = App.status !== 'online'; return; }
-      App.toast(`Generating ${r.chunks} chunks — the map refreshes in ~${r.estSeconds}s`);
-      note.textContent = `Generating ${r.chunks} chunks…`;
-      setTimeout(() => { note.textContent = ''; genBtn.disabled = App.status !== 'online'; this.load(); }, (r.estSeconds + 2) * 1000);
+      App.toast(`Generating ${r.total} chunks in the background — the map fills in as it goes`);
+      this.trackGeneration();
     };
+    stopBtn.onclick = async () => { await App.tryApi('/map/pregenerate/stop', { method: 'POST' }); };
+
+    // resume tracking if a job is already running (e.g. revisiting the page)
+    App.tryApi('/map/pregenerate/status').then(s => { if (s && s.active) this.trackGeneration(); });
+  },
+
+  trackGeneration() {
+    const genBtn = document.getElementById('map-gen');
+    const stopBtn = document.getElementById('map-gen-stop');
+    const note = document.getElementById('map-gen-note');
+    const bar = document.getElementById('map-gen-bar');
+    const fill = document.getElementById('map-gen-fill');
+    if (!genBtn) return;
+    genBtn.disabled = true;
+    stopBtn.style.display = '';
+    bar.style.display = '';
+
+    clearInterval(this._genPoll);
+    let sinceRefresh = 0;
+    this._genPoll = setInterval(async () => {
+      if (App.currentName !== 'map') { clearInterval(this._genPoll); return; }
+      const s = await App.tryApi('/map/pregenerate/status');
+      if (!s) return;
+      const pct = s.total ? Math.round(s.done / s.total * 100) : 0;
+      fill.style.width = pct + '%';
+      note.textContent = `Generating… ${s.done}/${s.total} chunks (${pct}%)`;
+      if (++sinceRefresh >= 4) { sinceRefresh = 0; this.load(); } // refresh map every ~6s
+      if (!s.active) {
+        clearInterval(this._genPoll);
+        note.textContent = `Done — ${s.done} chunks generated`;
+        stopBtn.style.display = 'none';
+        genBtn.disabled = App.status !== 'online';
+        setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; note.textContent = ''; }, 4000);
+        this.load();
+      }
+    }, 1500);
   },
 
   resizeCanvas() {

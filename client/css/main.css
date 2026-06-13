@@ -367,6 +367,21 @@ tr:hover .file-actions { opacity: 1; }
 .recent-row .recent-time { font-size: 12px; }
 
 /* ---------- World map ---------- */
+.gen-bar {
+  margin-top: 14px;
+  height: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.gen-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), #4ae996);
+  border-radius: 999px;
+  transition: width .6s ease;
+}
 .map-viewport {
   position: relative;
   height: 520px;
