@@ -22,3 +22,6 @@ console-logs/
 .test-server/
 
 reports.json
+
+# playit.gg agent binary + its config
+playit/

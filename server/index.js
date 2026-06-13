@@ -36,6 +36,7 @@ app.use('/api/jars', require('./routes/jars'));
 app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/map', require('./routes/map'));
+app.use('/api/tunnel', require('./routes/tunnel'));
 
 // Uniform JSON errors for thrown route errors
 app.use((err, req, res, next) => {
@@ -55,6 +56,13 @@ function broadcast(type, data) {
 mc.on('log', (line) => broadcast('log', line));
 mc.on('status', (status) => broadcast('status', status));
 mc.on('players', (players) => broadcast('players', players));
+
+// playit tunnel agent -> push log lines and status to the Play-online page
+const playit = require('./playit');
+playit.on('log', (line) => broadcast('tunnel-log', line));
+playit.on('update', () => broadcast('tunnel-update', {
+  status: playit.status, claimUrl: playit.claimUrl, address: playit.address, installed: playit.installed()
+}));
 
 // Discord notifications
 mc.on('status', (status) => {
@@ -122,6 +130,7 @@ server.listen(PORT, () => {
 
 // Stop the MC server cleanly when the dashboard is closed
 process.on('SIGINT', async () => {
+  playit.stop();
   if (mc.status !== 'offline') await mc.stop(); // server exit already saves the console log
   else mc.saveConsoleLog('shutdown');
   process.exit(0);
