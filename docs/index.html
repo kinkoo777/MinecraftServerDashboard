@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC Dashboard — Free, open-source Minecraft server manager</title>
+  <meta name="description" content="Host and manage your own Minecraft server from your browser. Free, open source, self-hosted — no monthly fees. Live console, world map, backups, players, plugins and more.">
+  <meta name="theme-color" content="#0f1115">
+  <meta property="og:title" content="MC Dashboard — manage your Minecraft server from the browser">
+  <meta property="og:description" content="Free & open source. Self-host your Minecraft server with a beautiful web dashboard — console, world map, backups, players, plugins, schedules.">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <script>document.documentElement.classList.add('js');</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- animated background -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow glow-1" aria-hidden="true"></div>
+  <div class="bg-glow glow-2" aria-hidden="true"></div>
+
+  <header id="top">
+    <a class="brand" href="#top">
+      <img src="icon.svg" alt="" width="30" height="30">
+      <span>MC Dashboard</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="btn btn-ghost gh-btn" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+      GitHub
+    </a>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner intro">
+      <div class="badge-pill"><span class="dot"></span> Free &amp; open source · self-hosted</div>
+      <h1>Run your Minecraft server<br><span class="grad">from your browser.</span></h1>
+      <p class="lead">A complete, good-looking web dashboard to host and manage your own Minecraft server — console, world map, backups, players, plugins and more. No monthly fees, no limits, no catch.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#install">Get started — it's free</a>
+        <a class="btn btn-ghost" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">View on GitHub →</a>
+      </div>
+      <div class="trust">
+        <span>✓ No cost, ever</span>
+        <span>✓ Runs on Windows &amp; Linux</span>
+        <span>✓ Your server, your data</span>
+      </div>
+    </div>
+
+    <!-- mock dashboard window -->
+    <div class="mock intro-fade">
+      <div class="mock-bar"><span></span><span></span><span></span><div class="mock-url">localhost:8080</div></div>
+      <div class="mock-body">
+        <div class="mock-side">
+          <div class="m-logo"><img src="icon.svg" width="18" height="18" alt=""> Dashboard</div>
+          <div class="m-nav active">▣ Dashboard</div>
+          <div class="m-nav">›_ Console</div>
+          <div class="m-nav">☺ Players</div>
+          <div class="m-nav">◍ World Map</div>
+          <div class="m-nav">◷ Schedules</div>
+        </div>
+        <div class="mock-main">
+          <div class="m-row"><span class="m-badge"><span class="dot"></span> Online</span></div>
+          <div class="m-stats">
+            <div class="m-stat"><div class="l">Players</div><div class="v">4</div></div>
+            <div class="m-stat"><div class="l">RAM</div><div class="v">1.8 GB</div></div>
+            <div class="m-stat"><div class="l">CPU</div><div class="v">21%</div></div>
+            <div class="m-stat"><div class="l">TPS</div><div class="v">20</div></div>
+          </div>
+          <div class="m-chart"><svg viewBox="0 0 300 70" preserveAspectRatio="none"><polyline points="0,55 30,50 60,52 90,40 120,42 150,30 180,33 210,22 240,26 270,18 300,20" fill="none" stroke="#00d26a" stroke-width="2"/><polygon points="0,55 30,50 60,52 90,40 120,42 150,30 180,33 210,22 240,26 270,18 300,20 300,70 0,70" fill="url(#g)"/><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00d26a" stop-opacity=".35"/><stop offset="1" stop-color="#00d26a" stop-opacity="0"/></linearGradient></defs></svg></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS STRIP -->
+  <section class="strip reveal">
+    <div class="strip-item"><div class="num">$0</div><div class="cap">forever</div></div>
+    <div class="strip-item"><div class="num">15+</div><div class="cap">built-in tools</div></div>
+    <div class="strip-item"><div class="num">100%</div><div class="cap">open source</div></div>
+    <div class="strip-item"><div class="num">2 min</div><div class="cap">to set up</div></div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="section">
+    <div class="section-head reveal">
+      <h2>Everything you need to run a server</h2>
+      <p>One dashboard, every tool — the kind of features paid panels charge for, free.</p>
+    </div>
+    <div class="cards">
+      <div class="card reveal"><div class="c-ico">›_</div><h3>Live console</h3><p>Real-time server log streamed to your browser, with command input, history and downloadable logs.</p></div>
+      <div class="card reveal"><div class="c-ico">▶</div><h3>One-click controls</h3><p>Start, stop and restart your server from anywhere. Auto-restart on crash so it stays up.</p></div>
+      <div class="card reveal"><div class="c-ico">☺</div><h3>Player management</h3><p>Whitelist, op, ban, kick — plus view any player's inventory, stats, heal, teleport and give items.</p></div>
+      <div class="card reveal"><div class="c-ico">◍</div><h3>World map</h3><p>A live elevation map rendered straight from your world, with pan, zoom and area pre-generation.</p></div>
+      <div class="card reveal"><div class="c-ico">⭳</div><h3>Backups</h3><p>One-click world backups with retention, restore and download. Schedule them automatically.</p></div>
+      <div class="card reveal"><div class="c-ico">◷</div><h3>Schedules</h3><p>Automatic restarts, backups, commands and announcements — with friendly in-game warnings.</p></div>
+      <div class="card reveal"><div class="c-ico">⬡</div><h3>Plugins &amp; mods</h3><p>Browse and install plugins and mods directly from Modrinth, or upload your own jars.</p></div>
+      <div class="card reveal"><div class="c-ico">⇩</div><h3>Server downloader</h3><p>Install Paper or Vanilla of any recent version in one click — and get notified about updates.</p></div>
+      <div class="card reveal"><div class="c-ico">▤</div><h3>File manager</h3><p>Browse, edit, upload and download server files right in the browser. No FTP needed.</p></div>
+      <div class="card reveal"><div class="c-ico">📊</div><h3>Reports &amp; history</h3><p>Daily reports: peak players, uptime, crashes, TPS and RAM graphs kept for months.</p></div>
+      <div class="card reveal"><div class="c-ico">🔔</div><h3>Notifications</h3><p>Get a Discord or phone push when the server starts, crashes, a player joins or a backup finishes.</p></div>
+      <div class="card reveal"><div class="c-ico">🔒</div><h3>Secure &amp; yours</h3><p>Password-protected, dark/light themes, fully responsive, installable as a phone app.</p></div>
+    </div>
+  </section>
+
+  <!-- WHO -->
+  <section class="section who reveal">
+    <div class="who-text">
+      <h2>Built for people who just want to play</h2>
+      <p>Renting a server or paying for a premium panel adds up fast. MC Dashboard lets you host your own server on a computer you already own — your old laptop, a Raspberry Pi, a cheap VPS — and manage it with the same polish as the paid services, for nothing.</p>
+      <ul class="check">
+        <li>No subscriptions, no per-player fees, no ads</li>
+        <li>Your world and data never leave your machine</li>
+        <li>Open source — read it, change it, trust it</li>
+        <li>Perfect for friends-and-family survival worlds</li>
+      </ul>
+    </div>
+    <div class="who-quote reveal">
+      <div class="quote-mark">"</div>
+      <p>Aternos-style convenience, on hardware you control, without paying a cent.</p>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="section">
+    <div class="section-head reveal">
+      <h2>Up and running in minutes</h2>
+      <p>You need <b>Node.js 18+</b> and <b>Java 17+</b> (21 for the latest Minecraft). That's it.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="s-num">1</div><div><h3>Get the code</h3><div class="code"><code>git clone https://github.com/kinkoo777/MinecraftServerDashboard.git<br>cd MinecraftServerDashboard</code><button class="copy" data-copy="git clone https://github.com/kinkoo777/MinecraftServerDashboard.git&#10;cd MinecraftServerDashboard">Copy</button></div></div></div>
+      <div class="step reveal"><div class="s-num">2</div><div><h3>Install &amp; start</h3><div class="code"><code>npm install<br>npm start</code><button class="copy" data-copy="npm install&#10;npm start">Copy</button></div></div></div>
+      <div class="step reveal"><div class="s-num">3</div><div><h3>Open the dashboard</h3><p class="s-text">Visit <b>http://localhost:8080</b>, set your password, then download a server jar from the Settings page (or drop your own into <code class="inline">mc-server/</code>).</p></div></div>
+      <div class="step reveal"><div class="s-num">4</div><div><h3>Press Start</h3><p class="s-text">Accept the Minecraft EULA from the dashboard and hit Start. Share your IP with friends and play. To keep it running on Linux, set it up as a systemd service (see the README).</p></div></div>
+    </div>
+    <div class="install-cta reveal">
+      <a class="btn btn-primary" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">Full instructions on GitHub →</a>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section">
+    <div class="section-head reveal">
+      <h2>Frequently asked questions</h2>
+      <p>Everything you might be wondering before you start.</p>
+    </div>
+    <div class="faq">
+      <details class="reveal"><summary>Is it really free?</summary><p>Yes — completely. MC Dashboard is open source and free to use forever. There are no subscriptions, no paywalls and no ads. You only need a computer to run it on.</p></details>
+      <details class="reveal"><summary>Do I need to know how to code?</summary><p>No. If you can copy and paste a few commands once to install it, the rest is point-and-click. The dashboard handles starting the server, settings, backups and everything else for you.</p></details>
+      <details class="reveal"><summary>What do I need to run it?</summary><p>A computer with <b>Node.js 18+</b> and <b>Java 17+</b> installed (Java 21 for the newest Minecraft versions). It runs on Windows and Linux — even modest hardware like an old laptop or a Raspberry Pi works for a small server.</p></details>
+      <details class="reveal"><summary>How do my friends connect?</summary><p>The dashboard runs the actual Minecraft server on your machine. Your friends connect to it the normal way using your IP address. For internet play you'll forward the Minecraft port (25565) on your router, or use a free tool like Tailscale or Playit.gg.</p></details>
+      <details class="reveal"><summary>Can I use plugins and mods?</summary><p>Yes. Use a Paper jar for plugins or Fabric/Forge for mods, then search and install them straight from Modrinth inside the dashboard, or upload your own jars.</p></details>
+      <details class="reveal"><summary>Which Minecraft versions are supported?</summary><p>Any recent Paper or Vanilla version — you can download them with one click from the dashboard, including the latest releases.</p></details>
+      <details class="reveal"><summary>Is it safe to put online?</summary><p>The dashboard is password-protected. For access beyond your home network, put it behind HTTPS or a VPN (like Tailscale) rather than exposing it directly — it's covered in the README.</p></details>
+      <details class="reveal"><summary>Can I run more than one server?</summary><p>Yes — create multiple server profiles (survival, creative, modded…) and switch between them, each with its own world and settings.</p></details>
+    </div>
+  </section>
+
+  <!-- CONTACT / CTA -->
+  <section id="contact" class="section contact reveal">
+    <h2>Get it, star it, share it</h2>
+    <p>Free and open source. If you build something with it, I'd love to hear about it.</p>
+    <div class="contact-links">
+      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a class="clink" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>Website</span>
+      </a>
+      <a class="clink" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.5"/></svg>
+        <span>Instagram</span>
+      </a>
+      <a class="clink" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+        <span>Email</span>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="foot-inner">
+      <div class="foot-brand">
+        <img src="icon.svg" width="24" height="24" alt="">
+        <span>MC Dashboard</span>
+      </div>
+      <div class="foot-links">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div class="foot-note">Open source · Made for the community · Not affiliated with Mojang or Microsoft.</div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
