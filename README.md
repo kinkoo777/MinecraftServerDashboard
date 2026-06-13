@@ -34,7 +34,7 @@ A minimalistic web dashboard for managing a Minecraft server — start/stop, liv
 3. The launcher installs what it needs and opens the dashboard at **http://localhost:8080**.
 4. Set a password, click **Download** to grab a server jar (Paper/Vanilla), **Accept EULA**, then **Start**. Done.
 
-The launcher will offer to install Node.js for you if it's missing. To actually run a Minecraft server you also need Java — the dashboard tells you if it's missing.
+The launcher installs both **Node.js** and **Java** for you automatically if they're missing (via winget on Windows, or your package manager on Linux/macOS) — there's nothing else to set up by hand.
 
 ## Start manually (developers)
 

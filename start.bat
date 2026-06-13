@@ -8,46 +8,61 @@ echo            MC Dashboard - Launcher
 echo  ============================================
 echo.
 
-rem --- Check for Node.js ---
+rem ---- Node.js (required to run the dashboard) ----
 where node >nul 2>nul
 if errorlevel 1 (
   echo  Node.js is needed to run the dashboard, but it isn't installed yet.
   echo.
   where winget >nul 2>nul
   if errorlevel 1 (
-    echo  Opening the Node.js download page in your browser.
-    echo  Install it ^(just click Next/Next/Finish^), then run this file again.
+    echo  Opening the Node.js download page. Install it ^(Next / Next / Finish^),
+    echo  then double-click start.bat again.
     start "" https://nodejs.org/en/download/prebuilt-installer
-    echo.
     pause
     exit /b
   )
-  echo  Installing Node.js automatically...
+  echo  Installing Node.js for you...
   winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
+  where java >nul 2>nul
+  if errorlevel 1 (
+    echo  Installing Java ^(needed to run the server^)...
+    winget install -e --id EclipseAdoptium.Temurin.21.JRE --accept-source-agreements --accept-package-agreements
+  )
   echo.
-  echo  Node.js installed. Please CLOSE this window and double-click start.bat again.
+  echo  All set. Please CLOSE this window and double-click start.bat again.
   pause
   exit /b
 )
 
-rem --- Install dependencies on first run ---
-if not exist "node_modules" (
-  echo  First-time setup: downloading components ^(takes about a minute^)...
-  call npm install
-  echo.
-)
-
-rem --- Friendly heads-up about Java ---
+rem ---- Java (needed to run the Minecraft server; dashboard works without it) ----
 where java >nul 2>nul
 if errorlevel 1 (
-  echo  NOTE: Java was not found. You can still open the dashboard, but to actually
-  echo        run a Minecraft server you'll need Java. The dashboard will guide you.
+  where winget >nul 2>nul
+  if errorlevel 1 (
+    echo  Java is needed to run a server. Opening the download page...
+    echo  Install Java 21, then restart start.bat.
+    start "" https://adoptium.net/temurin/releases/
+    echo.
+  ) else (
+    echo  Installing Java for you, please wait...
+    winget install -e --id EclipseAdoptium.Temurin.21.JRE --accept-source-agreements --accept-package-agreements
+    echo.
+    echo  Java installed. If pressing Start doesn't work the first time,
+    echo  close this window and run start.bat again so it's picked up.
+    echo.
+  )
+)
+
+rem ---- First-run dependencies ----
+if not exist "node_modules" (
+  echo  First-time setup: downloading components ^(about a minute^)...
+  call npm install
   echo.
 )
 
 echo  Starting the dashboard...
 echo  Your browser will open at http://localhost:8080
-echo  ^(Keep this window open while you play. Close it to stop the dashboard.^)
+echo  ^(Keep this window open while you play. Close it to stop.^)
 echo.
 
 start "" http://localhost:8080
