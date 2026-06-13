@@ -35,7 +35,6 @@ app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/jars', require('./routes/jars'));
 app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
-app.use('/api/map', require('./routes/map'));
 app.use('/api/tunnel', require('./routes/tunnel'));
 
 // Uniform JSON errors for thrown route errors

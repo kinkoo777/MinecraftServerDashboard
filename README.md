@@ -18,7 +18,7 @@ A minimalistic web dashboard for managing a Minecraft server — start/stop, liv
 - **Files** — file browser with upload, rename, delete and inline text editing
 - **Plugins/Mods** — manage `.jar` files, search & install directly from Modrinth
 - **Schedules** — daily or interval tasks (restart / backup / command / announce), colored in-game warnings ("restart in 5 minutes"), "only when no players online" option
-- **World Map** — elevation map rendered from the world's region files, with dimension switch, zoom and coordinate readout
+- **Play Online** — one-click internet access via [playit.gg](https://playit.gg) so friends can join with no port forwarding
 - **History** — daily reports (peak/avg players, uptime, crashes, backups, who played) with per-hour Players/CPU/RAM/TPS graphs; kept 120 days
 - **Multiple server profiles** — run several independent servers (survival, creative, …) from one dashboard and switch between them
 - **Notifications** — Discord webhook and/or ntfy.sh phone push for start/stop/crash, joins, backups and daily reports
@@ -27,7 +27,16 @@ A minimalistic web dashboard for managing a Minecraft server — start/stop, liv
 - **server.properties presets** — one-click survival / creative / hardcore / peaceful / anarchy bundles
 - Dark & light theme, responsive from phones to 4K, installable as a PWA
 
-## Quick start
+## Easiest way to start (no commands)
+
+1. **[Download the ZIP](https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip)** and unzip it anywhere.
+2. **Windows:** double-click **`start.bat`**. **Linux/macOS:** run **`./start.sh`**.
+3. The launcher installs what it needs and opens the dashboard at **http://localhost:8080**.
+4. Set a password, click **Download** to grab a server jar (Paper/Vanilla), **Accept EULA**, then **Start**. Done.
+
+The launcher will offer to install Node.js for you if it's missing. To actually run a Minecraft server you also need Java — the dashboard tells you if it's missing.
+
+## Start manually (developers)
 
 Requirements: [Node.js](https://nodejs.org) 18+, Java 17+ (21 for recent Minecraft versions).
 
@@ -36,7 +45,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:8080, set your dashboard password, download a server jar from the Settings page (or drop your own `server.jar` into `mc-server/`), accept the EULA from the dashboard, and press Start.
+Then open http://localhost:8080.
 
 Works on Windows and Linux. To run as a service on Linux:
 
