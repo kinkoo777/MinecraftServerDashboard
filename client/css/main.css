@@ -391,6 +391,18 @@ tr:hover .file-actions { opacity: 1; }
   pointer-events: none;
 }
 
+/* ---------- Play online (tunnel) ---------- */
+.tn-addr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.tn-addr code { font-family: var(--mono); font-size: 16px; color: var(--accent); flex: 1; word-break: break-all; }
+
 /* ---------- Server profiles ---------- */
 .srv-row {
   display: flex;
