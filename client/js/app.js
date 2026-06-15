@@ -172,11 +172,17 @@ const App = {
     };
   },
 
+  // plain-language status for non-technical users (keep the raw value for dot classes)
+  statusText(s) {
+    return { offline: 'Offline', starting: 'Starting up…', online: 'Ready to join', stopping: 'Stopping…' }[s]
+      || (s ? s[0].toUpperCase() + s.slice(1) : '');
+  },
+
   updateSidebar() {
     const dot = document.getElementById('side-status-dot');
     const text = document.getElementById('side-status-text');
     dot.className = `dot ${this.status}`;
-    text.textContent = this.status[0].toUpperCase() + this.status.slice(1);
+    text.textContent = this.statusText(this.status);
   },
 
   async api(path, opts = {}) {

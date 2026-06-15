@@ -77,8 +77,18 @@ App.pages.settings = {
         <div class="form-grid" id="cfg-grid">
           <div class="field"><label>Server jar file</label><input id="cfg-jarFile"></div>
           <div class="field"><label>Java path</label><input id="cfg-javaPath"><div class="hint">"java" if it's on PATH</div></div>
-          <div class="field"><label>Min RAM</label><input id="cfg-minRam"><div class="hint">e.g. 1G or 512M</div></div>
-          <div class="field"><label>Max RAM</label><input id="cfg-maxRam"><div class="hint">e.g. 4G</div></div>
+          <div class="field" style="grid-column:1/-1"><label>Server memory (RAM)</label>
+            <div class="ram-picker" id="ram-picker">
+              <button type="button" class="ram-opt" data-min="1G" data-max="2G"><b>Small</b><span>~2 GB · 1–3 players</span></button>
+              <button type="button" class="ram-opt" data-min="2G" data-max="4G"><b>Medium</b><span>~4 GB · around 5 players</span></button>
+              <button type="button" class="ram-opt" data-min="3G" data-max="6G"><b>Large</b><span>~6 GB · 10+ players or mods</span></button>
+            </div>
+            <div class="hint"><a id="ram-adv-toggle" style="cursor:pointer">Advanced (set exact values)…</a></div>
+            <div id="ram-adv" class="ram-adv" style="display:none">
+              <div class="field" style="margin:0"><label>Min RAM</label><input id="cfg-minRam"><div class="hint">e.g. 1G or 512M</div></div>
+              <div class="field" style="margin:0"><label>Max RAM</label><input id="cfg-maxRam"><div class="hint">e.g. 4G</div></div>
+            </div>
+          </div>
           <div class="field"><label>Backups to keep</label><input type="number" id="cfg-backupKeep" min="0" max="1000"><div class="hint">oldest are deleted; 0 = unlimited</div></div>
           <div class="field"><label>Auto-restart on crash</label>
             <label style="display:flex;align-items:center;gap:10px;padding:8px 0">
@@ -133,6 +143,7 @@ App.pages.settings = {
       document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
       document.getElementById('cfg-autoRestart').checked = cfg.autoRestart !== false;
     }
+    this.initRam();
     this.loadServers();
     this.loadPresets();
     this.checkUpdate();
@@ -196,6 +207,40 @@ App.pages.settings = {
     this.renderProps();
 
     document.getElementById('props-save').onclick = () => this.saveProps();
+  },
+
+  // Map the Min/Max RAM inputs to a friendly Small/Medium/Large picker.
+  initRam() {
+    const picker = document.getElementById('ram-picker');
+    const minEl = document.getElementById('cfg-minRam');
+    const maxEl = document.getElementById('cfg-maxRam');
+    const advBox = document.getElementById('ram-adv');
+    const advToggle = document.getElementById('ram-adv-toggle');
+    if (!picker || !minEl || !maxEl) return;
+
+    const norm = (v) => (v || '').trim().toUpperCase();
+    const showAdv = () => { advBox.style.display = 'grid'; advToggle.textContent = 'Hide advanced'; };
+
+    const sync = () => {
+      let matched = false;
+      picker.querySelectorAll('.ram-opt').forEach(b => {
+        const on = norm(b.dataset.min) === norm(minEl.value) && norm(b.dataset.max) === norm(maxEl.value);
+        b.classList.toggle('active', on);
+        if (on) matched = true;
+      });
+      if (!matched) showAdv(); // custom values -> reveal the exact inputs
+    };
+
+    picker.querySelectorAll('.ram-opt').forEach(b => {
+      b.onclick = () => { minEl.value = b.dataset.min; maxEl.value = b.dataset.max; sync(); };
+    });
+    advToggle.onclick = () => {
+      const show = advBox.style.display === 'none';
+      if (show) showAdv();
+      else { advBox.style.display = 'none'; advToggle.textContent = 'Advanced (set exact values)…'; }
+    };
+    minEl.oninput = maxEl.oninput = sync;
+    sync();
   },
 
   async loadServers() {

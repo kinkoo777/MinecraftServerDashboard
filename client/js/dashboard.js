@@ -217,16 +217,20 @@ App.pages.dashboard = {
     if (!box) return;
     let html = '';
     if (!s.jarExists) {
-      html += `<div class="notice"><span class="notice-text">No <b>${App.esc(s.jarFile)}</b> found in the server folder. Upload one on the Files page or change the jar name in Settings.</span></div>`;
+      html += `<div class="notice notice-setup"><span class="notice-text">No server installed yet — let's get you set up in a couple of clicks.</span><button id="db-wizard" class="btn-primary btn-sm">⚡ Quick setup</button></div>`;
     }
     if (s.jarExists && s.eula !== 'accepted') {
       html += `<div class="notice"><span class="notice-text">The Minecraft EULA has not been accepted yet — the server won't start without it.</span><button id="db-eula" class="btn-primary btn-sm">Accept EULA</button></div>`;
     }
     box.innerHTML = html;
+    const wizBtn = document.getElementById('db-wizard');
+    if (wizBtn) wizBtn.onclick = () => App.wizard.open();
     const eulaBtn = document.getElementById('db-eula');
     if (eulaBtn) eulaBtn.onclick = async () => {
       if (await App.tryApi('/server/eula', { method: 'POST' }, 'EULA accepted')) this.checkSetup();
     };
+    // first run: open the wizard automatically when there's no server yet
+    App.wizard.maybeAutoOpen(s);
   },
 
   renderLog() {
@@ -243,7 +247,7 @@ App.pages.dashboard = {
     const dot = document.getElementById('db-dot');
     if (!dot) return;
     dot.className = `dot ${status}`;
-    document.getElementById('db-status').textContent = status[0].toUpperCase() + status.slice(1);
+    document.getElementById('db-status').textContent = App.statusText(status);
     document.getElementById('db-start').disabled = status !== 'offline';
     document.getElementById('db-stop').disabled = status === 'offline' || status === 'stopping';
     document.getElementById('db-restart').disabled = status !== 'online';
