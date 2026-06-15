@@ -78,14 +78,27 @@ router.delete('/backup/:name', (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/restore', async (req, res) => {
+router.post('/restore', async (req, res, next) => {
   if (!requireOffline(res)) return;
   const file = safeBackupFile(req.body.name || '');
   if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'Backup not found' });
-  const worldDir = path.join(serverDir(), levelName());
-  if (fs.existsSync(worldDir)) fs.rmSync(worldDir, { recursive: true, force: true });
-  await extractZip(file, { dir: serverDir() });
-  res.json({ ok: true });
+  const name = levelName();
+  const worldDir = path.join(serverDir(), name);
+  const tmpDir = path.join(serverDir(), '.restore-tmp');
+  // Extract to a temp folder first, then swap in — so a corrupt backup never
+  // leaves you with the old world deleted and no replacement.
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    await extractZip(file, { dir: tmpDir });
+    const extracted = fs.existsSync(path.join(tmpDir, name)) ? path.join(tmpDir, name) : tmpDir;
+    if (fs.existsSync(worldDir)) fs.rmSync(worldDir, { recursive: true, force: true });
+    fs.renameSync(extracted, worldDir);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    res.json({ ok: true });
+  } catch (e) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    next(e);
+  }
 });
 
 router.delete('/', (req, res) => {

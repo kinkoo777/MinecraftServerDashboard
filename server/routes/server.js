@@ -80,10 +80,12 @@ router.post('/stop', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/restart', async (req, res) => {
-  await mc.stop();
-  mc.start(getConfig());
-  res.json({ ok: true });
+router.post('/restart', async (req, res, next) => {
+  try {
+    await mc.stop();
+    mc.start(getConfig());
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 router.post('/command', (req, res) => {

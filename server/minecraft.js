@@ -73,6 +73,8 @@ class MinecraftServer extends EventEmitter {
     if (config.jvmArgs) args.push(...config.jvmArgs.split(' ').filter(Boolean));
     args.push('-jar', config.jarFile, 'nogui');
 
+    // fresh buffer per run so saved console logs and the live view don't mix sessions
+    this.logBuffer = [];
     this.setStatus('starting');
     this.startedAt = Date.now();
     this.pushLog(`[dashboard] Launching: ${config.javaPath} ${args.join(' ')}`);

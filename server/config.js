@@ -139,6 +139,8 @@ function removeServer(i) {
   if (s.servers.length <= 1) throw Object.assign(new Error('Cannot remove the only server'), { status: 400 });
   if (i < 0 || i >= s.servers.length) throw Object.assign(new Error('No such server'), { status: 400 });
   s.servers.splice(i, 1);
+  // keep activeServer pointing at the same profile when one before it is removed
+  if (i < s.activeServer) s.activeServer--;
   if (s.activeServer >= s.servers.length) s.activeServer = s.servers.length - 1;
   persist();
   return listServers();
