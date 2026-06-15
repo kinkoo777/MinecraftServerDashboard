@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Minecraft server dashboard - manage your MC server from the browser",
   "main": "server/index.js",
+  "license": "MIT",
   "scripts": {
     "start": "node server/index.js"
   },

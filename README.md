@@ -212,6 +212,6 @@ sudo systemctl enable --now mc-dashboard
 
 <div align="center">
 
-Open source · made for the community · not affiliated with Mojang or Microsoft.
+[MIT licensed](LICENSE) · made for the community · not affiliated with Mojang or Microsoft.
 
 </div>
