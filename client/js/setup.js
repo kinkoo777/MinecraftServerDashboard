@@ -50,8 +50,6 @@ App.wizard = {
       { min: '2G', max: '4G', name: 'Medium', sub: '~4 GB · around 5' },
       { min: '3G', max: '6G', name: 'Large', sub: '~6 GB · 10+ / mods' }
     ];
-    const up = (v) => (v || '').toUpperCase();
-    const anyRamMatch = ramOpts.some(o => o.min === up(this.cfg.minRam) && o.max === up(this.cfg.maxRam));
     body.innerHTML = `
       ${hasJar ? `
         <div class="wiz-note">${App.icon('server', 16)} You already have a server installed — pick your options below and we'll start it.</div>
@@ -80,10 +78,12 @@ App.wizard = {
           <input id="wiz-motd" placeholder="My Minecraft Server" maxlength="60"></div>
         <div class="field"><label>Server memory (RAM)</label>
           <div class="ram-picker" id="wiz-ram">
-            ${ramOpts.map((o, i) => {
-              const active = anyRamMatch ? (o.min === up(this.cfg.minRam) && o.max === up(this.cfg.maxRam)) : i === 0;
-              return `<button type="button" class="ram-opt${active ? ' active' : ''}" data-min="${o.min}" data-max="${o.max}"><b>${o.name}</b><span>${o.sub}</span></button>`;
-            }).join('')}
+            ${ramOpts.map(o => `<button type="button" class="ram-opt" data-min="${o.min}" data-max="${o.max}"><b>${o.name}</b><span>${o.sub}</span></button>`).join('')}
+          </div>
+          <div class="hint"><a id="wiz-ram-adv-toggle" style="cursor:pointer">Advanced (set exact values)…</a></div>
+          <div id="wiz-ram-adv" class="ram-adv" style="display:none">
+            <div class="field" style="margin:0"><label>Min RAM</label><input id="wiz-minRam" placeholder="1G"><div class="hint">e.g. 1G or 512M</div></div>
+            <div class="field" style="margin:0"><label>Max RAM</label><input id="wiz-maxRam" placeholder="2G"><div class="hint">e.g. 4G</div></div>
           </div>
         </div>
         <div class="wiz-grid3">
@@ -102,10 +102,7 @@ App.wizard = {
       <button id="wiz-go" class="btn-primary wiz-go">${hasJar ? 'Apply & start' : 'Create my server'} →</button>
     `;
 
-    // RAM picker: single active selection
-    body.querySelectorAll('#wiz-ram .ram-opt').forEach(b => {
-      b.onclick = () => body.querySelectorAll('#wiz-ram .ram-opt').forEach(x => x.classList.toggle('active', x === b));
-    });
+    this.initRam();
 
     if (!hasJar) {
       let picked = 'paper';
@@ -152,10 +149,48 @@ App.wizard = {
     return this.versions ? (this.versions[type] || [])[0] : null;
   },
 
-  // Read the options form into { ram, props } (ram is null if no preset is selected)
+  // Wire the RAM presets to the exact Min/Max inputs (inputs are the source of truth).
+  initRam() {
+    const picker = document.getElementById('wiz-ram');
+    const minEl = document.getElementById('wiz-minRam');
+    const maxEl = document.getElementById('wiz-maxRam');
+    const advBox = document.getElementById('wiz-ram-adv');
+    const advToggle = document.getElementById('wiz-ram-adv-toggle');
+    if (!picker || !minEl || !maxEl) return;
+
+    const norm = (v) => (v || '').trim().toUpperCase();
+    minEl.value = this.cfg.minRam || '1G';
+    maxEl.value = this.cfg.maxRam || '2G';
+    const showAdv = () => { advBox.style.display = 'grid'; advToggle.textContent = 'Use a preset instead'; };
+
+    const sync = () => {
+      let matched = false;
+      picker.querySelectorAll('.ram-opt').forEach(b => {
+        const on = norm(b.dataset.min) === norm(minEl.value) && norm(b.dataset.max) === norm(maxEl.value);
+        b.classList.toggle('active', on);
+        if (on) matched = true;
+      });
+      if (!matched) showAdv(); // custom values -> reveal the exact inputs
+    };
+
+    picker.querySelectorAll('.ram-opt').forEach(b => {
+      b.onclick = () => { minEl.value = b.dataset.min; maxEl.value = b.dataset.max; sync(); };
+    });
+    advToggle.onclick = () => {
+      const show = advBox.style.display === 'none';
+      if (show) showAdv();
+      else { advBox.style.display = 'none'; advToggle.textContent = 'Advanced (set exact values)…'; }
+    };
+    minEl.oninput = maxEl.oninput = sync;
+    sync();
+  },
+
+  // Read the options form into { ram, props }
   collectOptions() {
-    const ramBtn = document.querySelector('#wiz-ram .ram-opt.active');
-    const ram = ramBtn ? { min: ramBtn.dataset.min, max: ramBtn.dataset.max } : null;
+    const ram = {
+      min: (document.getElementById('wiz-minRam').value || '').trim(),
+      max: (document.getElementById('wiz-maxRam').value || '').trim()
+    };
     const props = {
       gamemode: document.getElementById('wiz-gamemode').value,
       difficulty: document.getElementById('wiz-difficulty').value
@@ -179,6 +214,11 @@ App.wizard = {
 
     // capture the chosen options before we overwrite the form with progress
     const opts = this.collectOptions();
+    const RAM_RE = /^\d+[MG]$/i;
+    if (!RAM_RE.test(opts.ram.min) || !RAM_RE.test(opts.ram.max)) {
+      this.busy = false;
+      return App.toast('RAM must look like 1G or 512M', true);
+    }
 
     // make sure we have a version to download before we start showing progress
     if (!this.st.jarExists && !this.versions) await this.loadVersions(type);
