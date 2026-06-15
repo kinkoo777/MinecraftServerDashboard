@@ -74,10 +74,11 @@ header {
 
 /* ---------- Hero ---------- */
 .hero {
-  display: grid; grid-template-columns: 1.05fr 1fr; gap: 50px; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 50px; align-items: center;
   padding: 90px 6vw 70px;
   max-width: 1280px; margin: 0 auto;
 }
+.hero-inner { min-width: 0; }
 .badge-pill {
   display: inline-flex; align-items: center; gap: 9px;
   padding: 7px 16px; border-radius: 999px;
@@ -100,19 +101,20 @@ header {
   overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
   transform: perspective(1400px) rotateY(-9deg) rotateX(3deg);
   transition: transform .4s;
+  min-width: 0; max-width: 100%;
 }
 .mock:hover { transform: perspective(1400px) rotateY(-3deg) rotateX(1deg); }
 .mock-bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--border); background: #12151b; }
 .mock-bar > span { width: 11px; height: 11px; border-radius: 50%; background: #2c333f; }
 .mock-bar > span:first-child { background: #ff5f57; } .mock-bar > span:nth-child(2) { background: #febc2e; } .mock-bar > span:nth-child(3) { background: #28c840; }
 .mock-url { margin-left: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--bg); padding: 3px 12px; border-radius: 6px; }
-.mock-body { display: grid; grid-template-columns: 130px 1fr; min-height: 250px; }
+.mock-body { display: grid; grid-template-columns: 120px minmax(0, 1fr); min-height: 250px; }
 .mock-side { border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; background: #14171d; }
 .m-logo { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 12px; margin-bottom: 10px; }
 .m-nav { font-size: 12px; color: var(--muted); padding: 7px 9px; border-radius: 7px; display: flex; align-items: center; gap: 8px; }
 .m-nav svg { width: 13px; height: 13px; flex-shrink: 0; }
 .m-nav.active { background: rgba(0,210,106,0.12); color: var(--accent); }
-.mock-main { padding: 16px; }
+.mock-main { padding: 16px; min-width: 0; overflow: hidden; }
 .m-row { margin-bottom: 14px; }
 .m-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; background: var(--card-hover); border: 1px solid var(--border); padding: 5px 12px; border-radius: 999px; }
 .m-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
@@ -225,17 +227,61 @@ html.js .reveal.in { opacity: 1; transform: none; }
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; padding-top: 56px; }
-  .mock { transform: none; }
-  .mock:hover { transform: none; }
-  .who { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
-  .strip { grid-template-columns: repeat(2,1fr); gap: 26px; }
-  .foot-note { margin-left: 0; }
+
+/* Small laptops */
+@media (max-width: 1100px) {
+  .hero { gap: 36px; padding: 70px 6vw 60px; }
+  .section { padding: 70px 6vw; }
 }
-@media (max-width: 520px) {
+
+/* Tablets & below: stack the hero, move nav to its own row (don't hide it) */
+@media (max-width: 900px) {
+  header { flex-wrap: wrap; gap: 10px 16px; padding: 12px 5vw; }
+  .gh-btn { order: 2; }
+  .nav-links {
+    order: 3; width: 100%; margin-left: 0;
+    justify-content: center; gap: 18px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .hero { grid-template-columns: minmax(0, 1fr); padding: 44px 6vw 52px; }
+  .mock, .mock:hover { transform: none; }
+  .who { grid-template-columns: 1fr; gap: 28px; }
+  .strip { grid-template-columns: repeat(2,1fr); gap: 26px; padding: 22px 6vw; }
+  .section { padding: 58px 6vw; }
+  .foot-inner { gap: 16px; }
+  .foot-note { margin-left: 0; max-width: none; }
+}
+
+/* Phones */
+@media (max-width: 560px) {
   .hero h1 { letter-spacing: -1px; }
   .gh-btn span { display: none; }
-  .trust { gap: 14px; }
+  .lead { font-size: 16px; }
+  .trust { gap: 10px 14px; font-size: 13px; }
+  .hero-cta { gap: 10px; }
+  .hero-cta .btn { flex: 1 1 auto; justify-content: center; }
+  .nav-links { gap: 14px; font-size: 14px; }
+  .section { padding: 46px 5vw; }
+  .section-head { margin-bottom: 32px; }
+  .cards { gap: 14px; }
+  .card { padding: 20px; }
+  .step { padding: 18px; gap: 14px; }
+  .m-stats { grid-template-columns: repeat(2,1fr); }
+  .clink { width: calc(50% - 8px); }
+  .faq details { padding: 2px 16px; }
+  .who-quote { padding: 24px; }
+  .who-quote p { font-size: 18px; }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .brand span { font-size: 15px; }
+  .hero h1 { font-size: 30px; }
+}
+
+/* Large / 4K screens — let it breathe a little wider */
+@media (min-width: 1500px) {
+  .hero { max-width: 1340px; }
+  .section { max-width: 1260px; }
 }
