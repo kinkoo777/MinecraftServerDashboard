@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MC Dashboard launcher for Linux & macOS — run: ./start.sh
+# MC Dashboard launcher for Linux & macOS - run: ./start.sh
 cd "$(dirname "$0")" || exit 1
 
 echo "============================================"
@@ -7,10 +7,34 @@ echo "          MC Dashboard - Launcher"
 echo "============================================"
 echo
 
-# ---- Node.js (required) ----
-if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js not found — installing it..."
-  if command -v apt-get >/dev/null 2>&1; then
+OS="$(uname -s)"
+
+open_url() {
+  if [ "$OS" = "Darwin" ]; then
+    open "$1" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$1" >/dev/null 2>&1 || true
+  fi
+}
+
+install_node() {
+  if [ "$OS" = "Darwin" ]; then
+    echo "Node.js is needed to run the dashboard, but it is not installed yet."
+    echo
+    if command -v brew >/dev/null 2>&1; then
+      echo "Installing Node.js with Homebrew..."
+      brew install node || return 1
+    else
+      echo "Homebrew is needed to set things up automatically on macOS, but it isn't installed."
+      echo "Install Homebrew by pasting this into Terminal, then run ./start.sh again:"
+      echo
+      echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+      echo
+      echo "(Opening https://brew.sh for instructions. You can also install Node.js manually from nodejs.org.)"
+      open_url "https://brew.sh"
+      return 1
+    fi
+  elif command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update && sudo apt-get install -y nodejs npm
   elif command -v dnf >/dev/null 2>&1; then
     sudo dnf install -y nodejs
@@ -21,21 +45,31 @@ if ! command -v node >/dev/null 2>&1; then
   elif command -v brew >/dev/null 2>&1; then
     brew install node
   else
-    echo "Couldn't auto-install Node.js. Install it from https://nodejs.org then re-run."
-    exit 1
+    echo "Could not auto-install Node.js."
+    echo "Install it from https://nodejs.org, then run ./start.sh again."
+    open_url "https://nodejs.org/en/download/prebuilt-installer"
+    return 1
   fi
-  hash -r 2>/dev/null || true
-  if ! command -v node >/dev/null 2>&1; then
-    echo "Node.js install didn't complete. Please install it from https://nodejs.org and re-run."
-    exit 1
-  fi
-  echo
-fi
+}
 
-# ---- Java (needed to run the Minecraft server; dashboard works without it) ----
-if ! command -v java >/dev/null 2>&1; then
-  echo "Java not found — installing it (needed to run the server)..."
-  if command -v apt-get >/dev/null 2>&1; then
+install_java() {
+  if [ "$OS" = "Darwin" ]; then
+    echo "Java is needed to run the Minecraft server, but it is not installed yet."
+    echo
+    if command -v brew >/dev/null 2>&1; then
+      echo "Installing Java with Homebrew..."
+      brew install --cask temurin || return 1
+    else
+      echo "Homebrew is needed to install Java automatically on macOS, but it isn't installed."
+      echo "Install Homebrew by pasting this into Terminal, then run ./start.sh again:"
+      echo
+      echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+      echo
+      echo "(Opening https://brew.sh. You can also install Java 21 manually from adoptium.net.)"
+      open_url "https://brew.sh"
+      return 1
+    fi
+  elif command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update && sudo apt-get install -y openjdk-21-jre-headless
   elif command -v dnf >/dev/null 2>&1; then
     sudo dnf install -y java-21-openjdk-headless
@@ -46,16 +80,48 @@ if ! command -v java >/dev/null 2>&1; then
   elif command -v brew >/dev/null 2>&1; then
     brew install --cask temurin
   else
-    echo "Couldn't auto-install Java. Install Java 21 from https://adoptium.net"
+    echo "Could not auto-install Java."
+    echo "Install Java 21 from https://adoptium.net, then run ./start.sh again."
+    open_url "https://adoptium.net/temurin/releases/?version=21"
+    return 1
   fi
+}
+
+# ---- Node.js (required to run the dashboard) ----
+if ! command -v node >/dev/null 2>&1; then
+  install_node || exit 1
   hash -r 2>/dev/null || true
+  if ! command -v node >/dev/null 2>&1; then
+    echo "Node.js is still not available. Please install it, then run ./start.sh again."
+    exit 1
+  fi
   echo
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm was not found."
+  echo "Install the Node.js LTS package from https://nodejs.org, then run ./start.sh again."
+  open_url "https://nodejs.org/en/download/prebuilt-installer"
+  exit 1
+fi
+
+# ---- Java (needed to run the Minecraft server; dashboard works without it) ----
+if ! command -v java >/dev/null 2>&1; then
+  install_java || true
+  hash -r 2>/dev/null || true
+  if ! command -v java >/dev/null 2>&1; then
+    echo "Java is still not available."
+    echo "The dashboard will open, but the Minecraft server cannot start until Java 21 is installed."
+    echo
+  else
+    echo
+  fi
 fi
 
 # ---- First-run dependencies ----
 if [ ! -d node_modules ]; then
   echo "First-time setup: installing components (about a minute)..."
-  npm install
+  npm install || exit 1
   echo
 fi
 
@@ -63,7 +129,7 @@ echo "Starting the dashboard at http://localhost:8080"
 echo "(Keep this window open while you play. Press Ctrl+C to stop.)"
 echo
 
-# open the browser shortly after the server comes up
-( sleep 2; (xdg-open http://localhost:8080 || open http://localhost:8080) >/dev/null 2>&1 ) &
+# Open the browser shortly after the server comes up.
+( sleep 2; open_url "http://localhost:8080" ) &
 
 node server/index.js

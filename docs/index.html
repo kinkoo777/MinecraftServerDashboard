@@ -109,52 +109,6 @@
     </div>
   </section>
 
-  <!-- SCREENSHOTS -->
-  <section id="screens" class="section screens">
-    <div class="section-head reveal">
-      <h2>A peek at the dashboard</h2>
-      <p>Clean, fast and the same on every device &mdash; here's what you'll actually be using.</p>
-    </div>
-    <div class="shots">
-      <figure class="shot reveal">
-        <div class="shot-win">
-          <div class="shot-bar"><span></span><span></span><span></span></div>
-          <div class="shot-body shot-console">
-            <div class="cl"><span class="t">[12:01:04]</span> Starting Minecraft server</div>
-            <div class="cl"><span class="t">[12:01:07]</span> Preparing level "world"</div>
-            <div class="cl"><span class="t">[12:01:11]</span> <span class="ok">Done (4.2s)! For help, type "help"</span></div>
-            <div class="cl"><span class="t">[12:03:22]</span> Steve joined the game</div>
-            <div class="cl cmd">&gt; say Welcome to the server!</div>
-          </div>
-        </div>
-        <figcaption>Live console &mdash; watch and control the server in real time.</figcaption>
-      </figure>
-      <figure class="shot reveal">
-        <div class="shot-win">
-          <div class="shot-bar"><span></span><span></span><span></span></div>
-          <div class="shot-body shot-players">
-            <div class="pl"><span class="av">S</span><div class="pi"><b>Steve</b><span>online &middot; 12h played</span></div><span class="pt op">OP</span></div>
-            <div class="pl"><span class="av">A</span><div class="pi"><b>Alex</b><span>online &middot; 8h played</span></div><span class="pt wl">Whitelist</span></div>
-            <div class="pl"><span class="av">N</span><div class="pi"><b>Noah</b><span>offline &middot; 3h played</span></div></div>
-          </div>
-        </div>
-        <figcaption>Players &mdash; op, whitelist, ban, heal, teleport, view inventories.</figcaption>
-      </figure>
-      <figure class="shot reveal">
-        <div class="shot-win">
-          <div class="shot-bar"><span></span><span></span><span></span></div>
-          <div class="shot-body shot-play">
-            <div class="po-label">Your public address</div>
-            <div class="po-addr"><code>yourname.craft.playit.gg</code><span class="po-copy">Copy</span></div>
-            <div class="po-status"><span class="dot"></span> Online &mdash; send it to your friends</div>
-          </div>
-        </div>
-        <figcaption>Play Online &mdash; one click gives friends a link, no router setup.</figcaption>
-      </figure>
-    </div>
-    <p class="muted shots-note">&#128241; It's also installable as a phone app &mdash; add it to your home screen and manage your server from anywhere on your network.</p>
-  </section>
-
   <!-- WHO -->
   <section class="section who reveal">
     <div class="who-text">
@@ -267,6 +221,13 @@
             <span class="note-tip"><b>Tip: to skip it entirely, right-click the downloaded ZIP &rarr; Properties &rarr; click Unblock before extracting.</b></span>
           </div>
         </div>
+        <div class="note">
+          <span class="note-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
+          <div>
+            <b>On macOS, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a> first.</b> The launcher uses it to set up Node.js and Java automatically. Paste this into the Terminal app, then run <code class="inline">./start.sh</code>:
+            <span class="note-tip"><code class="inline">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code></span>
+          </div>
+        </div>
       </div></div>
       <div class="step reveal"><div class="s-num">3</div><div><h3>Set up &amp; play</h3><p class="s-text">Choose a password, click <b>Download</b> to get a server (Paper or Vanilla), accept the EULA, and press <b>Start</b>. Open the <b>Play Online</b> tab to get a link your friends can join &mdash; no router setup needed.</p></div></div>
     </div>
@@ -286,7 +247,7 @@
       <details class="reveal"><summary>Is it really free?</summary><p>Yes &mdash; completely. MC Dashboard is open source and free to use forever. There are no subscriptions, no paywalls, and no ads. You only need a computer to run it on.</p></details>
       <details class="reveal"><summary>Do I need to know how to code?</summary><p>No. Download the ZIP, unzip it, and double-click <b>start.bat</b> (Windows) or <b>start.sh</b> (Linux/macOS) &mdash; that's the whole installation. Everything after that is point-and-click in your browser.</p></details>
       <details class="reveal"><summary>Windows says it's "not safe" &mdash; is it?</summary><p>Yes, it's safe. That warning is <b>Windows SmartScreen</b>, which flags any program that isn't code-signed &mdash; and code signing costs hundreds of dollars a year, so nearly all free open-source tools trigger it. The full source is public on GitHub, so you can verify exactly what it does. To allow it, right-click the downloaded <b>.zip &rarr; Properties &rarr; click Unblock</b> before extracting, or if you see "Windows protected your PC", click <b>More info &rarr; Run anyway</b>.</p></details>
-      <details class="reveal"><summary>What do I need to run it?</summary><p>Just a regular computer (Windows, Linux, or macOS) &mdash; even an old laptop or a Raspberry Pi works for a small server. The launcher installs everything it needs for you &mdash; including <b>Java</b> for the Minecraft server &mdash; so there's nothing to set up by hand.</p></details>
+      <details class="reveal"><summary>What do I need to run it?</summary><p>Just a regular computer (Windows, Linux, or macOS) &mdash; even an old laptop or a Raspberry Pi works for a small server. The launcher installs everything it needs for you &mdash; including <b>Java</b> for the Minecraft server &mdash; so there's nothing to set up by hand. <b>On macOS</b>, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a> first &mdash; the launcher uses it to install Node.js and Java automatically.</p></details>
       <details class="reveal"><summary>How do my friends connect?</summary><p>Easiest way: open the <b>Play Online</b> tab and click once &mdash; it sets up a free playit.gg link your friends paste into Minecraft, with no router or port-forwarding changes. You can also use your own IP on a home network.</p></details>
       <details class="reveal"><summary>Can I use plugins and mods?</summary><p>Yes. Use a Paper server JAR for plugins or Fabric/Forge for mods, then search and install them straight from Modrinth inside the dashboard, or upload your own JARs.</p></details>
       <details class="reveal"><summary>Which Minecraft versions are supported?</summary><p>Any recent Paper or Vanilla version &mdash; you can download them with one click from the dashboard, including the latest releases.</p></details>

@@ -39,6 +39,12 @@ That's the whole install. No commands to type. Continue with the tutorial below.
 
 > The launcher uses winget on Windows, or apt/dnf/pacman/zypper/Homebrew on Linux & macOS, to install Node.js and Java automatically if they're missing. If it ever can't, it opens the right download page for you.
 
+> **On macOS, install [Homebrew](https://brew.sh) first** — the launcher relies on it to set up Node.js and Java for you. Paste this into the Terminal app, then run `./start.sh`:
+>
+> ```bash
+> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+> ```
+
 ### ⚠️ Windows says "not safe" or blocks it?
 
 That's normal — it's **Windows SmartScreen** warning about software that isn't *code-signed* (signing certificates cost hundreds of dollars/year, so most free open-source tools trigger this). It is **not a virus**: this is open source and you can read every line on GitHub. To allow it:
