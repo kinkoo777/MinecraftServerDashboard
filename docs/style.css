@@ -178,6 +178,19 @@ header {
 .inline { font-family: var(--mono); background: var(--bg); padding: 2px 7px; border-radius: 5px; font-size: 13px; }
 .install-cta { text-align: center; margin-top: 36px; }
 
+.note {
+  margin-top: 14px;
+  padding: 12px 15px;
+  background: rgba(255, 180, 84, 0.08);
+  border: 1px solid rgba(255, 180, 84, 0.28);
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #e7d6b6;
+}
+.note b { color: #ffce82; }
+.note .muted { display: block; margin-top: 6px; }
+
 /* faq */
 .faq { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .faq details { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 4px 22px; transition: border-color .2s; }
