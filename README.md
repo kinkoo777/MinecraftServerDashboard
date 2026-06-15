@@ -10,11 +10,14 @@ A complete web control panel for a Minecraft server: live console, one-click sta
 
 </div>
 
+> [!IMPORTANT]
+> **Windows may warn you the first time you run it.** Because this is free, open-source software that isn't *code-signed*, Windows Security / SmartScreen can say **"Windows protected your PC"** or flag it as unsafe. It is **not a virus** — every line is public here on GitHub. To allow it: right-click the downloaded **`.zip` → Properties → tick ☑ Unblock** before extracting, or if you see the popup, click **More info → Run anyway**. Full details in [Quick install](#-quick-install-normal-people-version) and [Troubleshooting](#-troubleshooting) below.
+
 ---
 
 ## Contents
 
-- [Quick install (no commands)](#-quick-install-no-commands)
+- [Quick install](#-quick-install-normal-people-version)
 - [Tutorial: your first server in 5 minutes](#-tutorial-your-first-server-in-5-minutes)
 - [Playing with friends](#-playing-with-friends)
 - [Backups & schedules](#-backups--schedules)
@@ -27,30 +30,31 @@ A complete web control panel for a Minecraft server: live console, one-click sta
 
 ---
 
-## 🚀 Quick install (no commands)
+## 🚀 Quick install (normal people version)
 
-1. **[Download the ZIP](https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip)** and unzip it anywhere (e.g. your Desktop).
-2. Open the folder and:
+1. **[Download the ZIP](https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip)**.
+2. Open your **Downloads** folder, right-click the ZIP, and choose **Extract All** / **Unzip**.
+3. Open the extracted folder.
+4. Start the launcher:
    - **Windows:** double-click **`start.bat`**
-   - **Linux / macOS:** run **`./start.sh`** in a terminal
-3. The launcher installs everything it needs — **Node.js and Java included** — and opens the dashboard at **http://localhost:8080**.
+   - **macOS:** open Terminal in the folder and run **`./start.sh`**
+   - **Linux:** open a terminal in the folder and run **`./start.sh`**
+5. Keep the launcher window open. Your browser opens at **http://localhost:8080**.
+6. In the browser, create a password, download Paper or Vanilla, accept the EULA, and press **Start**.
 
-That's the whole install. No commands to type. Continue with the tutorial below.
+The launcher tries to install what it needs automatically. If macOS says Node.js or Java is missing, install [Homebrew](https://brew.sh), then run `./start.sh` again:
 
-> The launcher uses winget on Windows, or apt/dnf/pacman/zypper/Homebrew on Linux & macOS, to install Node.js and Java automatically if they're missing. If it ever can't, it opens the right download page for you.
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
 
-> **On macOS, install [Homebrew](https://brew.sh) first** — the launcher relies on it to set up Node.js and Java for you. Paste this into the Terminal app, then run `./start.sh`:
->
-> ```bash
-> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-> ```
+### ⚠️ Windows Security says "not safe" or blocks it?
 
-### ⚠️ Windows says "not safe" or blocks it?
-
-That's normal — it's **Windows SmartScreen** warning about software that isn't *code-signed* (signing certificates cost hundreds of dollars/year, so most free open-source tools trigger this). It is **not a virus**: this is open source and you can read every line on GitHub. To allow it:
+That's normal for free open-source apps that are not *code-signed*. Windows Security / SmartScreen may say **"Windows protected your PC"**, **"unknown publisher"**, or even quarantine one of the launcher files. It is **not a virus**: this is open source and you can read every line on GitHub. To allow it:
 
 - **Best:** right-click the downloaded **`.zip` → Properties → tick ☑ Unblock → OK**, *then* extract and run. This clears the warning from every file at once.
 - **If you see "Windows protected your PC":** click **More info → Run anyway**.
+- **If Windows quarantined a file:** open **Windows Security → Protection history**, choose the MC Dashboard item, then click **Allow** or **Restore**. After that, extract the ZIP again.
 - **If your browser blocked the download:** click **Keep / Keep anyway**.
 
 ---
@@ -147,7 +151,7 @@ On the **Plugins** page you can **search Modrinth and install** plugins/mods wit
 
 | Problem | Fix |
 |---|---|
-| **Windows says "not safe" / "Windows protected your PC"** | Unsigned open-source software — it's safe. Right-click the `.zip` → Properties → **Unblock** before extracting, or click **More info → Run anyway**. See above. |
+| **Windows Security says "not safe", quarantines a file, or shows "Windows protected your PC"** | Unsigned open-source software — it's safe. Right-click the `.zip` → Properties → **Unblock** before extracting. If Windows quarantined it, open **Windows Security → Protection history** and choose **Allow** / **Restore**. If SmartScreen appears, click **More info → Run anyway**. |
 | **Browser didn't open / "can't reach localhost:8080"** | Make sure the launcher window is still open. Then visit `http://localhost:8080` manually. |
 | **"Server jar not found"** | Download one from **Settings → Server jar**, or drop a `server.jar` into the `mc-server/` folder. |
 | **Server won't start, log mentions Java** | Java isn't installed or wasn't found. Re-run the launcher (it installs Java), then try again. |

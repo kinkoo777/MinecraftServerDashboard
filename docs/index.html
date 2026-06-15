@@ -79,6 +79,17 @@
     </div>
   </section>
 
+  <!-- HEADS-UP: Windows SmartScreen -->
+  <section class="heads-up-wrap reveal">
+    <div class="heads-up">
+      <span class="hu-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <div class="hu-text">
+        <b>Heads up &mdash; Windows may warn you the first time.</b> Because this is free, open-source software that isn't <em>code-signed</em>, Windows might say <b>"Windows protected your PC"</b> or flag it as unsafe. It's <b>not a virus</b> &mdash; every line is public on GitHub. Just click <span class="kbd">More info</span> &rarr; <span class="kbd">Run anyway</span>, or unblock the ZIP before extracting.
+      </div>
+      <a href="#install" class="hu-link">How to allow it &rarr;</a>
+    </div>
+  </section>
+
   <!-- STATS STRIP -->
   <section class="strip reveal">
     <div class="strip-item"><div class="num">$0</div><div class="cap">forever</div></div>
@@ -108,6 +119,7 @@
       <div class="card reveal"><div class="c-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>Secure &amp; yours</h3><p>Password-protected, dark/light themes, fully responsive, installable as a phone app.</p></div>
     </div>
   </section>
+
 
   <!-- WHO -->
   <section class="section who reveal">
@@ -149,42 +161,39 @@
     </div>
   </section>
 
-  <!-- COST COMPARISON -->
+  <!-- WHY FREE -->
   <section id="why" class="section cost">
     <div class="section-head reveal">
-      <h2>Stop renting servers</h2>
-      <p>Hosting usually means a monthly bill, or a free server that falls asleep the moment you leave. Run it yourself and pay nothing &mdash; for good.</p>
+      <h2>Simple by design</h2>
+      <p>MC Dashboard gives you a polished control panel without accounts, subscriptions or hidden limits.</p>
     </div>
     <div class="cost-grid">
       <div class="cost-card reveal">
-        <h3>Free hosts <span>(Aternos &amp; co.)</span></h3>
-        <div class="price">$0<small>/mo</small></div>
+        <h3>No monthly bill</h3>
+        <div class="price">$0<small>forever</small></div>
         <ul class="cost-list">
-          <li class="no">Sleeps when you leave &mdash; friends get dropped</li>
-          <li class="no">Queues and waits before it starts</li>
-          <li class="no">Limited RAM, plugins and control</li>
-          <li class="yes">No hardware needed</li>
+          <li class="yes">Open source and free to use</li>
+          <li class="yes">No account required</li>
+          <li class="yes">No paywalls or ads</li>
         </ul>
       </div>
       <div class="cost-card reveal">
-        <h3>Paid hosts <span>(Shockbyte, Apex&hellip;)</span></h3>
-        <div class="price">$5&ndash;15<small>/mo</small></div>
+        <h3>Full control</h3>
+        <div class="price">100%<small>yours</small></div>
         <ul class="cost-list">
-          <li class="no">$60&ndash;180 every year, forever</li>
-          <li class="no">Your world lives on someone else's box</li>
-          <li class="yes">Always on, decent performance</li>
-          <li class="yes">No hardware needed</li>
+          <li class="yes">World files stay on your machine</li>
+          <li class="yes">Edit files and settings directly</li>
+          <li class="yes">Use the plugins and mods you want</li>
         </ul>
       </div>
       <div class="cost-card feat reveal">
-        <div class="cost-tag">Best value</div>
-        <h3>MC Dashboard</h3>
-        <div class="price grad">$0<small>forever</small></div>
+        <div class="cost-tag">Practical</div>
+        <h3>Built for real servers</h3>
+        <div class="price grad">15+<small>tools</small></div>
         <ul class="cost-list">
-          <li class="yes">Never sleeps, no queues</li>
-          <li class="yes">All the RAM your machine can give</li>
-          <li class="yes">Your world stays on your computer</li>
-          <li class="yes">Runs on a PC or Pi you already own</li>
+          <li class="yes">Console, players and backups</li>
+          <li class="yes">Schedules and daily history</li>
+          <li class="yes">Internet access through playit.gg</li>
         </ul>
       </div>
     </div>
@@ -193,8 +202,8 @@
   <!-- INSTALL -->
   <section id="install" class="section">
     <div class="section-head reveal">
-      <h2>Get started in 3 steps</h2>
-      <p>No coding, no command line. Download, unzip, double-click.</p>
+      <h2>Install it like a normal app</h2>
+      <p>Download the folder, open the launcher, then follow the page that opens in your browser.</p>
     </div>
     <div class="reqs reveal">
       <div class="req">
@@ -211,28 +220,58 @@
       </div>
     </div>
     <div class="steps">
-      <div class="step reveal"><div class="s-num">1</div><div><h3>Download &amp; unzip</h3><p class="s-text">Grab the ZIP, then right-click it and choose Extract All. Put the folder anywhere you like.</p>
-        <a class="btn btn-primary" href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip" style="margin-top:10px">&darr; Download ZIP (free)</a></div></div>
-      <div class="step reveal"><div class="s-num">2</div><div><h3>Double-click to launch</h3><p class="s-text">On <b>Windows</b>, run <code class="inline">start.bat</code>. On <b>Linux/macOS</b>, run <code class="inline">./start.sh</code>. It sets everything up the first time &mdash; it even installs Node.js and Java for you if you don't have them. Your browser opens at <b>http://localhost:8080</b>.</p>
+      <div class="step reveal">
+        <div class="s-num">1</div>
+        <div>
+          <h3>Download the ZIP</h3>
+          <p class="s-text">Click the button below. Your browser downloads a file named something like <code class="inline">MinecraftServerDashboard-main.zip</code>.</p>
+          <a class="btn btn-primary" href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip" style="margin-top:10px">&darr; Download ZIP (free)</a>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="s-num">2</div>
+        <div>
+          <h3>Extract the folder</h3>
+          <p class="s-text">Open your Downloads folder, right-click the ZIP, and choose <b>Extract All</b> or <b>Unzip</b>. Move the extracted folder to your Desktop if you want it easy to find.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="s-num">3</div>
+        <div>
+          <h3>Open the launcher</h3>
+          <p class="s-text">Open the extracted folder and start the launcher for your computer:</p>
+          <div class="install-options">
+            <div class="install-option"><b>Windows</b><span>Double-click <code class="inline">start.bat</code></span></div>
+            <div class="install-option"><b>macOS</b><span>Open Terminal in the folder and run <code class="inline">./start.sh</code></span></div>
+            <div class="install-option"><b>Linux</b><span>Open a terminal in the folder and run <code class="inline">./start.sh</code></span></div>
+          </div>
+          <p class="s-text" style="margin-top:12px">Keep the launcher window open. Closing it stops the dashboard.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="s-num">4</div>
+        <div>
+          <h3>Finish in the browser</h3>
+          <p class="s-text">The dashboard opens at <b>http://localhost:8080</b>. Create a password, choose Paper or Vanilla, accept the Minecraft EULA, then press <b>Start</b>.</p>
         <div class="note">
           <span class="note-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
           <div>
-            <b>Windows may say "Windows protected your PC"</b> the first time &mdash; that's normal for free, unsigned apps and completely safe because the code is public on GitHub. Just click <span class="kbd">More info</span>, then <span class="kbd">Run anyway</span>.
-            <span class="note-tip"><b>Tip: to skip it entirely, right-click the downloaded ZIP &rarr; Properties &rarr; click Unblock before extracting.</b></span>
+            <b>Windows Security or SmartScreen may warn you the first time.</b> It can say "Windows protected your PC", "unknown publisher", or block the launcher because this free app is not code-signed. The code is public on GitHub. Click <span class="kbd">More info</span>, then <span class="kbd">Run anyway</span>.
+            <span class="note-tip"><b>Best fix: before extracting, right-click the downloaded ZIP &rarr; Properties &rarr; tick Unblock &rarr; OK.</b> If Windows already quarantined a file, open Windows Security &rarr; Protection history &rarr; allow/restore it, then extract the ZIP again.</span>
           </div>
         </div>
         <div class="note">
           <span class="note-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
           <div>
-            <b>On macOS, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a> first.</b> The launcher uses it to set up Node.js and Java automatically. Paste this into the Terminal app, then run <code class="inline">./start.sh</code>:
+            <b>On macOS, if the launcher says Node.js or Java is missing, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>.</b> Paste this into the Terminal app, wait for it to finish, then run <code class="inline">./start.sh</code> again:
             <span class="note-tip"><code class="inline">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code></span>
           </div>
         </div>
-      </div></div>
-      <div class="step reveal"><div class="s-num">3</div><div><h3>Set up &amp; play</h3><p class="s-text">Choose a password, click <b>Download</b> to get a server (Paper or Vanilla), accept the EULA, and press <b>Start</b>. Open the <b>Play Online</b> tab to get a link your friends can join &mdash; no router setup needed.</p></div></div>
+        </div>
+      </div>
     </div>
     <div class="install-cta reveal">
-      <p class="muted" style="margin-bottom:14px">The launcher installs Node.js and Java for you automatically if they're missing &mdash; nothing else to set up.</p>
+      <p class="muted" style="margin-bottom:14px">After setup, use <b>Play Online</b> to get a shareable address for friends &mdash; no router setup needed.</p>
       <a class="btn btn-ghost" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">Prefer the command line? Instructions on GitHub &rarr;</a>
     </div>
   </section>
@@ -245,9 +284,9 @@
     </div>
     <div class="faq">
       <details class="reveal"><summary>Is it really free?</summary><p>Yes &mdash; completely. MC Dashboard is open source and free to use forever. There are no subscriptions, no paywalls, and no ads. You only need a computer to run it on.</p></details>
-      <details class="reveal"><summary>Do I need to know how to code?</summary><p>No. Download the ZIP, unzip it, and double-click <b>start.bat</b> (Windows) or <b>start.sh</b> (Linux/macOS) &mdash; that's the whole installation. Everything after that is point-and-click in your browser.</p></details>
-      <details class="reveal"><summary>Windows says it's "not safe" &mdash; is it?</summary><p>Yes, it's safe. That warning is <b>Windows SmartScreen</b>, which flags any program that isn't code-signed &mdash; and code signing costs hundreds of dollars a year, so nearly all free open-source tools trigger it. The full source is public on GitHub, so you can verify exactly what it does. To allow it, right-click the downloaded <b>.zip &rarr; Properties &rarr; click Unblock</b> before extracting, or if you see "Windows protected your PC", click <b>More info &rarr; Run anyway</b>.</p></details>
-      <details class="reveal"><summary>What do I need to run it?</summary><p>Just a regular computer (Windows, Linux, or macOS) &mdash; even an old laptop or a Raspberry Pi works for a small server. The launcher installs everything it needs for you &mdash; including <b>Java</b> for the Minecraft server &mdash; so there's nothing to set up by hand. <b>On macOS</b>, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a> first &mdash; the launcher uses it to install Node.js and Java automatically.</p></details>
+      <details class="reveal"><summary>Do I need to know how to code?</summary><p>No. Download the ZIP, extract it, and open the launcher. On Windows you double-click <b>start.bat</b>. On macOS or Linux you run <b>./start.sh</b> from the folder. Everything after that is point-and-click in your browser.</p></details>
+      <details class="reveal"><summary>Windows Security blocks it &mdash; is it safe?</summary><p>Yes. Windows Security or SmartScreen can flag the launcher because it is an unsigned open-source script, not because it is malware. The source is public on GitHub. To fix it, right-click the downloaded <b>.zip &rarr; Properties &rarr; tick Unblock &rarr; OK</b>, then extract it again. If Windows already quarantined a file, open <b>Windows Security &rarr; Protection history</b>, choose the MC Dashboard item, and select <b>Allow</b> or <b>Restore</b>. If you see "Windows protected your PC", click <b>More info &rarr; Run anyway</b>.</p></details>
+      <details class="reveal"><summary>What do I need to run it?</summary><p>Just a regular computer (Windows, Linux, or macOS) &mdash; even an old laptop or a Raspberry Pi works for a small server. The launcher tries to install what it needs, including <b>Java</b> for Minecraft. On macOS, if it says Node.js or Java is missing, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a> and run the launcher again.</p></details>
       <details class="reveal"><summary>How do my friends connect?</summary><p>Easiest way: open the <b>Play Online</b> tab and click once &mdash; it sets up a free playit.gg link your friends paste into Minecraft, with no router or port-forwarding changes. You can also use your own IP on a home network.</p></details>
       <details class="reveal"><summary>Can I use plugins and mods?</summary><p>Yes. Use a Paper server JAR for plugins or Fabric/Forge for mods, then search and install them straight from Modrinth inside the dashboard, or upload your own JARs.</p></details>
       <details class="reveal"><summary>Which Minecraft versions are supported?</summary><p>Any recent Paper or Vanilla version &mdash; you can download them with one click from the dashboard, including the latest releases.</p></details>
@@ -305,17 +344,13 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
         <span>GitHub</span>
       </a>
-      <a class="clink" href="#" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <span>Website</span>
+      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Issues</span>
       </a>
-      <a class="clink" href="#" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.5"/></svg>
-        <span>Instagram</span>
-      </a>
-      <a class="clink" href="#" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
-        <span>Email</span>
+      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Download</span>
       </a>
     </div>
   </section>
