@@ -80,7 +80,7 @@ App.wizard = {
           <div class="ram-picker" id="wiz-ram">
             ${ramOpts.map(o => `<button type="button" class="ram-opt" data-min="${o.min}" data-max="${o.max}"><b>${o.name}</b><span>${o.sub}</span></button>`).join('')}
           </div>
-          <div class="hint"><a id="wiz-ram-adv-toggle" style="cursor:pointer">Advanced (set exact values)…</a></div>
+          <button type="button" id="wiz-ram-adv-toggle" class="wiz-ram-adv-toggle">${App.icon('settings', 13)} Set an exact RAM amount</button>
           <div id="wiz-ram-adv" class="ram-adv" style="display:none">
             <div class="field" style="margin:0"><label>Min RAM</label><input id="wiz-minRam" placeholder="1G"><div class="hint">e.g. 1G or 512M</div></div>
             <div class="field" style="margin:0"><label>Max RAM</label><input id="wiz-maxRam" placeholder="2G"><div class="hint">e.g. 4G</div></div>
@@ -161,7 +161,8 @@ App.wizard = {
     const norm = (v) => (v || '').trim().toUpperCase();
     minEl.value = this.cfg.minRam || '1G';
     maxEl.value = this.cfg.maxRam || '2G';
-    const showAdv = () => { advBox.style.display = 'grid'; advToggle.textContent = 'Use a preset instead'; };
+    const advLabel = (open) => advToggle.innerHTML = `${App.icon('settings', 13)} ${open ? 'Use a preset instead' : 'Set an exact RAM amount'}`;
+    const showAdv = () => { advBox.style.display = 'grid'; advLabel(true); };
 
     const sync = () => {
       let matched = false;
@@ -179,7 +180,7 @@ App.wizard = {
     advToggle.onclick = () => {
       const show = advBox.style.display === 'none';
       if (show) showAdv();
-      else { advBox.style.display = 'none'; advToggle.textContent = 'Advanced (set exact values)…'; }
+      else { advBox.style.display = 'none'; advLabel(false); }
     };
     minEl.oninput = maxEl.oninput = sync;
     sync();
