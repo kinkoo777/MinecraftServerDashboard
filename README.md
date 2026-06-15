@@ -39,6 +39,14 @@ That's the whole install. No commands to type. Continue with the tutorial below.
 
 > The launcher uses winget on Windows, or apt/dnf/pacman/zypper/Homebrew on Linux & macOS, to install Node.js and Java automatically if they're missing. If it ever can't, it opens the right download page for you.
 
+### ⚠️ Windows says "not safe" or blocks it?
+
+That's normal — it's **Windows SmartScreen** warning about software that isn't *code-signed* (signing certificates cost hundreds of dollars/year, so most free open-source tools trigger this). It is **not a virus**: this is open source and you can read every line on GitHub. To allow it:
+
+- **Best:** right-click the downloaded **`.zip` → Properties → tick ☑ Unblock → OK**, *then* extract and run. This clears the warning from every file at once.
+- **If you see "Windows protected your PC":** click **More info → Run anyway**.
+- **If your browser blocked the download:** click **Keep / Keep anyway**.
+
 ---
 
 ## 📖 Tutorial: your first server in 5 minutes
@@ -133,6 +141,7 @@ On the **Plugins** page you can **search Modrinth and install** plugins/mods wit
 
 | Problem | Fix |
 |---|---|
+| **Windows says "not safe" / "Windows protected your PC"** | Unsigned open-source software — it's safe. Right-click the `.zip` → Properties → **Unblock** before extracting, or click **More info → Run anyway**. See above. |
 | **Browser didn't open / "can't reach localhost:8080"** | Make sure the launcher window is still open. Then visit `http://localhost:8080` manually. |
 | **"Server jar not found"** | Download one from **Settings → Server jar**, or drop a `server.jar` into the `mc-server/` folder. |
 | **Server won't start, log mentions Java** | Java isn't installed or wasn't found. Re-run the launcher (it installs Java), then try again. |
