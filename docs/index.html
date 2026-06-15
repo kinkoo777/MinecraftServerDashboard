@@ -25,9 +25,10 @@
     </a>
     <nav class="nav-links">
       <a href="#features">Features</a>
+      <a href="#screens">Screenshots</a>
+      <a href="#why">Why free</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
-      <a href="#contact">Contact</a>
     </nav>
     <a class="btn btn-ghost gh-btn" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
@@ -108,6 +109,52 @@
     </div>
   </section>
 
+  <!-- SCREENSHOTS -->
+  <section id="screens" class="section screens">
+    <div class="section-head reveal">
+      <h2>A peek at the dashboard</h2>
+      <p>Clean, fast and the same on every device &mdash; here's what you'll actually be using.</p>
+    </div>
+    <div class="shots">
+      <figure class="shot reveal">
+        <div class="shot-win">
+          <div class="shot-bar"><span></span><span></span><span></span></div>
+          <div class="shot-body shot-console">
+            <div class="cl"><span class="t">[12:01:04]</span> Starting Minecraft server</div>
+            <div class="cl"><span class="t">[12:01:07]</span> Preparing level "world"</div>
+            <div class="cl"><span class="t">[12:01:11]</span> <span class="ok">Done (4.2s)! For help, type "help"</span></div>
+            <div class="cl"><span class="t">[12:03:22]</span> Steve joined the game</div>
+            <div class="cl cmd">&gt; say Welcome to the server!</div>
+          </div>
+        </div>
+        <figcaption>Live console &mdash; watch and control the server in real time.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <div class="shot-win">
+          <div class="shot-bar"><span></span><span></span><span></span></div>
+          <div class="shot-body shot-players">
+            <div class="pl"><span class="av">S</span><div class="pi"><b>Steve</b><span>online &middot; 12h played</span></div><span class="pt op">OP</span></div>
+            <div class="pl"><span class="av">A</span><div class="pi"><b>Alex</b><span>online &middot; 8h played</span></div><span class="pt wl">Whitelist</span></div>
+            <div class="pl"><span class="av">N</span><div class="pi"><b>Noah</b><span>offline &middot; 3h played</span></div></div>
+          </div>
+        </div>
+        <figcaption>Players &mdash; op, whitelist, ban, heal, teleport, view inventories.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <div class="shot-win">
+          <div class="shot-bar"><span></span><span></span><span></span></div>
+          <div class="shot-body shot-play">
+            <div class="po-label">Your public address</div>
+            <div class="po-addr"><code>yourname.craft.playit.gg</code><span class="po-copy">Copy</span></div>
+            <div class="po-status"><span class="dot"></span> Online &mdash; send it to your friends</div>
+          </div>
+        </div>
+        <figcaption>Play Online &mdash; one click gives friends a link, no router setup.</figcaption>
+      </figure>
+    </div>
+    <p class="muted shots-note">&#128241; It's also installable as a phone app &mdash; add it to your home screen and manage your server from anywhere on your network.</p>
+  </section>
+
   <!-- WHO -->
   <section class="section who reveal">
     <div class="who-text">
@@ -148,11 +195,66 @@
     </div>
   </section>
 
+  <!-- COST COMPARISON -->
+  <section id="why" class="section cost">
+    <div class="section-head reveal">
+      <h2>Stop renting servers</h2>
+      <p>Hosting usually means a monthly bill, or a free server that falls asleep the moment you leave. Run it yourself and pay nothing &mdash; for good.</p>
+    </div>
+    <div class="cost-grid">
+      <div class="cost-card reveal">
+        <h3>Free hosts <span>(Aternos &amp; co.)</span></h3>
+        <div class="price">$0<small>/mo</small></div>
+        <ul class="cost-list">
+          <li class="no">Sleeps when you leave &mdash; friends get dropped</li>
+          <li class="no">Queues and waits before it starts</li>
+          <li class="no">Limited RAM, plugins and control</li>
+          <li class="yes">No hardware needed</li>
+        </ul>
+      </div>
+      <div class="cost-card reveal">
+        <h3>Paid hosts <span>(Shockbyte, Apex&hellip;)</span></h3>
+        <div class="price">$5&ndash;15<small>/mo</small></div>
+        <ul class="cost-list">
+          <li class="no">$60&ndash;180 every year, forever</li>
+          <li class="no">Your world lives on someone else's box</li>
+          <li class="yes">Always on, decent performance</li>
+          <li class="yes">No hardware needed</li>
+        </ul>
+      </div>
+      <div class="cost-card feat reveal">
+        <div class="cost-tag">Best value</div>
+        <h3>MC Dashboard</h3>
+        <div class="price grad">$0<small>forever</small></div>
+        <ul class="cost-list">
+          <li class="yes">Never sleeps, no queues</li>
+          <li class="yes">All the RAM your machine can give</li>
+          <li class="yes">Your world stays on your computer</li>
+          <li class="yes">Runs on a PC or Pi you already own</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- INSTALL -->
   <section id="install" class="section">
     <div class="section-head reveal">
       <h2>Get started in 3 steps</h2>
       <p>No coding, no command line. Download, unzip, double-click.</p>
+    </div>
+    <div class="reqs reveal">
+      <div class="req">
+        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+        <div><b>Any computer</b><span>Windows, macOS or Linux &mdash; even a Raspberry Pi 4/5</span></div>
+      </div>
+      <div class="req">
+        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>
+        <div><b>A little spare RAM</b><span>~2 GB for a small world, 4&ndash;6 GB for a busy one</span></div>
+      </div>
+      <div class="req">
+        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        <div><b>Internet</b><span>Just to download the server and play with friends</span></div>
+      </div>
     </div>
     <div class="steps">
       <div class="step reveal"><div class="s-num">1</div><div><h3>Download &amp; unzip</h3><p class="s-text">Grab the ZIP, then right-click it and choose Extract All. Put the folder anywhere you like.</p>
@@ -193,10 +295,50 @@
     </div>
   </section>
 
+  <!-- ROADMAP -->
+  <section id="roadmap" class="section roadmap">
+    <div class="section-head reveal">
+      <h2>What's next</h2>
+      <p>Built in the open and actively improved. Here's where it stands and where it's headed.</p>
+    </div>
+    <div class="road">
+      <div class="road-item done reveal">
+        <span class="rdot"></span>
+        <div><b>Available now</b><p>Live console, player management, backups, schedules, plugins from Modrinth, play-with-friends, daily reports and multiple server profiles.</p></div>
+      </div>
+      <div class="road-item now reveal">
+        <span class="rdot"></span>
+        <div><b>In progress</b><p>Smoother one-click setup for non-technical users, more polish across phones and tablets, and clearer first-run guidance.</p></div>
+      </div>
+      <div class="road-item next reveal">
+        <span class="rdot"></span>
+        <div><b>Ideas on the list</b><p>Ready-made config presets, more languages, and quality-of-life touches suggested by the community. Open an issue with yours!</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVACY / TRUST -->
+  <section class="section privacy reveal">
+    <div class="privacy-inner">
+      <div class="pr">
+        <span class="pr-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        <div><b>Nothing leaves your machine</b><span>Your world, players and settings stay on your own computer.</span></div>
+      </div>
+      <div class="pr">
+        <span class="pr-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg></span>
+        <div><b>No account, no telemetry</b><span>No sign-up, no tracking, no ads &mdash; ever.</span></div>
+      </div>
+      <div class="pr">
+        <span class="pr-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+        <div><b>Open source</b><span>Every line is public on GitHub &mdash; read it, change it, trust it.</span></div>
+      </div>
+    </div>
+  </section>
+
   <!-- CONTACT / CTA -->
   <section id="contact" class="section contact reveal">
     <h2>Get it, star it, share it</h2>
-    <p>Free and open source. If you build something with it, I'd love to hear about it.</p>
+    <p>Free and open source. Got stuck, found a bug, or have an idea? <a href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> &mdash; I read every one.</p>
     <div class="contact-links">
       <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
