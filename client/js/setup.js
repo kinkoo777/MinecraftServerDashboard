@@ -17,6 +17,7 @@ App.wizard = {
     if (document.getElementById('wizard-overlay')) return;
     this.st = await App.tryApi('/server/status');
     if (!this.st) return;
+    this.cfg = await App.tryApi('/settings/config') || {};
 
     const ov = document.createElement('div');
     ov.id = 'wizard-overlay';
@@ -40,13 +41,20 @@ App.wizard = {
     if (ov) ov.remove();
   },
 
-  // Step 1: pick the server software
+  // Step 1: pick the server software and basic options
   async renderChoose() {
     const body = document.getElementById('wiz-body');
     const hasJar = this.st.jarExists;
+    const ramOpts = [
+      { min: '1G', max: '2G', name: 'Small', sub: '~2 GB · 1–3 players' },
+      { min: '2G', max: '4G', name: 'Medium', sub: '~4 GB · around 5' },
+      { min: '3G', max: '6G', name: 'Large', sub: '~6 GB · 10+ / mods' }
+    ];
+    const up = (v) => (v || '').toUpperCase();
+    const anyRamMatch = ramOpts.some(o => o.min === up(this.cfg.minRam) && o.max === up(this.cfg.maxRam));
     body.innerHTML = `
       ${hasJar ? `
-        <div class="wiz-note">${App.icon('server', 16)} You already have a server installed. We'll just start it.</div>
+        <div class="wiz-note">${App.icon('server', 16)} You already have a server installed — pick your options below and we'll start it.</div>
       ` : `
         <div class="wiz-choices">
           <button type="button" class="wiz-choice active" data-type="paper">
@@ -67,12 +75,37 @@ App.wizard = {
           </div>
         </div>
       `}
+      <div class="wiz-options">
+        <div class="field"><label>Server name (shown in the in-game server list)</label>
+          <input id="wiz-motd" placeholder="My Minecraft Server" maxlength="60"></div>
+        <div class="field"><label>Server memory (RAM)</label>
+          <div class="ram-picker" id="wiz-ram">
+            ${ramOpts.map((o, i) => {
+              const active = anyRamMatch ? (o.min === up(this.cfg.minRam) && o.max === up(this.cfg.maxRam)) : i === 0;
+              return `<button type="button" class="ram-opt${active ? ' active' : ''}" data-min="${o.min}" data-max="${o.max}"><b>${o.name}</b><span>${o.sub}</span></button>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="wiz-grid3">
+          <div class="field"><label>Mode</label>
+            <select id="wiz-gamemode"><option value="survival">Survival</option><option value="creative">Creative</option></select></div>
+          <div class="field"><label>Difficulty</label>
+            <select id="wiz-difficulty"><option value="peaceful">Peaceful</option><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></div>
+          <div class="field"><label>Max players</label>
+            <input type="number" id="wiz-maxplayers" value="20" min="1" max="200"></div>
+        </div>
+      </div>
       <label class="wiz-eula">
         <span class="switch"><input type="checkbox" id="wiz-eula-ok" checked><span class="track" onclick="document.getElementById('wiz-eula-ok').click()"></span></span>
         <span>I agree to the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a> (required by Mojang to run a server).</span>
       </label>
-      <button id="wiz-go" class="btn-primary wiz-go">${hasJar ? 'Start my server' : 'Create my server'} →</button>
+      <button id="wiz-go" class="btn-primary wiz-go">${hasJar ? 'Apply & start' : 'Create my server'} →</button>
     `;
+
+    // RAM picker: single active selection
+    body.querySelectorAll('#wiz-ram .ram-opt').forEach(b => {
+      b.onclick = () => body.querySelectorAll('#wiz-ram .ram-opt').forEach(x => x.classList.toggle('active', x === b));
+    });
 
     if (!hasJar) {
       let picked = 'paper';
@@ -119,7 +152,23 @@ App.wizard = {
     return this.versions ? (this.versions[type] || [])[0] : null;
   },
 
-  // Step 2: run download -> eula -> start, showing progress
+  // Read the options form into { ram, props } (ram is null if no preset is selected)
+  collectOptions() {
+    const ramBtn = document.querySelector('#wiz-ram .ram-opt.active');
+    const ram = ramBtn ? { min: ramBtn.dataset.min, max: ramBtn.dataset.max } : null;
+    const props = {
+      gamemode: document.getElementById('wiz-gamemode').value,
+      difficulty: document.getElementById('wiz-difficulty').value
+    };
+    let max = parseInt(document.getElementById('wiz-maxplayers').value, 10);
+    if (!Number.isInteger(max) || max < 1 || max > 200) max = 20;
+    props['max-players'] = String(max);
+    const motd = document.getElementById('wiz-motd').value.trim();
+    if (motd) props.motd = motd;
+    return { ram, props };
+  },
+
+  // Step 2: run download -> apply settings -> eula -> start, showing progress
   async run() {
     if (this.busy) return;
     if (!document.getElementById('wiz-eula-ok').checked) {
@@ -127,6 +176,9 @@ App.wizard = {
     }
     this.busy = true;
     const type = this.st.jarExists ? null : this._pickedType();
+
+    // capture the chosen options before we overwrite the form with progress
+    const opts = this.collectOptions();
 
     // make sure we have a version to download before we start showing progress
     if (!this.st.jarExists && !this.versions) await this.loadVersions(type);
@@ -138,6 +190,7 @@ App.wizard = {
 
     const steps = [];
     if (!this.st.jarExists) steps.push(['dl', `Downloading ${type} ${version}`]);
+    steps.push(['settings', 'Applying your settings']);
     if (this.st.eula !== 'accepted') steps.push(['eula', 'Accepting the Minecraft EULA']);
     steps.push(['start', 'Starting the server']);
 
@@ -161,6 +214,10 @@ App.wizard = {
         set('dl', 'done');
         this.st.jarExists = true;
       }
+      set('settings', 'run');
+      if (opts.ram) await App.api('/settings/config', { method: 'PUT', body: { minRam: opts.ram.min, maxRam: opts.ram.max } });
+      await App.api('/settings/properties', { method: 'PUT', body: opts.props });
+      set('settings', 'done');
       if (this.st.eula !== 'accepted') {
         set('eula', 'run');
         await App.api('/server/eula', { method: 'POST' });

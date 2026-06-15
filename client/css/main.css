@@ -908,6 +908,12 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
 }
 .wiz-note .ico { color: var(--accent); flex-shrink: 0; }
 
+.wiz-options { margin: 18px 0 4px; padding-top: 16px; border-top: 1px solid var(--border); }
+.wiz-options .field { margin-bottom: 14px; }
+.wiz-options .field:last-child { margin-bottom: 0; }
+.wiz-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.wiz-grid3 .field { margin-bottom: 0; }
+@media (max-width: 520px) { .wiz-grid3 { grid-template-columns: 1fr; } }
 .wiz-eula { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
 .wiz-eula a { color: var(--accent); }
 .wiz-go { width: 100%; justify-content: center; padding: 12px; font-size: 15px; }
