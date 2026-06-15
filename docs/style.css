@@ -160,10 +160,27 @@ header {
 .who-text > p { color: var(--muted); font-size: 17px; margin-bottom: 20px; }
 .check { list-style: none; display: flex; flex-direction: column; gap: 11px; }
 .check li { position: relative; padding-left: 30px; color: var(--text); }
-.check li::before { content: '✓'; position: absolute; left: 0; top: 0; width: 20px; height: 20px; background: rgba(0,210,106,0.15); color: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
-.who-quote { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 30px; position: relative; }
-.quote-mark { font-size: 70px; color: var(--accent); opacity: .3; line-height: .5; font-family: Georgia, serif; }
-.who-quote p { font-size: 20px; font-weight: 600; margin-top: 10px; }
+.check li::before { content: '\2713'; position: absolute; left: 0; top: 0; width: 20px; height: 20px; background: rgba(0,210,106,0.15); color: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.who-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px; position: relative; overflow: hidden; }
+.who-panel::before { content: ''; position: absolute; inset: 0; background: radial-gradient(420px circle at top right, rgba(0,210,106,0.09), transparent 60%); pointer-events: none; }
+.who-panel h3 { position: relative; font-size: 22px; margin-bottom: 10px; }
+.who-panel p { position: relative; color: var(--muted); font-size: 16px; margin-bottom: 20px; }
+.panel-list { position: relative; display: flex; flex-wrap: wrap; gap: 10px; }
+.panel-list span { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: rgba(0,210,106,0.1); border: 1px solid rgba(0,210,106,0.22); color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* real-world test / proof */
+.proof-card { display: grid; grid-template-columns: 1.4fr 1fr; gap: 36px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px; position: relative; overflow: hidden; }
+.proof-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(520px circle at left top, rgba(0,210,106,0.08), transparent 60%); pointer-events: none; }
+.proof-quote { position: relative; }
+.proof-quote .quote-mark { color: var(--accent); opacity: .55; margin-bottom: 6px; }
+.proof-quote p { font-size: clamp(18px,2.2vw,23px); line-height: 1.5; letter-spacing: -.3px; color: var(--text); }
+.proof-quote p b { color: var(--accent); font-weight: 700; }
+.proof-by { display: inline-flex; align-items: center; gap: 9px; margin-top: 18px; color: var(--muted); font-size: 14px; }
+.proof-by .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(0,210,106,0.15); }
+.proof-specs { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.spec { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.spec-l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.spec-v { color: var(--text); font-size: 18px; font-weight: 700; margin-top: 4px; }
 
 /* steps */
 .steps { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin: 0 auto; }
@@ -248,7 +265,7 @@ footer { border-top: 1px solid var(--border); margin-top: 40px; }
 html.js .reveal { opacity: 0; transform: translateY(22px); transition: opacity .6s ease, transform .6s ease; }
 html.js .reveal.in { opacity: 1; transform: none; }
 
-/* hero entrance on load — no JS/observer needed so it's never blank */
+/* hero entrance on load - no JS/observer needed so it's never blank */
 .intro { animation: introUp .7s ease both; }
 .intro-fade { animation: introFade .9s ease .15s both; }
 @keyframes introUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
@@ -281,6 +298,7 @@ html.js .reveal.in { opacity: 1; transform: none; }
   .hero { grid-template-columns: minmax(0, 1fr); padding: 44px 6vw 52px; }
   .mock, .mock:hover { transform: none; }
   .who { grid-template-columns: 1fr; gap: 28px; }
+  .proof-card { grid-template-columns: 1fr; gap: 26px; padding: 28px; }
   .strip { grid-template-columns: repeat(2,1fr); gap: 26px; padding: 22px 6vw; }
   .section { padding: 58px 6vw; }
   .foot-inner { gap: 16px; }
@@ -304,8 +322,7 @@ html.js .reveal.in { opacity: 1; transform: none; }
   .m-stats { grid-template-columns: repeat(2,1fr); }
   .clink { width: calc(50% - 8px); }
   .faq details { padding: 2px 16px; }
-  .who-quote { padding: 24px; }
-  .who-quote p { font-size: 18px; }
+  .who-panel { padding: 24px; }
 }
 
 /* Very small phones */
@@ -314,7 +331,7 @@ html.js .reveal.in { opacity: 1; transform: none; }
   .hero h1 { font-size: 30px; }
 }
 
-/* Large / 4K screens — let it breathe a little wider */
+/* Large / 4K screens - let it breathe a little wider */
 @media (min-width: 1500px) {
   .hero { max-width: 1340px; }
   .section { max-width: 1260px; }
