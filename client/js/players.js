@@ -105,6 +105,8 @@ App.pages.players = {
     const box = document.getElementById('player-modal-root');
 
     const offline = App.status !== 'online';
+    // These actions edit JSON files directly and work whether the server is running or not
+    const OFFLINE_OK = new Set(['whitelist-add', 'whitelist-remove', 'op', 'deop', 'ban', 'pardon']);
     const chips = [
       d.online ? '<span class="chip chip-green">Online</span>' : '<span class="chip">Offline</span>',
       d.op ? '<span class="chip chip-green">Op</span>' : '',
@@ -117,9 +119,10 @@ App.pages.players = {
       d.op ? ['deop', 'Remove op'] : ['op', 'Make op'],
       d.banned ? ['pardon', 'Unban'] : ['ban', 'Ban', true],
       ...(d.online ? [['kick', 'Kick', true]] : [])
-    ].map(([action, label, danger]) =>
-      `<button class="btn-sm${danger ? ' btn-danger' : ''}" data-act="${action}" ${offline ? 'disabled title="Server must be online to run commands"' : ''}>${label}</button>`
-    ).join(' ');
+    ].map(([action, label, danger]) => {
+      const needsOnline = offline && !OFFLINE_OK.has(action);
+      return `<button class="btn-sm${danger ? ' btn-danger' : ''}" data-act="${action}" ${needsOnline ? 'disabled title="Server must be online to run this"' : ''}>${label}</button>`;
+    }).join(' ');
 
     let statsHtml = '';
     let invHtml = '';

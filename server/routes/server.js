@@ -6,6 +6,7 @@ const mc = require('../minecraft');
 const { getConfig, serverDir } = require('../config');
 const { levelName } = require('../utils/backup');
 const history = require('../history');
+const { getLatestVersion, downloadJar } = require('../utils/jars');
 
 const router = express.Router();
 
@@ -71,9 +72,34 @@ router.get('/stats', async (req, res) => {
 });
 
 router.post('/start', (req, res) => {
-  mc.start(getConfig());
+  if (mc.status !== 'offline') return res.status(409).json({ error: 'Server is not offline' });
   res.json({ ok: true });
+  startWithUpdate().catch(e => {
+    mc.pushLog(`[dashboard] ${e.message}`);
+    if (mc.status === 'starting' && !mc.proc) mc.setStatus('offline');
+  });
 });
+
+async function startWithUpdate() {
+  const installed = getConfig().installedJar; // e.g. "vanilla 1.21.4" or ""
+  if (installed) {
+    const [type, version] = installed.split(' ');
+    mc.setStatus('starting'); // disable Start button on the client right away
+    mc.pushLog('[dashboard] Checking for updates…');
+    try {
+      const latest = await getLatestVersion(type);
+      if (latest !== version) {
+        mc.pushLog(`[dashboard] Update available: ${type} ${latest} — downloading`);
+        await downloadJar(type, latest, msg => mc.pushLog(msg));
+      } else {
+        mc.pushLog(`[dashboard] ${installed} is up to date`);
+      }
+    } catch (e) {
+      mc.pushLog(`[dashboard] Update check failed: ${e.message} — starting with current jar`);
+    }
+  }
+  mc.start(getConfig()); // re-reads config so updated jarFile / installedJar is picked up
+}
 
 router.post('/stop', async (req, res) => {
   await mc.stop();

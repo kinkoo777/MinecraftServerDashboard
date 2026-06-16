@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title MC Dashboard
 cd /d "%~dp0"
 color 0A
@@ -34,21 +35,47 @@ if errorlevel 1 (
   exit /b
 )
 
-rem ---- Java (needed to run the Minecraft server; dashboard works without it) ----
+rem ---- Java: check for version 21+ (needed to run the Minecraft server) ----
+set "JAVA_OK=0"
 where java >nul 2>nul
-if errorlevel 1 (
-  where winget >nul 2>nul
-  if errorlevel 1 (
-    echo  Java is needed to run a server. Opening the download page...
-    echo  Install Java 21, then restart start.bat.
-    start "" https://adoptium.net/temurin/releases/
-    echo.
+if not errorlevel 1 (
+  rem Java found — parse the major version
+  set "JVER="
+  for /f "tokens=3" %%a in ('java -version 2^>^&1 ^| findstr /i "version"') do if not defined JVER set "JVER=%%~a"
+  set "JMAJ=0"
+  for /f "tokens=1 delims=." %%m in ("!JVER!") do set "JMAJ=%%m"
+  if "!JMAJ!"=="1" for /f "tokens=2 delims=." %%m in ("!JVER!") do set "JMAJ=%%m"
+  if !JMAJ! GEQ 21 (
+    set "JAVA_OK=1"
   ) else (
-    echo  Installing Java for you, please wait...
+    echo  Java !JMAJ! is installed, but Minecraft needs Java 21 or newer.
+    echo  Upgrading Java now...
+    echo.
+  )
+)
+
+if "!JAVA_OK!"=="0" (
+  where winget >nul 2>nul
+  if not errorlevel 1 (
+    echo  Installing Java 21 ^(this may take a minute^)...
     winget install -e --id EclipseAdoptium.Temurin.21.JRE --accept-source-agreements --accept-package-agreements
     echo.
-    echo  Java installed. If pressing Start doesn't work the first time,
-    echo  close this window and run start.bat again so it's picked up.
+    rem Find the newly installed Java and add to PATH for this session
+    set "JBIN="
+    for /d %%d in ("C:\Program Files\Eclipse Adoptium\jre-21*") do set "JBIN=%%d\bin"
+    for /d %%d in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do set "JBIN=%%d\bin"
+    if defined JBIN (
+      set "PATH=!JBIN!;!PATH!"
+      echo  Using Java 21 from !JBIN!
+    ) else (
+      echo  Java installed. If the server still won't start, close this window
+      echo  and run start.bat again so the new Java is picked up.
+    )
+    echo.
+  ) else (
+    echo  Java is needed to run the Minecraft server.
+    echo  Install Java 21 from https://adoptium.net, then run start.bat again.
+    start "" https://adoptium.net/temurin/releases/?version=21
     echo.
   )
 )

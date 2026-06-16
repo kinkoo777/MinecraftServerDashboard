@@ -43,7 +43,10 @@ App.pages.dashboard = {
         </div>
       </div>
       <div class="card">
-        <h2>Console <a href="#console" class="muted" style="font-weight:400;font-size:12px;float:right">open full console →</a></h2>
+        <div class="card-title-row">
+          <h2>Console</h2>
+          <a href="#console" class="muted text-link">Open full console</a>
+        </div>
         <div id="db-console" class="console console-mini"></div>
       </div>`;
 

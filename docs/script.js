@@ -17,7 +17,7 @@ document.querySelectorAll('.copy').forEach((btn) => {
     try {
       await navigator.clipboard.writeText(btn.dataset.copy);
       const old = btn.textContent;
-      btn.textContent = 'Copied ✓';
+      btn.textContent = 'Copied \u2713';
       setTimeout(() => { btn.textContent = old; }, 1500);
     } catch (e) {
       btn.textContent = 'Copy failed';
