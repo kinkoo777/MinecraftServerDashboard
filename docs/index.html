@@ -78,18 +78,7 @@
       </div>
     </div>
   </section>
-
-  <!-- HEADS-UP: Windows SmartScreen -->
-  <section class="heads-up-wrap reveal">
-    <div class="heads-up">
-      <span class="hu-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
-      <div class="hu-text">
-        <b>Heads up &mdash; Windows may warn you the first time.</b> Because this is free, open-source software that isn't <em>code-signed</em>, Windows might say <b>"Windows protected your PC"</b> or flag it as unsafe. It's <b>not a virus</b> &mdash; every line is public on GitHub. Just click <span class="kbd">More info</span> &rarr; <span class="kbd">Run anyway</span>, or unblock the ZIP before extracting.
-      </div>
-      <a href="#install" class="hu-link">How to allow it &rarr;</a>
-    </div>
-  </section>
-
+  
   <!-- STATS STRIP -->
   <section class="strip reveal">
     <div class="strip-item"><div class="num">$0</div><div class="cap">forever</div></div>
@@ -186,8 +175,7 @@
           <li class="yes">Use the plugins and mods you want</li>
         </ul>
       </div>
-      <div class="cost-card feat reveal">
-        <div class="cost-tag">Practical</div>
+      <div class="cost-card reveal">
         <h3>Built for real servers</h3>
         <div class="price grad">15+<small>tools</small></div>
         <ul class="cost-list">
@@ -233,6 +221,18 @@
         <div>
           <h3>Extract the folder</h3>
           <p class="s-text">Open your Downloads folder, right-click the ZIP, and choose <b>Extract All</b> or <b>Unzip</b>. Move the extracted folder to your Desktop if you want it easy to find.</p>
+
+          <!-- HEADS-UP: Windows SmartScreen -->
+          <div class="heads-up" id="alert">
+            <span class="hu-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div class="hu-text">
+              <b>Windows may warn you the first time.</b> Because this is free, open-source software that isn't <em>code-signed</em>, Windows might say <b>"Windows protected your PC"</b> or flag it as unsafe. It's <b>not a virus</b> &mdash; every line is public on GitHub. To allow it:
+              <span class="hu-steps">
+                <span>On the popup, click <span class="kbd">More info</span> &rarr; <span class="kbd">Run anyway</span>.</span>
+                <span>Or right-click the ZIP &rarr; <b>Properties</b> &rarr; tick <b>Unblock</b> before extracting.</span>
+              </span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="step reveal">
@@ -253,21 +253,6 @@
         <div>
           <h3>Finish in the browser</h3>
           <p class="s-text">The dashboard opens at <b>http://localhost:8080</b>. Create a password, choose Paper or Vanilla, accept the Minecraft EULA, then press <b>Start</b>.</p>
-        <div class="note">
-          <span class="note-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          <div>
-            <b>Windows Security or SmartScreen may warn you the first time.</b> It can say "Windows protected your PC", "unknown publisher", or block the launcher because this free app is not code-signed. The code is public on GitHub. Click <span class="kbd">More info</span>, then <span class="kbd">Run anyway</span>.
-            <span class="note-tip"><b>Best fix: before extracting, right-click the downloaded ZIP &rarr; Properties &rarr; tick Unblock &rarr; OK.</b> If Windows already quarantined a file, open Windows Security &rarr; Protection history &rarr; allow/restore it, then extract the ZIP again.</span>
-          </div>
-        </div>
-        <div class="note">
-          <span class="note-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
-          <div>
-            <b>On macOS, if the launcher says Node.js or Java is missing, install <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>.</b> Paste this into the Terminal app, wait for it to finish, then run <code class="inline">./start.sh</code> again:
-            <span class="note-tip"><code class="inline">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code></span>
-          </div>
-        </div>
-        </div>
       </div>
     </div>
     <div class="install-cta reveal">
@@ -308,7 +293,7 @@
       </div>
       <div class="road-item now reveal">
         <span class="rdot"></span>
-        <div><b>In progress</b><p>Smoother one-click setup for non-technical users, more polish across phones and tablets, and clearer first-run guidance.</p></div>
+        <div><b>In progress</b><p><b>One-click modded servers</b> (Fabric &amp; Forge) &mdash; install a modpack and play, no manual setup. Plus smoother first-run setup for non-technical users and more polish across phones and tablets.</p></div>
       </div>
       <div class="road-item next reveal">
         <span class="rdot"></span>
@@ -340,17 +325,25 @@
     <h2>Get it, star it, share it</h2>
     <p>Free and open source. Got stuck, found a bug, or have an idea? <a href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> &mdash; I read every one.</p>
     <div class="contact-links">
-      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
-        <span>GitHub</span>
-      </a>
       <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>Issues</span>
       </a>
-      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Download</span>
+      <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a class="clink" href="https://www.youtube.com/@kinkoo777" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z"/></svg>
+        <span>YouTube</span>
+      </a>
+      <a class="clink" href="https://www.tiktok.com/@kinkoo777" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.6 2c.3 2.4 1.7 4.1 4 4.3v4.1a8.1 8.1 0 0 1-4-1.1v6.3c0 4-2.6 6.4-6.5 6.4-3.5 0-6.1-2.3-6.1-5.6 0-3.8 3.6-6.6 7.3-5.7v4.3c-1.5-.5-3 .3-3 1.6 0 1.1.9 1.8 2 1.8 1.4 0 2.1-.8 2.1-2.6V2h4.2Z"/></svg>
+        <span>TikTok</span>
+      </a>
+      <a class="clink" href="https://discord.gg/your-invite" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M20.3 4.4A17.7 17.7 0 0 0 15.9 3l-.2.4c1.6.5 2.4 1.1 3.3 1.8a13.8 13.8 0 0 0-6.9-1.9 13.8 13.8 0 0 0-6.9 1.9c.9-.7 1.9-1.4 3.3-1.8L8.3 3a17.7 17.7 0 0 0-4.4 1.4C1.1 8.5.4 12.5.8 16.4A17.8 17.8 0 0 0 6.2 19c.4-.6.8-1.2 1.1-1.9-.6-.2-1.2-.5-1.7-.8l.4-.3a12.7 12.7 0 0 0 12.2 0l.4.3c-.5.3-1.1.6-1.7.8.3.7.7 1.3 1.1 1.9a17.8 17.8 0 0 0 5.4-2.6c.5-4.5-.8-8.5-3.1-12ZM8.4 14.1c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.2 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+        <span>Discord</span>
       </a>
     </div>
   </section>
@@ -366,6 +359,9 @@
         <a href="#install">Install</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.youtube.com/@kinkoo777" target="_blank" rel="noopener">YouTube</a>
+        <a href="https://www.tiktok.com/@kinkoo777" target="_blank" rel="noopener">TikTok</a>
+        <a href="https://discord.gg/your-invite" target="_blank" rel="noopener">Discord</a>
       </div>
       <div class="foot-note">MIT licensed &middot; Open source &middot; Made for the community &middot; Not affiliated with Mojang or Microsoft.</div>
     </div>
