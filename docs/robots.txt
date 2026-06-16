@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kinkoo777.github.io/MinecraftServerDashboard/sitemap.xml

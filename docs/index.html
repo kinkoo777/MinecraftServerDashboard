@@ -3,12 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MC Dashboard &mdash; Free, open-source Minecraft server manager</title>
-  <meta name="description" content="Host and manage your own Minecraft server from your browser. Free, open source, self-hosted &mdash; no monthly fees. Live console, backups, players, plugins, play with friends and more.">
+  <title>MC Dashboard &mdash; Free Minecraft Server Hosting &amp; Web Manager</title>
+  <meta name="description" content="Host your own Minecraft server for free with MC Dashboard &mdash; a self-hosted web control panel. A free Aternos alternative: live console, backups, plugins, schedules and one-click play with friends. Runs on Windows, macOS, Linux or a Raspberry Pi.">
+  <meta name="keywords" content="free minecraft server hosting, host minecraft server, self-hosted minecraft server, minecraft server manager, minecraft control panel, aternos alternative, minecraft server dashboard, paper server hosting, run minecraft server at home, minecraft server web panel">
   <meta name="theme-color" content="#0f1115">
-  <meta property="og:title" content="MC Dashboard &mdash; manage your Minecraft server from the browser">
-  <meta property="og:description" content="Free and open source. Self-host your Minecraft server with a beautiful web dashboard &mdash; console, backups, players, plugins, schedules, play with friends.">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="kinkoo777">
+  <link rel="canonical" href="https://kinkoo777.github.io/MinecraftServerDashboard/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MC Dashboard">
+  <meta property="og:url" content="https://kinkoo777.github.io/MinecraftServerDashboard/">
+  <meta property="og:title" content="MC Dashboard &mdash; Free Minecraft Server Hosting &amp; Web Manager">
+  <meta property="og:description" content="Self-host your Minecraft server for free with a beautiful web dashboard &mdash; a free Aternos alternative with console, backups, players, plugins, schedules and play-with-friends.">
+  <meta property="og:image" content="https://kinkoo777.github.io/MinecraftServerDashboard/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="MC Dashboard — free Minecraft server hosting you run yourself">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MC Dashboard &mdash; Free Minecraft Server Hosting &amp; Web Manager">
+  <meta name="twitter:description" content="Self-host your Minecraft server for free with a beautiful web dashboard. A free Aternos alternative: console, backups, plugins, schedules and play with friends.">
+  <meta name="twitter:image" content="https://kinkoo777.github.io/MinecraftServerDashboard/og.png">
+
   <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+  <!-- Structured data: software app -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "MC Dashboard",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Windows, macOS, Linux, Raspberry Pi",
+    "description": "Free, open-source self-hosted web control panel for a Minecraft server: live console, one-click start/stop, player management, backups, schedules, plugins and play-with-friends over the internet. A free Aternos alternative.",
+    "url": "https://kinkoo777.github.io/MinecraftServerDashboard/",
+    "downloadUrl": "https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": { "@type": "Person", "name": "kinkoo777" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+
+  <!-- Structured data: FAQ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is MC Dashboard really free?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes, completely. MC Dashboard is open source and free to use forever. There are no subscriptions, paywalls or ads. You only need a computer to run it on." }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I host a Minecraft server for free?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Download MC Dashboard, unzip it, and run the launcher. It installs everything it needs, then you download a Paper or Vanilla server, accept the EULA and press Start - all from your browser. It runs on a computer you already own, so there are no hosting fees." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is MC Dashboard a free alternative to Aternos?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Unlike free hosts that sleep when you leave or make you queue, MC Dashboard runs on your own machine so the server never sleeps, has no queues, and you keep full control of your world and all the RAM your computer can give." }
+      },
+      {
+        "@type": "Question",
+        "name": "How do my friends connect to my server?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Open the Play Online tab and click once. It sets up a free playit.gg link your friends paste into Minecraft, with no router or port-forwarding changes needed." }
+      },
+      {
+        "@type": "Question",
+        "name": "What do I need to run it?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Any regular computer running Windows, macOS or Linux - even an old laptop or a Raspberry Pi works for a small server. The launcher installs Node.js and Java for you." }
+      }
+    ]
+  }
+  </script>
   <script>document.documentElement.classList.add('js');</script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -192,20 +264,6 @@
     <div class="section-head reveal">
       <h2>Install it like a normal app</h2>
       <p>Download the folder, open the launcher, then follow the page that opens in your browser.</p>
-    </div>
-    <div class="reqs reveal">
-      <div class="req">
-        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
-        <div><b>Any computer</b><span>Windows, macOS or Linux &mdash; even a Raspberry Pi 4/5</span></div>
-      </div>
-      <div class="req">
-        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>
-        <div><b>A little spare RAM</b><span>~2 GB for a small world, 4&ndash;6 GB for a busy one</span></div>
-      </div>
-      <div class="req">
-        <span class="req-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
-        <div><b>Internet</b><span>Just to download the server and play with friends</span></div>
-      </div>
     </div>
     <div class="steps">
       <div class="step reveal">
