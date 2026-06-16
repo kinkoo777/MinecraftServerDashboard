@@ -318,31 +318,27 @@ header {
   white-space: nowrap;
 }
 
-/* heads-up banner (Windows SmartScreen) */
-.heads-up-wrap { max-width: 1080px; margin: 8px auto 0; padding: 0 6vw; }
+/* heads-up callout (Windows SmartScreen) — sits inside install step 2 */
 .heads-up {
-  display: flex; align-items: center; gap: 16px;
-  padding: 16px 20px; border-radius: 14px;
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-top: 16px;
+  padding: 16px 18px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,180,84,0.09), rgba(255,180,84,0.05));
   border: 1px solid rgba(255,180,84,0.3);
 }
 .hu-ico {
-  flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px;
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,180,84,0.14); color: #ffb454;
 }
-.hu-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.hu-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
 .hu-text b { color: var(--text); font-weight: 600; }
 .hu-text em { font-style: normal; color: #ffc578; }
-.hu-link {
-  flex-shrink: 0; white-space: nowrap; font-weight: 600; font-size: 14px;
-  color: var(--accent); border: 1px solid rgba(0,210,106,0.35);
-  padding: 9px 14px; border-radius: 9px; transition: background .15s, border-color .15s;
-}
-.hu-link:hover { background: rgba(0,210,106,0.12); border-color: var(--accent); }
-@media (max-width: 720px) {
-  .heads-up { flex-wrap: wrap; gap: 12px; }
-  .hu-link { width: 100%; text-align: center; }
+.hu-steps { display: flex; flex-direction: column; gap: 7px; margin-top: 11px; }
+.hu-steps > span { position: relative; padding-left: 16px; }
+.hu-steps > span::before {
+  content: ''; position: absolute; left: 2px; top: 8px;
+  width: 5px; height: 5px; border-radius: 50%; background: #ffb454;
 }
 
 /* faq */
