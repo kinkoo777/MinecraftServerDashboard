@@ -60,10 +60,9 @@ function pickAsset(assets, isDaemon) {
     }
     return false;
   };
-  const cands = assets.filter(x => matches(x.name));
-  return cands.find(x => /cli/i.test(x.name))
-    || cands.find(x => /signed/i.test(x.name))
-    || cands[0];
+  // The 'cli' variants are management tools, not the daemon agent — exclude them
+  const cands = assets.filter(x => matches(x.name) && !/cli/i.test(x.name));
+  return cands.find(x => /signed/i.test(x.name)) || cands[0];
 }
 
 class Playit extends EventEmitter {
@@ -207,11 +206,18 @@ class Playit extends EventEmitter {
       this.proc = null;
       this._setStatus('offline');
     });
+    const spawnedAt = Date.now();
     this.proc.on('exit', (code) => {
       this.pushLog(`[dashboard] playit agent stopped (code ${code ?? '?'})`);
       this.proc = null;
       this.claimUrl = null;
       this._setStatus('offline');
+      // Code 2 within 2 s = binary rejected the --secret arg (wrong binary type).
+      // Delete it so the next start downloads the correct daemon build.
+      if (code === 2 && Date.now() - spawnedAt < 2000) {
+        this.pushLog('[dashboard] Incompatible binary detected — removing it (will re-download on next start).');
+        try { fs.unlinkSync(binPath()); } catch (_) { /* already gone */ }
+      }
     });
   }
 

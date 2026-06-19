@@ -73,11 +73,14 @@ function agentsRundata(secret) {
 // alloc:null asks playit to auto-assign a free shared address.
 function createMinecraftTunnel(secret, agentId) {
   const body = {
-    ports: { type: 'tunnel-type', details: 'minecraft-java' },
-    origin: { type: 'agent', data: { agent_id: agentId || null, config: { fields: [] } } },
+    name: 'Minecraft (MC Dashboard)',
+    tunnel_type: 'minecraft-java',
+    origin: {
+      agent_id: agentId || null,
+      config: { fields: [] }
+    },
     enabled: true,
-    alloc: null,
-    name: 'Minecraft (MC Dashboard)'
+    alloc: null
   };
   return apiCall('/v1/tunnels/create', body, secret);
 }
