@@ -19,7 +19,7 @@ async function getLatestVersion(type) {
 async function resolveJarUrl(type, version) {
   if (type === 'paper') {
     const builds = (await (await fetch(`${PAPER_API}/versions/${version}/builds`)).json()).builds;
-    if (!builds || !builds.length) throw new Error(`No Paper builds for ${version}`);
+    if (!builds || !builds.length) throw new Error(`Paper hasn't released a server build for Minecraft ${version} yet. Download the Vanilla jar instead and switch to Paper once they release it.`);
     const build = builds.filter(b => b.channel === 'default').pop() || builds[builds.length - 1];
     return `${PAPER_API}/versions/${version}/builds/${build.build}/downloads/${build.downloads.application.name}`;
   }

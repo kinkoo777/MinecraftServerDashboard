@@ -34,7 +34,9 @@ const ICONS = {
   trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
   globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
-  tunnel: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>'
+  tunnel: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+  eye: '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
 };
 
 /* Shared app shell: hash router, WebSocket, API helper, toasts */
@@ -83,6 +85,19 @@ const App = {
   },
 
   renderAuth(isSetup) {
+    const MIN = 6;
+    // A password field with a built-in show/hide (eye) button.
+    const pwField = (id, ph, ac) => `
+      <div class="pw-wrap">
+        <input type="password" id="${id}" placeholder="${ph}" autocomplete="${ac}">
+        <button type="button" class="pw-toggle" data-for="${id}" aria-label="Show password" tabindex="-1">${this.icon('eye', 18)}</button>
+      </div>`;
+
+    // Warn if the dashboard is reached over plain HTTP from a non-local address
+    // (e.g. through a tunnel) — the password would travel unencrypted.
+    const local = /^(localhost|127\.|0\.0\.0\.0|::1|\[::1\]|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+    const insecure = location.protocol !== 'https:' && !local;
+
     const ov = document.createElement('div');
     ov.id = 'auth-overlay';
     ov.innerHTML = `
@@ -90,28 +105,128 @@ const App = {
         <div class="logo" style="border:none;justify-content:center;padding:0"><img src="icon.svg" class="logo-img" alt=""><span>MC Dashboard</span></div>
         <h1 style="text-align:center;margin:4px 0">${isSetup ? 'Log in' : 'Create a password'}</h1>
         ${isSetup ? '' : '<p class="muted" style="text-align:center">First run — protect your dashboard before anything else.</p>'}
-        <input type="password" id="auth-pw" placeholder="Password" autocomplete="${isSetup ? 'current-password' : 'new-password'}">
-        ${isSetup ? '' : '<input type="password" id="auth-pw2" placeholder="Repeat password" autocomplete="new-password">'}
-        <button class="btn-primary" type="submit">${isSetup ? 'Log in' : 'Set password & enter'}</button>
+        ${insecure ? `<div class="auth-warn">🔓 This connection isn't encrypted (plain HTTP). Anyone between you and the server could read your password. Set up HTTPS before exposing the dashboard over the internet.</div>` : ''}
+        ${pwField('auth-pw', 'Password', isSetup ? 'current-password' : 'new-password')}
+        ${isSetup ? '' : pwField('auth-pw2', 'Repeat password', 'new-password')}
+        ${isSetup ? '' : `<div class="pw-meter" id="pw-meter"><span></span><span></span><span></span></div>
+        <p class="auth-hint muted" id="pw-hint">Use at least ${MIN} characters — longer is safer.</p>`}
+        <div id="auth-caps" class="auth-note">⚠ Caps Lock is on</div>
+        <div class="pw-2fa" id="auth-2fa-wrap" style="display:none">
+          <input id="auth-2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code from your app">
+          <div style="margin-top:8px"><a href="#" id="auth-2fa-recover" class="muted" style="font-size:12px">Lost access to your authenticator?</a></div>
+        </div>
+        <label class="auth-remember">
+          <span class="switch"><input type="checkbox" id="auth-remember" checked><span class="track"></span></span>
+          <span>Keep me signed in on this device</span>
+        </label>
+        <button class="btn-primary" type="submit" id="auth-submit">${isSetup ? 'Log in' : 'Set password & enter'}</button>
         <div id="auth-err" class="auth-err"></div>
       </form>`;
     document.body.appendChild(ov);
-    const err = (m) => { ov.querySelector('#auth-err').textContent = m; };
-    ov.querySelector('#auth-form').onsubmit = async (e) => {
+
+    const $ = (s) => ov.querySelector(s);
+    const err = (m) => { $('#auth-err').textContent = m; };
+    const pw = $('#auth-pw');
+    const pw2 = isSetup ? null : $('#auth-pw2');
+
+    // show/hide password toggles
+    ov.querySelectorAll('.pw-toggle').forEach(btn => {
+      btn.onclick = () => {
+        const inp = ov.querySelector('#' + btn.dataset.for);
+        const reveal = inp.type === 'password';
+        inp.type = reveal ? 'text' : 'password';
+        btn.innerHTML = this.icon(reveal ? 'eyeoff' : 'eye', 18);
+        btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+        inp.focus();
+      };
+    });
+
+    // Caps Lock indicator
+    const caps = $('#auth-caps');
+    const checkCaps = (e) => {
+      if (e.getModifierState) caps.classList.toggle('show', e.getModifierState('CapsLock'));
+    };
+    [pw, pw2].filter(Boolean).forEach(i => { i.addEventListener('keydown', checkCaps); i.addEventListener('keyup', checkCaps); });
+
+    // First-run: strength meter + live validation (don't let them submit a too-short/mismatched password)
+    if (!isSetup) {
+      const meter = $('#pw-meter');
+      const hint = $('#pw-hint');
+      const submit = $('#auth-submit');
+      const score = (p) => {
+        let s = 0;
+        if (p.length >= MIN) s++;
+        if (p.length >= 12) s++;
+        if (/[^a-zA-Z0-9]/.test(p) || (/[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p))) s++;
+        return p.length ? Math.max(1, Math.min(s, 3)) : 0;
+      };
+      const labels = ['', 'Weak', 'Okay', 'Strong'];
+      const update = () => {
+        const s = score(pw.value);
+        meter.dataset.score = String(s);
+        const tooShort = pw.value.length > 0 && pw.value.length < MIN;
+        const mismatch = pw2.value.length > 0 && pw.value !== pw2.value;
+        hint.textContent = tooShort ? `A bit short — use at least ${MIN} characters.`
+          : mismatch ? 'The two passwords don’t match yet.'
+          : pw.value ? `Strength: ${labels[s]}` : `Use at least ${MIN} characters — longer is safer.`;
+        submit.disabled = pw.value.length < MIN || pw.value !== pw2.value;
+      };
+      [pw, pw2].forEach(i => i.addEventListener('input', update));
+      update();
+    }
+
+    // the .track click forwards to its checkbox (matches the app's toggle pattern)
+    const remember = $('#auth-remember');
+    $('.auth-remember .track').onclick = () => remember.click();
+
+    let need2fa = false;
+    const twoFaWrap = $('#auth-2fa-wrap');
+    const twoFa = $('#auth-2fa');
+
+    $('#auth-form').onsubmit = async (e) => {
       e.preventDefault();
-      const password = ov.querySelector('#auth-pw').value;
-      if (!isSetup && password !== ov.querySelector('#auth-pw2').value) return err('Passwords do not match');
+      const password = pw.value;
+      if (!isSetup && password !== pw2.value) return err('Passwords do not match');
+      const body = { password, remember: remember.checked };
+      if (need2fa) body.code = twoFa.value.trim();
       const res = await fetch(`/api/auth/${isSetup ? 'login' : 'setup'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify(body)
       });
       const j = await res.json().catch(() => ({}));
+      if (j.need2fa) {
+        // password accepted — now ask for the authenticator code
+        need2fa = true;
+        twoFaWrap.style.display = 'block';
+        pw.closest('.pw-wrap').style.display = 'none';
+        $('#auth-submit').textContent = 'Verify code';
+        err(j.error || '');
+        twoFa.focus();
+        const recoverLink = $('#auth-2fa-recover');
+        if (recoverLink) recoverLink.onclick = async (e) => {
+          e.preventDefault();
+          if (!confirm('This will turn off 2FA using your password. Continue?')) return;
+          const r = await fetch('/api/auth/2fa/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw.value })
+          });
+          const rj = await r.json().catch(() => ({}));
+          if (!r.ok) return err(rj.error || 'Recovery failed');
+          err('2FA disabled — log in with your password.');
+          need2fa = false;
+          twoFaWrap.style.display = 'none';
+          pw.closest('.pw-wrap').style.display = '';
+          $('#auth-submit').textContent = isSetup ? 'Log in' : 'Set password & enter';
+        };
+        return;
+      }
       if (!res.ok) return err(j.error || 'Something went wrong');
       ov.remove();
       this.boot();
     };
-    ov.querySelector('#auth-pw').focus();
+    pw.focus();
   },
 
   applyTheme(theme) {
@@ -164,6 +279,10 @@ const App = {
         if (this.current?.onTunnelLog) this.current.onTunnelLog(data);
       } else if (type === 'tunnel-update') {
         if (this.current?.onTunnelUpdate) this.current.onTunnelUpdate(data);
+      } else if (type === 'cf-log') {
+        if (this.current?.onCfLog) this.current.onCfLog(data);
+      } else if (type === 'cf-update') {
+        if (this.current?.onCfUpdate) this.current.onCfUpdate(data);
       }
     };
     this.ws.onclose = (e) => {

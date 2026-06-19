@@ -91,6 +91,11 @@ router.post('/restore', async (req, res, next) => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     await extractZip(file, { dir: tmpDir });
     const extracted = fs.existsSync(path.join(tmpDir, name)) ? path.join(tmpDir, name) : tmpDir;
+    // Safety net: snapshot the current world before overwriting it, so restoring
+    // the wrong backup is undoable. Best-effort — never block the restore on it.
+    if (fs.existsSync(worldDir)) {
+      try { await createBackup(); } catch (e) { /* couldn't snapshot; proceed anyway */ }
+    }
     if (fs.existsSync(worldDir)) fs.rmSync(worldDir, { recursive: true, force: true });
     fs.renameSync(extracted, worldDir);
     fs.rmSync(tmpDir, { recursive: true, force: true });

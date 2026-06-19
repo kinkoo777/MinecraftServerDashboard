@@ -57,9 +57,9 @@ function configPatch(body) {
   return { patch };
 }
 
-// never expose password hash/salt to the client
+// never expose password hash/salt/params or the 2FA secret to the client
 function publicConfig(cfg) {
-  const { passwordHash, passwordSalt, ...rest } = cfg || getConfig();
+  const { passwordHash, passwordSalt, passwordParams, totpSecret, totpPending, ...rest } = cfg || getConfig();
   return rest;
 }
 

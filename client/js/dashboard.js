@@ -10,12 +10,30 @@ App.pages.dashboard = {
         <span class="badge"><span id="db-dot" class="dot offline"></span><span id="db-status">Offline</span></span>
       </div>
       <div id="db-notices"></div>
+      <div id="db-health"></div>
       <div class="card">
         <div class="btn-row">
           <button id="db-start" class="btn-primary">${App.icon('play', 14)} Start</button>
           <button id="db-stop" class="btn-danger">${App.icon('stop', 14)} Stop</button>
           <button id="db-restart">${App.icon('restart', 14)} Restart</button>
         </div>
+      </div>
+      <div class="card" id="db-connect">
+        <div class="card-title-row">
+          <h2>How to connect</h2>
+          <button id="db-conntest" class="btn-sm">Test connection</button>
+        </div>
+        <div class="connect-rows">
+          <div class="connect-row">
+            <div><b>This computer</b><span class="muted">Minecraft → Multiplayer → Add Server</span></div>
+            <span class="connect-addr"><code>localhost</code><button class="btn-sm" data-copy="localhost">Copy</button></span>
+          </div>
+          <div class="connect-row" id="db-lan" style="display:none">
+            <div><b>Friends on your Wi-Fi</b><span class="muted">Same home network — no setup needed</span></div>
+            <span class="connect-addr"><code id="db-lan-addr"></code><button class="btn-sm" id="db-lan-copy">Copy</button></span>
+          </div>
+        </div>
+        <div class="hint muted" id="db-conntest-result" style="margin-top:10px"></div>
       </div>
       <div class="grid grid-4">
         <div class="card stat-card"><div class="label">Players online</div><div class="value" id="db-players">0</div></div>
@@ -54,6 +72,13 @@ App.pages.dashboard = {
     document.getElementById('db-stop').onclick = () => App.tryApi('/server/stop', { method: 'POST' }, 'Stopping server…');
     document.getElementById('db-restart').onclick = () => App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
 
+    document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
+      b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); App.toast('Copied ' + b.dataset.copy); });
+    document.getElementById('db-conntest').onclick = () => this.testConnection();
+    this.loadConnect();
+    // max RAM as bytes, so the health banner can warn when the server nears its ceiling
+    App.tryApi('/settings/config').then(cfg => { if (cfg) this.maxRamBytes = this.ramToBytes(cfg.maxRam); });
+
     document.querySelectorAll('#db-chart-tabs button').forEach(b => {
       b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
     });
@@ -80,6 +105,53 @@ App.pages.dashboard = {
     this.overview = data;
     this.renderChart();
     this.renderRecent();
+  },
+
+  // Fill in the LAN address friends on the same Wi-Fi use.
+  async loadConnect() {
+    const c = await App.tryApi('/server/connect');
+    if (!c || !c.lanIp || App.currentName !== 'dashboard') return;
+    const addr = c.port && c.port !== 25565 ? `${c.lanIp}:${c.port}` : c.lanIp;
+    const row = document.getElementById('db-lan');
+    if (!row) return;
+    document.getElementById('db-lan-addr').textContent = addr;
+    document.getElementById('db-lan-copy').onclick = () => { navigator.clipboard?.writeText(addr); App.toast('Copied ' + addr); };
+    row.style.display = '';
+  },
+
+  async testConnection() {
+    const btn = document.getElementById('db-conntest');
+    const out = document.getElementById('db-conntest-result');
+    if (!btn || !out) return;
+    btn.disabled = true;
+    out.textContent = 'Testing…';
+    const r = await App.tryApi('/server/connectivity');
+    btn.disabled = false;
+    if (!r) { out.textContent = ''; return; }
+    out.innerHTML = r.ok
+      ? `<span style="color:var(--accent)">✓ Your server is up and accepting connections on port ${r.port}.</span>`
+      : `<span style="color:var(--red)">✕ Nothing is answering on port ${r.port}. Press <b>Start</b> and wait for “Ready to join”, then test again.</span>`;
+  },
+
+  ramToBytes(s) {
+    const m = /^(\d+)([MG])$/i.exec(s || '');
+    if (!m) return 0;
+    return parseInt(m[1], 10) * (m[2].toUpperCase() === 'G' ? 1073741824 : 1048576);
+  },
+
+  // Plain-language health warnings: near the RAM ceiling, or lagging (low TPS).
+  renderHealth(stats) {
+    const box = document.getElementById('db-health');
+    if (!box) return;
+    if (!stats || !stats.online) { box.innerHTML = ''; return; }
+    const msgs = [];
+    if (this.maxRamBytes && stats.memory / this.maxRamBytes > 0.9) {
+      msgs.push('Your server is close to its memory limit. If it lags or crashes, reduce the number of players, lower <b>view-distance</b> in Settings, or give it more <b>Max RAM</b>.');
+    }
+    if (stats.tps != null && stats.tps < 18) {
+      msgs.push(`The server is running slow — <b>${stats.tps.toFixed(0)} TPS</b> out of 20. That's lag. Lowering <b>view-distance</b>/<b>simulation-distance</b> or having fewer players usually fixes it.`);
+    }
+    box.innerHTML = msgs.map(m => `<div class="notice"><span class="notice-text">⚠ ${m}</span></div>`).join('');
   },
 
   renderChart() {
@@ -225,6 +297,9 @@ App.pages.dashboard = {
     if (s.jarExists && s.eula !== 'accepted') {
       html += `<div class="notice"><span class="notice-text">The Minecraft EULA has not been accepted yet — the server won't start without it.</span><button id="db-eula" class="btn-primary btn-sm">Accept EULA</button></div>`;
     }
+    if (s.crashGaveUp) {
+      html += `<div class="notice notice-danger"><span class="notice-text">The server kept crashing right after starting, so auto-restart stopped trying. Open the saved Console logs to see what went wrong.</span><a href="#console" class="btn-sm">Open Console</a></div>`;
+    }
     box.innerHTML = html;
     const wizBtn = document.getElementById('db-wizard');
     if (wizBtn) wizBtn.onclick = () => App.wizard.open();
@@ -268,5 +343,6 @@ App.pages.dashboard = {
     ram.textContent = stats.online ? App.fmtBytes(stats.memory) : '—';
     document.getElementById('db-cpu').textContent = stats.online ? `${stats.cpu.toFixed(0)}%` : '—';
     document.getElementById('db-uptime').textContent = stats.online ? App.fmtUptime(stats.uptime) : '—';
+    this.renderHealth(stats);
   }
 };

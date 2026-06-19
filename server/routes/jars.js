@@ -12,8 +12,8 @@ router.get('/versions', async (req, res) => {
     const paper = await paperRes.json();
     const mojang = await mojangRes.json();
     res.json({
-      paper: paper.versions.slice(-15).reverse(),
-      vanilla: mojang.versions.filter(v => v.type === 'release').slice(0, 15).map(v => v.id)
+      paper: paper.versions.slice(-50).reverse(),
+      vanilla: mojang.versions.filter(v => v.type === 'release').slice(0, 30).map(v => v.id)
     });
   } catch (e) {
     res.status(502).json({ error: `Could not reach version APIs: ${e.message}` });

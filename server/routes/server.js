@@ -1,14 +1,36 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const net = require('net');
 const pidusage = require('pidusage');
 const mc = require('../minecraft');
 const { getConfig, serverDir } = require('../config');
 const { levelName } = require('../utils/backup');
+const { readProperties } = require('../utils/properties');
 const history = require('../history');
 const { getLatestVersion, downloadJar } = require('../utils/jars');
 
 const router = express.Router();
+
+// The machine's address on the local network, so friends on the same Wi-Fi can
+// join without any router setup. Prefer a private-range IPv4 (192.168.x / 10.x / 172.16–31.x).
+function lanIp() {
+  let fallback = null;
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const ni of list || []) {
+      if (ni.family !== 'IPv4' || ni.internal) continue;
+      if (/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ni.address)) return ni.address;
+      fallback = fallback || ni.address;
+    }
+  }
+  return fallback;
+}
+
+function serverPort() {
+  const p = parseInt(readProperties(path.join(serverDir(), 'server.properties'))['server-port'], 10);
+  return Number.isInteger(p) && p > 0 && p < 65536 ? p : 25565;
+}
 
 // Recently seen players: playerdata file mtimes mapped to names via usercache.json
 function recentPlayers() {
@@ -57,8 +79,42 @@ router.get('/status', (req, res) => {
     uptime: mc.uptime,
     jarExists: fs.existsSync(path.join(serverDir(), cfg.jarFile)),
     jarFile: cfg.jarFile,
-    eula: eulaState()
+    eula: eulaState(),
+    crashGaveUp: mc.crashGaveUp
   });
+});
+
+// Addresses to give players. localhost works on this PC; lanIp works for anyone on the same Wi-Fi.
+router.get('/connect', (req, res) => {
+  res.json({ lanIp: lanIp(), port: serverPort() });
+});
+
+// Suggest a safe RAM allocation based on the machine, so a beginner never picks
+// a value that won't boot. Aim for ~half of RAM, leave ~2 GB for the OS, min 1 GB.
+router.get('/sysinfo', (req, res) => {
+  const totalMB = Math.floor(os.totalmem() / 1048576);
+  let maxMB = Math.min(Math.floor(totalMB / 2), totalMB - 2048);
+  maxMB = Math.max(1024, Math.floor(maxMB / 512) * 512);
+  const fmt = (mb) => (mb % 1024 === 0 ? `${mb / 1024}G` : `${mb}M`);
+  res.json({
+    totalRamMB: totalMB,
+    suggestedMinRam: fmt(Math.min(1024, maxMB)),
+    suggestedMaxRam: fmt(maxMB)
+  });
+});
+
+// Self-test: is anything actually listening on the Minecraft port? Answers the
+// constant "did it work?" question with a real TCP check against 127.0.0.1.
+router.get('/connectivity', (req, res) => {
+  const port = serverPort();
+  const sock = new net.Socket();
+  let done = false;
+  const finish = (ok) => { if (done) return; done = true; sock.destroy(); res.json({ ok, port }); };
+  sock.setTimeout(2000);
+  sock.once('connect', () => finish(true));
+  sock.once('timeout', () => finish(false));
+  sock.once('error', () => finish(false));
+  sock.connect(port, '127.0.0.1');
 });
 
 router.get('/stats', async (req, res) => {

@@ -22,6 +22,18 @@ console-logs/
 .test-server/
 
 reports.json
+sessions.json
 
 # playit.gg agent binary + its config
 playit/
+
+# cloudflared binary download
+cloudflare/
+
+# stray artifacts from local agent/swarm tooling
+.claude-flow/
+.swarm/
+.remember/
+ruvector.db
+*.channel
+v.id

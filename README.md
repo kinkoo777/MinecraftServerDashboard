@@ -98,12 +98,12 @@ That's it — you have a working server. Next, invite friends. 👇
 
 You don't need to mess with your router. Open the **Play Online** tab:
 
-1. Click **Enable internet access**. The dashboard downloads and runs the free [playit.gg](https://playit.gg) agent for you.
-2. Click the **Finish setup** link, sign in to playit.gg (free), and add a **Minecraft Java** tunnel pointing to `127.0.0.1:25565`.
-3. The page shows a public **address** (something like `yourname.craft.playit.gg`). Click **Copy** and send it to your friends.
+1. Click **Enable internet access**. The dashboard downloads the free [playit.gg](https://playit.gg) agent for you.
+2. Click **Sign in & approve** — a playit.gg page opens. Sign in or **continue as guest**, then click **Allow**. That's the only step you do by hand.
+3. The dashboard does the rest automatically: it claims the agent, creates a **Minecraft** tunnel and shows your public **address** (something like `yourname.gl.joinmc.link`). Click **Copy** and send it to friends.
 4. Friends add that address in Minecraft → Multiplayer → Add Server, and they're in.
 
-No port forwarding, no static IP, no networking knowledge required.
+After the first time the setup is remembered, so it's a single click to go online again. No port forwarding, no static IP, no networking knowledge required.
 
 > On a home network you can also just share your public IP and forward port `25565` — but playit is the easy path.
 
@@ -164,7 +164,25 @@ On the **Plugins** page you can **search Modrinth and install** plugins/mods wit
 
 ## 🔒 Security
 
-The dashboard is **password-protected** and all API/WebSocket traffic is session-checked, with rate-limited login attempts. It is, however, plain **HTTP** — fine on your home network. For access over the internet, put it behind **HTTPS** (a reverse proxy like Caddy) or a **VPN** (e.g. Tailscale) rather than exposing port 8080 directly. The logged-in file manager has full access to the server folder, so keep your password private.
+The dashboard is **password-protected** (scrypt-hashed) and all API/WebSocket traffic is session-checked, with rate-limited login attempts (per-IP **and** a global cap, so a hidden client IP behind a tunnel can't bypass it). Sessions persist across restarts, with a **"keep me signed in"** choice at login. You can also turn on **two-factor authentication (2FA)** in **Settings → Two-factor authentication** — a 6-digit code from any authenticator app, so a stolen password alone isn't enough. The logged-in file manager has full access to the server folder, so keep your password private.
+
+### 🌐 Exposing the dashboard over the internet — do it safely
+
+The dashboard serves plain **HTTP**, which is fine on your home network. But a plain **playit.gg tunnel is raw TCP**, so if you tunnel the dashboard directly your password and session cookie travel **unencrypted** across the internet (the login screen warns you when it detects this). Before exposing it:
+
+1. **Turn on 2FA** (Settings → Two-factor authentication). Quickest win — a sniffed or guessed password no longer gets someone in.
+2. **Put it behind HTTPS.** Best options:
+   - **Caddy** (automatic HTTPS, one line) — point a domain at your machine and:
+     ```
+     your-domain.com {
+         reverse_proxy localhost:8080
+     }
+     ```
+   - **Cloudflare Tunnel** (`cloudflared`) — free, gives you an `https://` hostname with no open ports.
+   - The dashboard already trusts one proxy hop, so `https://` and the `Secure` cookie flag work automatically behind either.
+3. **Or skip exposure entirely** and use a **VPN** like [Tailscale](https://tailscale.com) — then the dashboard is only reachable from your own devices.
+
+Avoid exposing port 8080 directly over plain HTTP.
 
 ---
 

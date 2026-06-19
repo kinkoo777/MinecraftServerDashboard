@@ -250,6 +250,8 @@ input:focus, select:focus, textarea:focus {
   gap: 4px 18px;
   margin-bottom: 14px;
 }
+/* a time picker only needs a little room — don't let it stretch the whole column */
+#sc-time { width: 160px; max-width: 100%; }
 
 /* toggle switch */
 .switch { position: relative; width: 36px; height: 20px; display: inline-block; flex-shrink: 0; }
@@ -328,6 +330,12 @@ td .avatar { width: 24px; height: 24px; border-radius: 4px; vertical-align: midd
 }
 .tabs button:hover { color: var(--text); }
 .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.stab-panel { display: none; }
+.stab-panel.active { display: block; }
+.motd-toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.motd-clr { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(255,255,255,.2); cursor: pointer; padding: 0; flex-shrink: 0; }
+.motd-fmt { min-width: 26px; font-size: 11px; padding: 2px 6px; }
+.motd-preview-box { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 6px; padding: 10px 12px; font-family: 'Segoe UI', sans-serif; }
 
 /* ---------- Files ---------- */
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--muted); flex-wrap: wrap; }
@@ -457,6 +465,11 @@ tr:hover .file-actions { opacity: 1; }
   padding: 12px 14px;
 }
 .tn-addr code { font-family: var(--mono); font-size: 16px; color: var(--accent); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.tn-claim { background: var(--accent-dim); border: 1px solid rgba(0, 210, 106, 0.25); border-radius: var(--radius); padding: 18px; text-align: center; }
+.btn-lg { font-size: 15px; padding: 12px 22px; }
+.tn-spin { display: inline-block; width: 13px; height: 13px; margin-right: 6px; vertical-align: -1px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: tn-spin 0.8s linear infinite; }
+@keyframes tn-spin { to { transform: rotate(360deg); } }
 
 /* ---------- Server profiles ---------- */
 .srv-row {
@@ -657,6 +670,25 @@ body.light .slot.filled { border-color: #b9c0cc; }
 
 .auth-card h1 { font-size: 18px; }
 .auth-err { color: var(--red); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* login extras: show/hide toggle, caps-lock note, strength meter, insecure warning */
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap input { width: 100%; padding-right: 42px; }
+.pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px; display: flex; border-radius: 6px; }
+.pw-toggle:hover { color: var(--text); }
+.auth-warn { background: var(--red-dim); border: 1px solid rgba(255, 92, 92, 0.3); color: var(--red); font-size: 12.5px; line-height: 1.45; border-radius: 10px; padding: 10px 12px; }
+.auth-note { display: none; color: var(--amber); font-size: 12.5px; text-align: center; }
+.auth-note.show { display: block; }
+.auth-hint { font-size: 12px; text-align: center; margin: -4px 0 0; min-height: 16px; }
+.pw-meter { display: flex; gap: 6px; }
+.pw-meter span { flex: 1; height: 4px; border-radius: 3px; background: var(--border); transition: background 0.2s; }
+.pw-meter[data-score="1"] span:nth-child(1) { background: var(--red); }
+.pw-meter[data-score="2"] span:nth-child(-n+2) { background: var(--amber); }
+.pw-meter[data-score="3"] span { background: var(--accent); }
+.auth-remember { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.pw-2fa input { width: 100%; text-align: center; letter-spacing: 6px; font-size: 20px; font-family: var(--mono); }
+.tfa-key { display: inline-block; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-family: var(--mono); letter-spacing: 1px; overflow-wrap: anywhere; }
+.tfa-qr { width: 200px; height: 200px; border-radius: 10px; background: #fff; padding: 8px; display: block; }
 
 /* ---------- Modrinth results ---------- */
 .mr-row {
@@ -875,6 +907,10 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
   .card > table { min-width: 620px; }
   .card > table:only-child { margin-bottom: 0; }
   .file-actions { opacity: 1; }
+  /* give file names room and keep each on one line — the card scrolls sideways
+     instead of breaking a name across several rows */
+  #f-list table { min-width: 740px; }
+  .file-row .file-name { white-space: nowrap; overflow-wrap: normal; }
 
   /* settings rows stack */
   .prop-row { flex-wrap: wrap; }
@@ -969,6 +1005,19 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
 /* ---------- First-run setup wizard ---------- */
 .notice-setup { background: var(--accent-dim); border-color: rgba(0, 210, 106, 0.3); }
 .notice-setup .notice-text { color: var(--text); }
+.notice-danger { background: var(--red-dim); border-color: rgba(255, 92, 92, 0.3); }
+.notice-danger .notice-text { color: var(--red); }
+
+/* ---------- Dashboard "How to connect" card ---------- */
+.connect-rows { display: flex; flex-direction: column; gap: 10px; }
+.connect-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.connect-row b { display: block; font-size: 14px; }
+.connect-row span.muted { font-size: 12px; }
+.connect-addr { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.connect-addr code { background: var(--accent-dim); color: var(--accent); padding: 5px 10px; border-radius: 8px; font-size: 14px; }
+@media (max-width: 560px) {
+  .connect-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
 
 #wizard-overlay {
   position: fixed; inset: 0; z-index: 200;

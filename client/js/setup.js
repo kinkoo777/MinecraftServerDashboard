@@ -18,6 +18,7 @@ App.wizard = {
     this.st = await App.tryApi('/server/status');
     if (!this.st) return;
     this.cfg = await App.tryApi('/settings/config') || {};
+    this.sys = await App.tryApi('/server/sysinfo'); // RAM suggestion for this machine
 
     const ov = document.createElement('div');
     ov.id = 'wizard-overlay';
@@ -45,11 +46,10 @@ App.wizard = {
   async renderChoose() {
     const body = document.getElementById('wiz-body');
     const hasJar = this.st.jarExists;
-    const ramOpts = [
-      { min: '1G', max: '2G', name: 'Small', sub: '~2 GB · 1–3 players' },
-      { min: '2G', max: '4G', name: 'Medium', sub: '~4 GB · around 5' },
-      { min: '3G', max: '6G', name: 'Large', sub: '~6 GB · 10+ / mods' }
-    ];
+    // For a brand-new server, default to the machine-aware RAM suggestion; once a
+    // server exists, respect whatever RAM the user has already configured.
+    const ramMin = (!hasJar && this.sys ? this.sys.suggestedMinRam : null) || this.cfg.minRam || '1G';
+    const ramMax = (!hasJar && this.sys ? this.sys.suggestedMaxRam : null) || this.cfg.maxRam || '2G';
     body.innerHTML = `
       ${hasJar ? `
         <div class="wiz-note">${App.icon('server', 16)} You already have a server installed — pick your options below and we'll start it.</div>
@@ -76,15 +76,10 @@ App.wizard = {
       <div class="wiz-options">
         <div class="field"><label>Server name (shown in the in-game server list)</label>
           <input id="wiz-motd" placeholder="My Minecraft Server" maxlength="60"></div>
-        <div class="field"><label>Server memory (RAM)</label>
-          <div class="ram-picker" id="wiz-ram">
-            ${ramOpts.map(o => `<button type="button" class="ram-opt" data-min="${o.min}" data-max="${o.max}"><b>${o.name}</b><span>${o.sub}</span></button>`).join('')}
-          </div>
-          <button type="button" id="wiz-ram-adv-toggle" class="wiz-ram-adv-toggle">${App.icon('settings', 13)} Set an exact RAM amount</button>
-          <div id="wiz-ram-adv" class="ram-adv" style="display:none">
-            <div class="field" style="margin:0"><label>Min RAM</label><input id="wiz-minRam" placeholder="1G"><div class="hint">e.g. 1G or 512M</div></div>
-            <div class="field" style="margin:0"><label>Max RAM</label><input id="wiz-maxRam" placeholder="2G"><div class="hint">e.g. 4G</div></div>
-          </div>
+        ${this.sys ? `<div class="hint muted" style="margin:-2px 0 8px">💡 Suggested for this computer (${(this.sys.totalRamMB / 1024).toFixed(1)} GB total RAM): up to <b>${App.esc(this.sys.suggestedMaxRam)}</b>. You can change it.</div>` : ''}
+        <div class="ram-adv">
+          <div class="field" style="margin:0"><label>Min RAM</label><input id="wiz-minRam" value="${App.esc(ramMin)}" placeholder="1G"><div class="hint">e.g. 1G or 512M</div></div>
+          <div class="field" style="margin:0"><label>Max RAM</label><input id="wiz-maxRam" value="${App.esc(ramMax)}" placeholder="2G"><div class="hint">e.g. 2G or 4G</div></div>
         </div>
         <div class="wiz-grid3">
           <div class="field"><label>Mode</label>
@@ -101,8 +96,6 @@ App.wizard = {
       </label>
       <button id="wiz-go" class="btn-primary wiz-go">${hasJar ? 'Apply & start' : 'Create my server'} →</button>
     `;
-
-    this.initRam();
 
     if (!hasJar) {
       let picked = 'paper';
@@ -147,43 +140,6 @@ App.wizard = {
     const box = document.getElementById('wiz-adv-box');
     if (sel && box && box.style.display !== 'none' && sel.value) return sel.value;
     return this.versions ? (this.versions[type] || [])[0] : null;
-  },
-
-  // Wire the RAM presets to the exact Min/Max inputs (inputs are the source of truth).
-  initRam() {
-    const picker = document.getElementById('wiz-ram');
-    const minEl = document.getElementById('wiz-minRam');
-    const maxEl = document.getElementById('wiz-maxRam');
-    const advBox = document.getElementById('wiz-ram-adv');
-    const advToggle = document.getElementById('wiz-ram-adv-toggle');
-    if (!picker || !minEl || !maxEl) return;
-
-    const norm = (v) => (v || '').trim().toUpperCase();
-    minEl.value = this.cfg.minRam || '1G';
-    maxEl.value = this.cfg.maxRam || '2G';
-    const advLabel = (open) => advToggle.innerHTML = `${App.icon('settings', 13)} ${open ? 'Use a preset instead' : 'Set an exact RAM amount'}`;
-    const showAdv = () => { advBox.style.display = 'grid'; advLabel(true); };
-
-    const sync = () => {
-      let matched = false;
-      picker.querySelectorAll('.ram-opt').forEach(b => {
-        const on = norm(b.dataset.min) === norm(minEl.value) && norm(b.dataset.max) === norm(maxEl.value);
-        b.classList.toggle('active', on);
-        if (on) matched = true;
-      });
-      if (!matched) showAdv(); // custom values -> reveal the exact inputs
-    };
-
-    picker.querySelectorAll('.ram-opt').forEach(b => {
-      b.onclick = () => { minEl.value = b.dataset.min; maxEl.value = b.dataset.max; sync(); };
-    });
-    advToggle.onclick = () => {
-      const show = advBox.style.display === 'none';
-      if (show) showAdv();
-      else { advBox.style.display = 'none'; advLabel(false); }
-    };
-    minEl.oninput = maxEl.oninput = sync;
-    sync();
   },
 
   // Read the options form into { ram, props }
@@ -293,8 +249,10 @@ App.wizard = {
     });
   },
 
-  renderSuccess() {
+  async renderSuccess() {
     const body = document.getElementById('wiz-body');
+    const conn = await App.tryApi('/server/connect') || {};
+    const lan = conn.lanIp ? (conn.port && conn.port !== 25565 ? `${conn.lanIp}:${conn.port}` : conn.lanIp) : null;
     body.innerHTML = `
       <div class="wiz-success">
         <div class="wiz-success-ico">${App.icon('play', 26)}</div>
@@ -306,16 +264,21 @@ App.wizard = {
           <div><b>On this computer</b><span class="muted">Open Minecraft → Multiplayer → Add Server</span></div>
           <span class="wiz-addr">localhost <button class="wiz-copy" data-copy="localhost">Copy</button></span>
         </div>
+        ${lan ? `<div class="wiz-connect-row">
+          <div><b>Friends on your Wi-Fi</b><span class="muted">Same home network — no setup needed</span></div>
+          <span class="wiz-addr">${App.esc(lan)} <button class="wiz-copy" data-copy="${App.esc(lan)}">Copy</button></span>
+        </div>` : ''}
         <div class="wiz-connect-row">
           <div><b>Friends over the internet</b><span class="muted">Get a shareable link in one click</span></div>
           <a href="#tunnel" class="btn-sm" id="wiz-tunnel">Play Online →</a>
         </div>
       </div>
       <button id="wiz-done" class="btn-primary wiz-go">Go to dashboard</button>`;
-    body.querySelector('.wiz-copy').onclick = (e) => {
-      navigator.clipboard?.writeText(e.target.dataset.copy);
-      App.toast('Copied “localhost”');
-    };
+    body.querySelectorAll('.wiz-copy').forEach(btn => btn.onclick = (e) => {
+      const v = e.target.dataset.copy;
+      navigator.clipboard?.writeText(v);
+      App.toast(`Copied “${v}”`);
+    });
     document.getElementById('wiz-tunnel').onclick = () => this.close();
     document.getElementById('wiz-done').onclick = () => this.close();
   },

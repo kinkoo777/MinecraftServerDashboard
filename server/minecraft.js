@@ -22,6 +22,7 @@ class MinecraftServer extends EventEmitter {
     this.stopTimer = null;
     this.stopping = false;    // true while a user/dashboard-requested stop is in progress
     this.crashCount = 0;
+    this.crashGaveUp = false; // true when auto-restart bailed out after repeated quick crashes
     this.lastTps = null;
     this.lastTpsAt = 0;
   }
@@ -40,7 +41,10 @@ class MinecraftServer extends EventEmitter {
 
   handleLine(line) {
     this.pushLog(line);
-    if (this.status === 'starting' && DONE_RE.test(line)) this.setStatus('online');
+    if (this.status === 'starting' && DONE_RE.test(line)) {
+      this.crashCount = 0; // a healthy boot wipes the crash-loop slate
+      this.setStatus('online');
+    }
     let m;
     if ((m = JOIN_RE.exec(line))) {
       this.players.add(m[1]);
@@ -75,6 +79,7 @@ class MinecraftServer extends EventEmitter {
 
     // fresh buffer per run so saved console logs and the live view don't mix sessions
     this.logBuffer = [];
+    this.crashGaveUp = false; // we're trying again — clear any previous give-up
     this.setStatus('starting');
     this.startedAt = Date.now();
     this.pushLog(`[dashboard] Launching: ${config.javaPath} ${args.join(' ')}`);
@@ -129,6 +134,8 @@ class MinecraftServer extends EventEmitter {
             }
           }, 5000);
         } else if (cfg.autoRestart) {
+          this.crashGaveUp = true;
+          this.emit('gaveup');
           this.pushLog('[dashboard] Auto-restart gave up after 3 quick crashes — check the saved console logs');
         }
       }

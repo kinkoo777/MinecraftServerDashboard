@@ -10,6 +10,9 @@ const { notifyAll: notify } = require('./utils/notify');
 require('./scheduler');
 
 const app = express();
+// Trust one reverse proxy hop (e.g. Caddy/nginx/Cloudflare Tunnel) so req.secure,
+// req.ip and the Secure cookie flag reflect the real client over HTTPS.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -36,6 +39,7 @@ app.use('/api/jars', require('./routes/jars'));
 app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/tunnel', require('./routes/tunnel'));
+app.use('/api/cloudflare', require('./routes/cloudflare'));
 
 // Uniform JSON errors for thrown route errors
 app.use((err, req, res, next) => {
@@ -60,8 +64,14 @@ mc.on('players', (players) => broadcast('players', players));
 const playit = require('./playit');
 playit.on('log', (line) => broadcast('tunnel-log', line));
 playit.on('update', () => broadcast('tunnel-update', {
-  status: playit.status, claimUrl: playit.claimUrl, address: playit.address, installed: playit.installed()
+  status: playit.status, claimUrl: playit.claimUrl, address: playit.address,
+  pendingLink: playit.pendingLink, claimed: playit.claimed(), installed: playit.installed()
 }));
+
+// cloudflare quick tunnel -> push events to the Settings page
+const cf = require('./cloudflare');
+cf.on('log', (line) => broadcast('cf-log', line));
+cf.on('update', () => broadcast('cf-update', { status: cf.status, url: cf.url, installed: cf.installed() }));
 
 // Discord notifications
 mc.on('status', (status) => {
@@ -69,6 +79,7 @@ mc.on('status', (status) => {
   else if (status === 'offline') notify('⬛ Server stopped', 'Server stopped');
 });
 mc.on('crashed', (code) => notify(`💥 **Server crashed** (exit code ${code}) — check the saved console log`, '⚠ Server crashed'));
+mc.on('gaveup', () => notify('🛑 **Auto-restart gave up** after 3 quick crashes — the server is staying off until you start it. Check the saved console logs.', '🛑 Server keeps crashing'));
 mc.on('join', (name) => notify(`▶ **${name}** joined the game`, 'Player joined'));
 mc.on('leave', (name) => notify(`◀ **${name}** left the game`, 'Player left'));
 
@@ -130,6 +141,7 @@ server.listen(PORT, () => {
 // Stop the MC server cleanly when the dashboard is closed
 process.on('SIGINT', async () => {
   playit.stop();
+  cf.stop();
   if (mc.status !== 'offline') await mc.stop(); // server exit already saves the console log
   else mc.saveConsoleLog('shutdown');
   process.exit(0);
