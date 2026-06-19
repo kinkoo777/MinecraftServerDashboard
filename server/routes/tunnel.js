@@ -1,5 +1,6 @@
 const express = require('express');
 const playit = require('../playit');
+const api = require('../playit-api');
 
 const router = express.Router();
 
@@ -31,6 +32,20 @@ router.post('/stop', (req, res) => {
 // Forget the saved agent so the next setup claims a fresh one (e.g. wrong account).
 router.post('/reset', (req, res) => {
   playit.reset();
+  res.json({ ok: true });
+});
+
+// Paste in a secret from an existing agent (skips the claim flow).
+// Validates the secret against the playit API before saving.
+router.post('/use-secret', async (req, res) => {
+  const secret = String(req.body.secret || '').trim();
+  if (!secret) return res.status(400).json({ error: 'Secret key is required' });
+  try {
+    await api.agentsRundata(secret);
+  } catch (e) {
+    return res.status(400).json({ error: 'Could not verify this secret with playit.gg — check the key and try again.' });
+  }
+  playit.saveSecret(secret);
   res.json({ ok: true });
 });
 

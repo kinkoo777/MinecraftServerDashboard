@@ -111,6 +111,18 @@ App.pages.tunnel = {
         ? `<p class="hint muted">Agent already downloaded — click to connect your playit.gg account. No download needed.</p>`
         : `<p class="hint muted">One click, then approve in your browser. First start downloads a small agent (~few MB).</p>`;
     }
+    html += `
+      <details style="margin-top:14px" id="tn-secret-details">
+        <summary class="muted" style="cursor:pointer;font-size:12px;user-select:none">Already have an agent secret key?</summary>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;max-width:480px">
+          <p class="muted" style="font-size:12px">Paste the secret from a previous installation, another machine, or from your playit.gg agent settings.</p>
+          <div style="display:flex;gap:8px">
+            <input id="tn-secret-input" type="password" placeholder="Agent secret key…" style="flex:1">
+            <button id="tn-secret-save" class="btn-primary btn-sm">Use this agent</button>
+          </div>
+          <p class="hint muted" id="tn-secret-msg" style="font-size:11px"></p>
+        </div>
+      </details>`;
     return html;
   },
 
@@ -138,6 +150,23 @@ App.pages.tunnel = {
       if (!confirm('Forget the current playit setup and connect a different account next time?')) return;
       await App.tryApi('/tunnel/reset', { method: 'POST' }, 'Reset — you can set up again');
       this.refresh();
+    };
+
+    const secretSave = document.getElementById('tn-secret-save');
+    if (secretSave) secretSave.onclick = async () => {
+      const input = document.getElementById('tn-secret-input');
+      const msg = document.getElementById('tn-secret-msg');
+      const secret = input.value.trim();
+      if (!secret) return App.toast('Paste the agent secret key first', true);
+      secretSave.disabled = true; secretSave.textContent = 'Verifying…'; msg.textContent = '';
+      const r = await App.tryApi('/tunnel/use-secret', { method: 'POST', body: { secret } }, null);
+      if (r) {
+        input.value = '';
+        App.toast('Agent secret saved — click Go Online to connect');
+        this.refresh();
+      } else {
+        secretSave.disabled = false; secretSave.textContent = 'Use this agent';
+      }
     };
   },
 
