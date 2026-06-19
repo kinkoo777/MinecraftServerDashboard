@@ -191,6 +191,11 @@ class Playit extends EventEmitter {
 
   _spawnAgent(secret) {
     const args = ['--secret', secret];
+    // The daemon binary creates a Unix socket for IPC. The default path is in
+    // /run/ which requires root on Linux — point it at our own writable dir.
+    if (process.platform !== 'win32') {
+      args.push('--socket-path', path.join(DIR, 'agent.sock'));
+    }
     this.proc = spawn(binPath(), args, { cwd: DIR });
     const onData = (d) => {
       for (const raw of d.toString().split(/\r?\n/)) {
@@ -240,14 +245,15 @@ class Playit extends EventEmitter {
         return;
       }
       // No tunnel and none being provisioned — try to create one (best effort, once).
-      if (!triedCreate && !(rd.pending || []).length) {
+      // Skip if the agent hasn't connected yet (no agent_id means the daemon isn't up).
+      if (!triedCreate && rd.agent_id && !(rd.pending || []).length) {
         triedCreate = true;
         try {
           await api.createMinecraftTunnel(secret, rd.agent_id);
           this.pushLog('[dashboard] Created a Minecraft tunnel for you.');
         } catch (e) {
-          // Free-tier limits etc. — fall back to a one-click manual tunnel page.
-          this.pushLog(`[dashboard] Couldn't auto-create the tunnel (${e.message}).`);
+          // Free-tier limits or API body mismatch — show manual link as fallback.
+          this.pushLog('[dashboard] Auto-tunnel creation failed — open the link to add one manually.');
           this.pendingLink = 'https://playit.gg/account/tunnels';
           this.emit('update');
         }
