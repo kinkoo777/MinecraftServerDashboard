@@ -100,10 +100,17 @@ App.pages.tunnel = {
     }
     // offline
     const cta = d.claimed ? 'Go online' : 'Enable internet access';
-    let html = `<button id="tn-start" class="btn-primary">${App.icon('globe', 14)} ${cta}</button>`;
-    html += d.claimed
-      ? `<p class="hint muted" style="margin-top:8px">Already set up — this just reconnects. <a href="#" id="tn-reset" class="text-link">Use a different account</a>.</p>`
-      : `<p class="hint muted" style="margin-top:8px">One click, then approve in your browser. First time downloads a small agent (~a few MB).</p>`;
+    const agentBadge = d.installed
+      ? `<span class="chip chip-green" style="font-size:11px;vertical-align:middle">Agent ready</span> `
+      : `<span class="chip" style="font-size:11px;vertical-align:middle;background:var(--border)">Agent not downloaded</span> `;
+    let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${agentBadge}<button id="tn-start" class="btn-primary">${App.icon('globe', 14)} ${cta}</button></div>`;
+    if (d.claimed) {
+      html += `<p class="hint muted">Already set up — this just reconnects${d.installed ? ' instantly' : ' (will re-download agent first)'}. <a href="#" id="tn-reset" class="text-link">Use a different account</a>.</p>`;
+    } else {
+      html += d.installed
+        ? `<p class="hint muted">Agent already downloaded — click to connect your playit.gg account. No download needed.</p>`
+        : `<p class="hint muted">One click, then approve in your browser. First start downloads a small agent (~few MB).</p>`;
+    }
     return html;
   },
 
