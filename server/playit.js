@@ -24,7 +24,7 @@ const DIR = path.join(__dirname, '..', 'playit');
 const GH_API = 'https://api.github.com/repos/playit-cloud/playit-agent/releases/latest';
 const SECRET_FILE = path.join(DIR, 'agent-secret.key');
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;   // how long to wait for the user to approve
-const ADDR_TIMEOUT_MS = 90 * 1000;        // how long to wait for a public address
+const ADDR_TIMEOUT_MS = 10 * 60 * 1000;   // how long to wait for a public address
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -230,29 +230,43 @@ class Playit extends EventEmitter {
   async _resolveAddress(secret) {
     const deadline = Date.now() + ADDR_TIMEOUT_MS;
     let triedCreate = false;
-    while (Date.now() < deadline && !this.cancelRequested && (this.status === 'starting' || this.status === 'running')) {
+    // Keep polling regardless of daemon status — the user may assign a tunnel on the
+    // playit.gg website after the daemon starts, and we want to pick that up.
+    while (Date.now() < deadline && !this.cancelRequested) {
       let rd;
       try { rd = await api.agentsRundata(secret); }
       catch (e) { await delay(3000); continue; }
 
-      const tunnels = rd.tunnels || [];
-      const mc = tunnels.find(t => (t.tunnel_type || '').includes('minecraft')) || tunnels[0];
-      if (mc && mc.display_address) {
-        this.address = mc.display_address;
+      // Support multiple response shapes across API versions.
+      const rawTunnels = rd.tunnels || rd.assigned_tunnels || rd.active_tunnels || [];
+      const tunnels = rawTunnels.map(t => t.tunnel || t); // some versions nest under .tunnel
+      const addr = (t) =>
+        t.display_address || t.address || t.connect_address ||
+        t.server_addr || t.alloc_address || '';
+      const ttype = (t) =>
+        (t.tunnel_type || t.type || t.proto || '').toLowerCase();
+
+      const mc = tunnels.find(t => ttype(t).includes('minecraft')) || tunnels[0];
+      if (mc && addr(mc)) {
+        this.address = addr(mc);
         this.pendingLink = null;
-        this.pushLog(`[dashboard] Your server address is ready: ${mc.display_address}`);
+        this.pushLog(`[dashboard] Your server address is ready: ${this.address}`);
         this.emit('update');
         return;
       }
-      // No tunnel and none being provisioned — try to create one (best effort, once).
-      // Skip if the agent hasn't connected yet (no agent_id means the daemon isn't up).
-      if (!triedCreate && rd.agent_id && !(rd.pending || []).length) {
+      if (mc) {
+        // Tunnel exists but address not assigned yet — keep waiting.
+        this.pushLog(`[dashboard] Tunnel found (${ttype(mc) || '?'}), waiting for address…`);
+      }
+
+      // No tunnel at all — try to auto-create one (best effort, once).
+      const pending = rd.pending || rd.pending_tunnels || [];
+      if (!triedCreate && rd.agent_id && !tunnels.length && !pending.length) {
         triedCreate = true;
         try {
           await api.createMinecraftTunnel(secret, rd.agent_id);
           this.pushLog('[dashboard] Created a Minecraft tunnel for you.');
         } catch (e) {
-          // Free-tier limits or API body mismatch — show manual link as fallback.
           this.pushLog('[dashboard] Auto-tunnel creation failed — open the link to add one manually.');
           this.pendingLink = 'https://playit.gg/account/tunnels';
           this.emit('update');
