@@ -253,6 +253,11 @@ input:focus, select:focus, textarea:focus {
 /* a time picker only needs a little room — don't let it stretch the whole column */
 #sc-time { width: 160px; max-width: 100%; }
 
+/* schedules: day-of-week chip toggle */
+.sc-dow-chip { background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
+.sc-dow-chip:hover { border-color: var(--muted); color: var(--text); }
+.sc-dow-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
 /* toggle switch */
 .switch { position: relative; width: 36px; height: 20px; display: inline-block; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }

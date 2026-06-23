@@ -4,13 +4,27 @@ const { Readable } = require('stream');
 const { finished } = require('stream/promises');
 const { serverDir, saveConfig } = require('../config');
 
-const PAPER_API = 'https://api.papermc.io/v2/projects/paper';
+// PaperMC's old v2 API is frozen at the 1.21.x line and never receives the newer
+// (26.x) Minecraft versions — those only exist on the v3 "Fill" API. Use v3 for Paper.
+const PAPER_API = 'https://fill.papermc.io/v3/projects/paper';
 const MOJANG_MANIFEST = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
+const PAPER_UA = 'MinecraftServerDashboard (server jar updater)';
+
+const paperFetch = (url) => fetch(url, { headers: { 'User-Agent': PAPER_UA } });
+
+// v3 lists versions grouped by minor, newest-first within each group:
+//   { versions: { "26.2": ["26.2","26.2-rc-2"], "1.21": ["1.21.11", ...], ... } }
+// Flatten to a single newest-first list of version strings.
+async function paperVersions() {
+  const data = await (await paperFetch(PAPER_API)).json();
+  return Object.values(data.versions || {}).flat();
+}
 
 async function getLatestVersion(type) {
   if (type === 'paper') {
-    const data = await (await fetch(PAPER_API)).json();
-    return data.versions[data.versions.length - 1];
+    const all = await paperVersions();
+    // newest stable release (skip -pre/-rc), falling back to the very newest build
+    return all.find(v => !v.includes('-')) || all[0];
   }
   const manifest = await (await fetch(MOJANG_MANIFEST)).json();
   return manifest.latest.release;
@@ -18,10 +32,17 @@ async function getLatestVersion(type) {
 
 async function resolveJarUrl(type, version) {
   if (type === 'paper') {
-    const builds = (await (await fetch(`${PAPER_API}/versions/${version}/builds`)).json()).builds;
-    if (!builds || !builds.length) throw new Error(`Paper hasn't released a server build for Minecraft ${version} yet. Download the Vanilla jar instead and switch to Paper once they release it.`);
-    const build = builds.filter(b => b.channel === 'default').pop() || builds[builds.length - 1];
-    return `${PAPER_API}/versions/${version}/builds/${build.build}/downloads/${build.downloads.application.name}`;
+    const res = await paperFetch(`${PAPER_API}/versions/${version}/builds`);
+    const noBuild = `Paper hasn't released a server build for Minecraft ${version} yet. Download the Vanilla jar instead and switch to Paper once they release it.`;
+    if (res.status === 404) throw new Error(noBuild);
+    const builds = await res.json();
+    if (!Array.isArray(builds) || !builds.length) throw new Error(noBuild);
+    // newest build of the STABLE channel, else the newest build overall
+    const sorted = [...builds].sort((a, b) => b.id - a.id);
+    const build = sorted.find(b => b.channel === 'STABLE') || sorted[0];
+    const dl = build.downloads && build.downloads['server:default'];
+    if (!dl || !dl.url) throw new Error(`No server download for Paper ${version} build ${build.id}`);
+    return dl.url;
   }
   const manifest = await (await fetch(MOJANG_MANIFEST)).json();
   const entry = manifest.versions.find(v => v.id === version);
@@ -49,4 +70,4 @@ async function downloadJar(type, version, log = () => {}) {
   return size;
 }
 
-module.exports = { getLatestVersion, resolveJarUrl, downloadJar, PAPER_API, MOJANG_MANIFEST };
+module.exports = { getLatestVersion, resolveJarUrl, downloadJar, paperVersions, PAPER_API, MOJANG_MANIFEST };

@@ -69,7 +69,7 @@ App.pages.settings = {
         <div class="card">
           <h2>Server jar</h2>
           <div id="jar-update"></div>
-          <p class="muted" style="margin-bottom:12px">Download a server jar from Paper or Mojang. Server must be stopped.</p>
+          <p class="muted" style="margin-bottom:12px">Download a server jar from Paper or Mojang. Switching between Vanilla and Paper keeps your world, players and settings — only the server software changes. Server must be stopped.</p>
           <div class="btn-row" style="align-items:flex-end">
             <div class="field" style="margin:0"><label>Type</label>
               <select id="jar-type" style="width:130px"><option value="paper">Paper</option><option value="vanilla">Vanilla</option></select></div>
@@ -82,6 +82,7 @@ App.pages.settings = {
             <input id="jar-custom" placeholder="e.g. 26.1.2" style="width:120px;font-size:13px">
             <span class="muted" style="font-size:12px">(overrides the dropdown)</span>
           </div>
+          <div id="jar-state" style="margin-top:10px;font-size:12px"></div>
           <div class="hint muted" id="jar-note" style="margin-top:8px"></div>
         </div>
         <div class="card">
@@ -205,6 +206,7 @@ App.pages.settings = {
       }
       document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
       document.getElementById('cfg-autoRestart').checked = cfg.autoRestart !== false;
+      this.installedJar = cfg.installedJar || '';
     }
     this.loadServers();
     this.loadPresets();
@@ -420,8 +422,31 @@ App.pages.settings = {
       if (!verSel) return;
       verSel.innerHTML = versions[typeSel.value].map(v => `<option>${App.esc(v)}</option>`).join('');
     };
-    typeSel.onchange = fill;
+
+    const cap = (t) => t === 'paper' ? 'Paper' : t === 'vanilla' ? 'Vanilla' : t;
+    // Show what's installed now and, when the selected type differs, reassure the user
+    // that downloading simply swaps the server software while keeping their world & settings.
+    const showState = () => {
+      const stateBox = document.getElementById('jar-state');
+      const [instType, instVer] = (this.installedJar || '').split(' ');
+      const sel = typeSel.value;
+      const switching = instType && sel !== instType;
+      if (stateBox) {
+        if (!instType) {
+          stateBox.innerHTML = `<span class="muted">No server jar installed yet — pick a type and version, then Download.</span>`;
+        } else if (!switching) {
+          stateBox.innerHTML = `<span class="muted">Currently installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b>.</span>`;
+        } else {
+          stateBox.innerHTML = `<span style="color:var(--accent)">⇄ This switches <b>${cap(instType)} ${App.esc(instVer || '')} → ${cap(sel)}</b>. ` +
+            `Just pick a version and Download — your world, players and settings are kept; only the server software is replaced.</span>`;
+        }
+      }
+      if (btn) btn.innerHTML = `${App.icon('download', 14)} ${switching ? 'Switch to ' + cap(sel) : 'Download'}`;
+    };
+
+    typeSel.onchange = () => { fill(); showState(); };
     fill();
+    showState();
 
     btn.onclick = async () => {
       const custom = document.getElementById('jar-custom').value.trim();
@@ -437,10 +462,13 @@ App.pages.settings = {
       btn.disabled = false;
       btn.innerHTML = `${App.icon('download', 14)} Download`;
       if (r) {
-        note.textContent = `Done — ${typeSel.value} ${version} saved as server.jar (${App.fmtBytes(r.size)}).`;
+        note.textContent = `Done — ${typeSel.value} ${version} is now your server.jar (${App.fmtBytes(r.size)}). Start the server to run it.`;
         App.toast('Server jar installed');
         document.getElementById('cfg-jarFile').value = r.jarFile;
         document.getElementById('jar-custom').value = '';
+        this.installedJar = `${typeSel.value} ${version}`;
+        showState();
+        this.checkUpdate();
       } else if (typeSel.value === 'paper') {
         note.innerHTML = `Paper doesn't have a build for ${App.esc(version)} yet. <a href="#" id="jar-switch-vanilla">Download Vanilla ${App.esc(version)} instead →</a>`;
         const link = document.getElementById('jar-switch-vanilla');

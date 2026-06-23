@@ -1,18 +1,17 @@
 const express = require('express');
 const mc = require('../minecraft');
 const { getConfig } = require('../config');
-const { getLatestVersion, downloadJar, PAPER_API, MOJANG_MANIFEST } = require('../utils/jars');
+const { getLatestVersion, downloadJar, paperVersions, MOJANG_MANIFEST } = require('../utils/jars');
 
 const router = express.Router();
 const VERSION_RE = /^[\w.\-]{1,32}$/;
 
 router.get('/versions', async (req, res) => {
   try {
-    const [paperRes, mojangRes] = await Promise.all([fetch(PAPER_API), fetch(MOJANG_MANIFEST)]);
-    const paper = await paperRes.json();
+    const [paperList, mojangRes] = await Promise.all([paperVersions(), fetch(MOJANG_MANIFEST)]);
     const mojang = await mojangRes.json();
     res.json({
-      paper: paper.versions.slice(-50).reverse(),
+      paper: paperList.slice(0, 60),
       vanilla: mojang.versions.filter(v => v.type === 'release').slice(0, 30).map(v => v.id)
     });
   } catch (e) {
