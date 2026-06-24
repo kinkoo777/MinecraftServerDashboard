@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-// MCDASH_CONFIG lets a second instance (e.g. for testing) run fully isolated
-const CONFIG_FILE = process.env.MCDASH_CONFIG || path.join(ROOT, 'config.json');
+// CHUNKDECK_CONFIG lets a second instance (e.g. for testing) run fully isolated.
+// MCDASH_CONFIG is kept as a backwards-compatible alias for existing scripts.
+const CONFIG_FILE = process.env.CHUNKDECK_CONFIG || process.env.MCDASH_CONFIG || path.join(ROOT, 'config.json');
 // reports.json / schedules.json live next to the config file, so an isolated
 // test instance keeps its own state instead of writing the real files
 const DATA_DIR = path.dirname(CONFIG_FILE);

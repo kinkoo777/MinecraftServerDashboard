@@ -84,7 +84,7 @@ function destroySession(token) {
 }
 
 function tokenFrom(req) {
-  const m = /(?:^|;\s*)mcdash=([a-f0-9]{64})/.exec(req.headers.cookie || '');
+  const m = /(?:^|;\s*)(?:chunkdeck|mcdash)=([a-f0-9]{64})/.exec(req.headers.cookie || '');
   return m ? m[1] : null;
 }
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# MC Dashboard launcher for Linux & macOS - run: ./start.sh
+# ChunkDeck launcher for Linux & macOS - run: ./start.sh
 cd "$(dirname "$0")" || exit 1
 
 echo "============================================"
-echo "          MC Dashboard - Launcher"
+echo "          ChunkDeck - Launcher"
 echo "============================================"
 echo
 

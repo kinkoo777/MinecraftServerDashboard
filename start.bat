@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
-title MC Dashboard
+title ChunkDeck
 cd /d "%~dp0"
 color 0A
 
 echo  ============================================
-echo            MC Dashboard - Launcher
+echo            ChunkDeck - Launcher
 echo  ============================================
 echo.
 

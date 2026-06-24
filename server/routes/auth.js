@@ -7,7 +7,7 @@ const router = express.Router();
 const COOKIE = (token, req, remember) => {
   const https = req.secure || req.headers['x-forwarded-proto'] === 'https';
   const maxAge = remember ? '; Max-Age=604800' : ''; // omit → a session cookie (cleared when the browser closes)
-  return `mcdash=${token}; HttpOnly; Path=/; SameSite=Strict${maxAge}${https ? '; Secure' : ''}`;
+  return `chunkdeck=${token}; HttpOnly; Path=/; SameSite=Strict${maxAge}${https ? '; Secure' : ''}`;
 };
 
 // only let the logged-in owner manage 2FA
@@ -57,7 +57,10 @@ router.post('/login', (req, res) => {
 router.post('/logout', (req, res) => {
   const token = auth.tokenFrom(req);
   if (token) auth.destroySession(token);
-  res.setHeader('Set-Cookie', 'mcdash=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict');
+  res.setHeader('Set-Cookie', [
+    'chunkdeck=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict',
+    'mcdash=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict'
+  ]);
   res.json({ ok: true });
 });
 

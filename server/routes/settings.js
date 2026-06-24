@@ -65,7 +65,7 @@ function publicConfig(cfg) {
 
 router.get('/export', (req, res) => {
   const cfg = publicConfig();
-  res.setHeader('Content-Disposition', 'attachment; filename="mc-dashboard-config.json"');
+  res.setHeader('Content-Disposition', 'attachment; filename="chunkdeck-config.json"');
   res.json({
     exportedAt: new Date().toISOString(),
     config: Object.fromEntries(CONFIG_KEYS.map(k => [k, cfg[k]])),
@@ -139,14 +139,14 @@ router.put('/config', (req, res) => {
 
 router.post('/discord-test', async (req, res) => {
   if (!getConfig().discordWebhook) return res.status(400).json({ error: 'Set and save a webhook URL first' });
-  const ok = await notify('👋 Test message from MC Dashboard');
+  const ok = await notify('👋 Test message from ChunkDeck');
   if (!ok) return res.status(502).json({ error: 'Discord rejected the message — check the URL' });
   res.json({ ok: true });
 });
 
 router.post('/ntfy-test', async (req, res) => {
   if (!getConfig().ntfyTopic) return res.status(400).json({ error: 'Set and save an ntfy topic first' });
-  const ok = await ntfy.notify('👋 Test message from MC Dashboard', 'MC Dashboard');
+  const ok = await ntfy.notify('👋 Test message from ChunkDeck', 'ChunkDeck');
   if (!ok) return res.status(502).json({ error: 'ntfy push failed — check the topic name' });
   res.json({ ok: true });
 });

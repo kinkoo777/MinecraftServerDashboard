@@ -14,7 +14,7 @@
 const crypto = require('crypto');
 
 const API_BASE = process.env.PLAYIT_API_BASE || 'https://api.playit.gg';
-const VERSION = 'mc-dashboard';
+const VERSION = 'chunkdeck';
 
 async function apiCall(path, body = {}, secret = null) {
   const headers = { 'Content-Type': 'application/json' };
@@ -73,7 +73,7 @@ function agentsRundata(secret) {
 // alloc:null asks playit to auto-assign a free shared address.
 function createMinecraftTunnel(secret, agentId) {
   const body = {
-    name: 'Minecraft (MC Dashboard)',
+    name: 'Minecraft (ChunkDeck)',
     tunnel_type: 'minecraft-java',
     origin: {
       agent_id: agentId || null,

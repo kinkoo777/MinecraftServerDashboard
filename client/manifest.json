@@ -1,6 +1,6 @@
 {
-  "name": "MC Dashboard",
-  "short_name": "MC Dash",
+  "name": "ChunkDeck",
+  "short_name": "ChunkDeck",
   "description": "Manage your Minecraft server from anywhere",
   "start_url": "/",
   "display": "standalone",

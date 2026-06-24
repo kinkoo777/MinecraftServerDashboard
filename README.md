@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🟩 MC Dashboard
+# 🟩 ChunkDeck
 
 **Host and manage your own Minecraft server from your browser — free, open source, no monthly fees.**
 
@@ -54,7 +54,7 @@ That's normal for free open-source apps that are not *code-signed*. Windows Secu
 
 - **Best:** right-click the downloaded **`.zip` → Properties → tick ☑ Unblock → OK**, *then* extract and run. This clears the warning from every file at once.
 - **If you see "Windows protected your PC":** click **More info → Run anyway**.
-- **If Windows quarantined a file:** open **Windows Security → Protection history**, choose the MC Dashboard item, then click **Allow** or **Restore**. After that, extract the ZIP again.
+- **If Windows quarantined a file:** open **Windows Security → Protection history**, choose the ChunkDeck item, then click **Allow** or **Restore**. After that, extract the ZIP again.
 - **If your browser blocked the download:** click **Keep / Keep anyway**.
 
 ---
@@ -217,9 +217,9 @@ npm start
 **Linux service (keeps running in the background):**
 
 ```ini
-# /etc/systemd/system/mc-dashboard.service
+# /etc/systemd/system/chunkdeck.service
 [Unit]
-Description=Minecraft Dashboard
+Description=ChunkDeck
 After=network.target
 
 [Service]
@@ -233,7 +233,7 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable --now mc-dashboard
+sudo systemctl enable --now chunkdeck
 ```
 
 ---

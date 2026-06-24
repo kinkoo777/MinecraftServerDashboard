@@ -102,7 +102,7 @@ const App = {
     ov.id = 'auth-overlay';
     ov.innerHTML = `
       <form class="auth-card" id="auth-form">
-        <div class="logo" style="border:none;justify-content:center;padding:0"><img src="icon.svg" class="logo-img" alt=""><span>MC Dashboard</span></div>
+        <div class="logo" style="border:none;justify-content:center;padding:0"><img src="icon.svg" class="logo-img" alt=""><span>ChunkDeck</span></div>
         <h1 style="text-align:center;margin:4px 0">${isSetup ? 'Log in' : 'Create a password'}</h1>
         ${isSetup ? '' : '<p class="muted" style="text-align:center">First run — protect your dashboard before anything else.</p>'}
         ${insecure ? `<div class="auth-warn">🔓 This connection isn't encrypted (plain HTTP). Anyone between you and the server could read your password. Set up HTTPS before exposing the dashboard over the internet.</div>` : ''}

@@ -1,5 +1,5 @@
 /* Network-first service worker: live data always fresh, static shell available offline. */
-const CACHE = 'mcdash-v2';
+const CACHE = 'chunkdeck-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
