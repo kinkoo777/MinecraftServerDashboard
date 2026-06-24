@@ -36,6 +36,7 @@ app.use('/api/world', require('./routes/world'));
 app.use('/api/files', require('./routes/files'));
 app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/jars', require('./routes/jars'));
+app.use('/api/updates', require('./routes/updates'));
 app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/tunnel', require('./routes/tunnel'));

@@ -67,6 +67,16 @@ App.pages.settings = {
           </div>
         </div>
         <div class="card">
+          <h2>Dashboard updates</h2>
+          <div id="app-update-status" class="muted" style="margin-bottom:8px">Checking…</div>
+          <div id="app-update-note" style="margin-bottom:8px"></div>
+          <div class="btn-row">
+            <button id="app-check" class="btn-sm">${App.icon('refresh', 14)} Check for updates</button>
+            <button id="app-apply" class="btn-primary btn-sm" style="display:none">${App.icon('download', 14)} Update now</button>
+          </div>
+          <p class="hint muted" style="margin-top:10px;font-size:11px">Note: the Minecraft server will stop when the dashboard restarts.</p>
+        </div>
+        <div class="card">
           <h2>Server jar</h2>
           <div id="jar-update"></div>
           <p class="muted" style="margin-bottom:12px">Download a server jar from Paper or Mojang. Switching between Vanilla and Paper keeps your world, players and settings — only the server software changes. Server must be stopped.</p>
@@ -211,6 +221,7 @@ App.pages.settings = {
     this.loadServers();
     this.loadPresets();
     this.checkUpdate();
+    this.initAppUpdates();
     this.init2fa();
     this.initCloudflare();
     document.getElementById('cfg-save').onclick = async () => {
@@ -405,6 +416,103 @@ App.pages.settings = {
     } else {
       box.innerHTML = `<p class="muted" style="margin-bottom:12px">✓ ${App.esc(info.installed)} is up to date.</p>`;
     }
+  },
+
+  async initAppUpdates() {
+    const checkBtn = document.getElementById('app-check');
+    const applyBtn = document.getElementById('app-apply');
+    if (!checkBtn) return;
+
+    const check = async () => {
+      checkBtn.disabled = true;
+      checkBtn.textContent = 'Checking…';
+      const status = document.getElementById('app-update-status');
+      const note = document.getElementById('app-update-note');
+      if (status) status.textContent = 'Checking…';
+      if (applyBtn) applyBtn.style.display = 'none';
+      if (note) note.innerHTML = '';
+
+      const info = await App.tryApi('/updates/check');
+
+      checkBtn.disabled = false;
+      checkBtn.innerHTML = `${App.icon('refresh', 14)} Check for updates`;
+
+      if (!info) return;
+
+      let statusHtml = `Current version: v${App.esc(info.current)}. `;
+
+      if (info.noReleases) {
+        statusHtml += `<span class="muted">No published releases yet — you're on the latest local build.</span>`;
+        if (status) status.innerHTML = statusHtml;
+        if (applyBtn) applyBtn.style.display = 'none';
+      } else if (info.updateAvailable) {
+        statusHtml += `<span style="color:var(--accent)">Update available: v${App.esc(info.latest)} (you have v${App.esc(info.current)}).</span>`;
+        if (status) status.innerHTML = statusHtml;
+        if (applyBtn) {
+          applyBtn.style.display = '';
+          applyBtn.dataset.latest = info.latest || '';
+          applyBtn.dataset.current = info.current || '';
+        }
+        if (note) {
+          let noteHtml = '';
+          // App.esc() does not neutralize javascript:/data: URLs, so only accept
+          // an explicit https:// link before using it as an href
+          if (info.releaseUrl && /^https:\/\//i.test(info.releaseUrl)) {
+            noteHtml += `<a href="${App.esc(info.releaseUrl)}" target="_blank" rel="noopener" style="font-size:12px">View release</a>`;
+          }
+          if (info.notes) {
+            noteHtml += `<pre class="muted" style="font-size:11px;max-height:80px;overflow:auto;margin-top:6px;white-space:pre-wrap;word-break:break-word">${App.esc(info.notes)}</pre>`;
+          }
+          note.innerHTML = noteHtml;
+        }
+      } else {
+        statusHtml += `<span class="muted">&#10003; You're on the latest version (v${App.esc(info.current)}).</span>`;
+        if (status) status.innerHTML = statusHtml;
+        if (applyBtn) applyBtn.style.display = 'none';
+      }
+    };
+
+    const apply = async () => {
+      const latest = applyBtn.dataset.latest || 'the latest version';
+      const current = applyBtn.dataset.current || '';
+      if (!confirm(`Download and apply v${latest}? Your config, world and settings are kept. You'll need to restart the dashboard afterward.`)) return;
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Updating…';
+      checkBtn.disabled = true;
+
+      const r = await App.tryApi('/updates/apply', { method: 'POST' });
+
+      applyBtn.disabled = false;
+      applyBtn.innerHTML = `${App.icon('download', 14)} Update now`;
+      checkBtn.disabled = false;
+
+      if (!r) {
+        // tryApi already toasted the error; if it was 400 "Already up to date", re-check
+        await check();
+        return;
+      }
+
+      App.toast('Update applied — restart to finish');
+      applyBtn.style.display = 'none';
+
+      const status = document.getElementById('app-update-status');
+      const note = document.getElementById('app-update-note');
+
+      let msg = App.esc(r.message || 'Update applied.');
+      if (r.depsChanged && !r.npmInstalled) {
+        msg += ' Dependencies changed — run <code>npm install</code> before restarting.';
+      }
+
+      const successBox = `<div class="notice" style="margin-top:8px"><span class="notice-text">${msg} Stop and start the dashboard to finish.</span></div>`;
+      if (status) status.innerHTML = `Updated from v${App.esc(r.from || current)} to v${App.esc(r.to || latest)}.`;
+      if (note) note.innerHTML = successBox;
+    };
+
+    checkBtn.onclick = () => check();
+    if (applyBtn) applyBtn.onclick = () => apply();
+
+    // Auto-check on load
+    await check();
   },
 
   async initJarDownloader() {
