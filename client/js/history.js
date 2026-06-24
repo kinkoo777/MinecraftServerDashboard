@@ -65,7 +65,7 @@ App.pages.history = {
           <span class="muted" style="font-size:12px">${r.date}</span>
         </div>
         <div class="grid grid-4" style="margin-bottom:18px">
-          ${tiles.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${v}</div>`).join('')}
+          ${tiles.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${App.esc(v)}</div>`).join('')}
         </div>
         <div class="chart-head">
           <h2 style="margin:0;font-size:13px">By hour</h2>

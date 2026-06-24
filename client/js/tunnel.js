@@ -62,8 +62,27 @@ App.pages.tunnel = {
         info.style.display = '';
         addr.innerHTML = `<p class="muted" style="margin-bottom:8px">Send this to your friends — they paste it into Minecraft → Multiplayer → Add Server:</p>
           <div class="tn-addr"><code>${App.esc(d.address)}</code><button class="btn-sm" id="tn-copy">Copy</button></div>`;
-        document.getElementById('tn-copy').onclick = () =>
-          navigator.clipboard.writeText(d.address).then(() => App.toast('Address copied'));
+        document.getElementById('tn-copy').onclick = () => {
+          // navigator.clipboard is undefined on non-secure (http) origins — fall
+          // back to a temporary textarea + execCommand, or no-op gracefully.
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(d.address).then(() => App.toast('Address copied'));
+            return;
+          }
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = d.address;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            App.toast('Address copied');
+          } catch (_) {
+            App.toast('Copy not supported here — select the address and copy it manually', true);
+          }
+        };
       } else {
         info.style.display = 'none';
       }

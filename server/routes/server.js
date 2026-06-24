@@ -10,6 +10,7 @@ const { levelName } = require('../utils/backup');
 const { readProperties } = require('../utils/properties');
 const history = require('../history');
 const { getLatestVersion, downloadJar } = require('../utils/jars');
+const { compareSemver } = require('../utils/updater');
 
 const router = express.Router();
 
@@ -144,7 +145,7 @@ async function startWithUpdate() {
     mc.pushLog('[dashboard] Checking for updates…');
     try {
       const latest = await getLatestVersion(type);
-      if (latest !== version) {
+      if (latest && version && compareSemver(latest, version) === 1) {
         mc.pushLog(`[dashboard] Update available: ${type} ${latest} — downloading`);
         await downloadJar(type, latest, msg => mc.pushLog(msg));
       } else {
@@ -157,9 +158,12 @@ async function startWithUpdate() {
   mc.start(getConfig()); // re-reads config so updated jarFile / installedJar is picked up
 }
 
-router.post('/stop', async (req, res) => {
-  await mc.stop();
-  res.json({ ok: true });
+router.post('/stop', async (req, res, next) => {
+  if (mc.status === 'offline') return res.json({ ok: true });
+  try {
+    await mc.stop();
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 router.post('/restart', async (req, res, next) => {
@@ -171,11 +175,16 @@ router.post('/restart', async (req, res, next) => {
 });
 
 router.post('/command', (req, res) => {
+  if (mc.status !== 'online') return res.status(409).json({ error: 'Server is not online' });
   const { command } = req.body;
-  if (!command || !command.trim()) {
+  if (!command || typeof command !== 'string' || !command.trim()) {
     return res.status(400).json({ error: 'No command given' });
   }
-  mc.sendCommand(command.trim());
+  // strip control chars/newlines so a single request can't inject multiple console lines
+  const clean = command.trim().replace(/[\x00-\x1f\x7f]/g, '');
+  if (!clean) return res.status(400).json({ error: 'No command given' });
+  if (clean.length > 256) return res.status(400).json({ error: 'Command too long (max 256 characters)' });
+  mc.sendCommand(clean);
   res.json({ ok: true });
 });
 
@@ -204,9 +213,11 @@ router.get('/console-logs/:name', (req, res) => {
   res.download(file);
 });
 
-router.post('/eula', (req, res) => {
-  fs.writeFileSync(path.join(serverDir(), 'eula.txt'), 'eula=true\n');
-  res.json({ ok: true });
+router.post('/eula', (req, res, next) => {
+  try {
+    fs.writeFileSync(path.join(serverDir(), 'eula.txt'), 'eula=true\n');
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

@@ -8,7 +8,8 @@ function pick(body) {
   const validTypes = ['daily', 'interval', 'once', 'cron'];
   s.type = validTypes.includes(body.type) ? body.type : 'daily';
   if (body.action != null) s.action = body.action;
-  if (body.command != null) s.command = String(body.command).trim();
+  // eslint-disable-next-line no-control-regex
+  if (body.command != null) s.command = String(body.command).replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
   if (body.intervalValue != null) s.intervalValue = Number(body.intervalValue);
   if (body.intervalUnit != null) s.intervalUnit = body.intervalUnit;
   if (body.warnMinutes != null) s.warnMinutes = Number(body.warnMinutes);
@@ -16,7 +17,8 @@ function pick(body) {
   if (typeof body.enabled === 'boolean') s.enabled = body.enabled;
   if (typeof body.onlyWhenEmpty === 'boolean') s.onlyWhenEmpty = body.onlyWhenEmpty;
   // daily fields
-  if (body.times != null) s.times = Array.isArray(body.times) ? body.times.filter(t => typeof t === 'string') : [];
+  // dedupe and cap at 50 to bound the nextRunOf inner loop
+  if (body.times != null) s.times = Array.isArray(body.times) ? [...new Set(body.times.filter(t => typeof t === 'string'))].slice(0, 50) : [];
   if (body.days  != null) s.days  = Array.isArray(body.days)  ? body.days.map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6) : [];
   // once fields
   if (body.time != null) s.time = String(body.time);

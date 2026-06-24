@@ -80,7 +80,7 @@ function parseCronField(raw, min, max) {
         hi = dash[1] != null ? parseInt(dash[1], 10) : lo;
       }
       if (lo < min || hi > max || lo > hi) return null;
-      for (let i = lo; i <= max; i += step) values.add(i);
+      for (let i = lo; i <= hi; i += step) values.add(i);
       continue;
     }
     const rangeMatch = part.match(/^(\d+)-(\d+)$/);
@@ -110,8 +110,10 @@ function parseCron(expr) {
   if (!minute || !hour || !dom || !month || !rawDow) return null;
   // normalise 7 -> 0 for dow
   const dow = [...new Set(rawDow.map(d => d === 7 ? 0 : d))].sort((a, b) => a - b);
-  const domRestricted = !parts[2].includes('*');
-  const dowRestricted = !parts[4].includes('*');
+  // Vixie semantics: a field is "restricted" unless it is exactly '*'.
+  // (A stepped/list field like '*/2' still constrains the schedule, so it counts as restricted.)
+  const domRestricted = parts[2] !== '*';
+  const dowRestricted = parts[4] !== '*';
   return { minute, hour, dom, month, dow, domRestricted, dowRestricted };
 }
 
@@ -140,13 +142,19 @@ function nextRunOf(s, now = Date.now()) {
   if (s.type === 'interval') {
     const ms = (s.intervalValue || 1) * (UNIT_MS[s.intervalUnit] || UNIT_MS.days);
     const base = s.lastRun || s.createdAt || now;
-    return Math.max(base + ms, now);
+    // Return the fixed scheduled time (base + ms) WITHOUT clamping to `now`.
+    // When overdue this stays constant, so the `warned` dedup key (which is `next`)
+    // is stable and the in-game warning fires once instead of every tick.
+    return base + ms;
   }
 
   if (s.type === 'once') {
     if (!s.date || !s.time) return null;
     const [y, mo, d] = s.date.split('-').map(Number);
     const [h, mi] = s.time.split(':').map(Number);
+    // Interpreted as local wall-clock time (server timezone). DST note: on a
+    // spring-forward day a non-existent time (e.g. 02:30) is shifted forward by
+    // the runtime; on fall-back the earlier of the two occurrences is used.
     const target = new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
     if (target <= now) {
       // if it already ran -> no future run
@@ -158,7 +166,11 @@ function nextRunOf(s, now = Date.now()) {
   if (s.type === 'cron') {
     const parsed = parseCron(s.cron);
     if (!parsed) return null;
-    // start scanning from the next minute
+    // start scanning from the next minute.
+    // NOTE: this is a minute-by-minute forward scan bounded at 370 days
+    // (~533k iterations worst case, e.g. Feb-29-only crons). It runs once per
+    // schedule on every list() call, so keep the bound in mind if schedule
+    // counts grow large.
     const start = Math.ceil((now + MIN_MS) / MIN_MS) * MIN_MS;
     const limit = start + 370 * DAY_MS;
     let cur = start;
@@ -176,7 +188,10 @@ function nextRunOf(s, now = Date.now()) {
   const days  = Array.isArray(s.days) && s.days.length > 0 ? new Set(s.days) : null; // null = all days
 
   let best = null;
-  // scan forward up to 370 days to find the earliest valid slot
+  // scan forward up to 370 days to find the earliest valid slot.
+  // Times are local wall-clock (server timezone). DST note: across a
+  // spring-forward boundary a slot at a skipped hour is shifted forward by the
+  // runtime; across fall-back the first occurrence of the repeated hour is used.
   for (let offset = 0; offset <= 370; offset++) {
     const base = new Date(now);
     base.setDate(base.getDate() + offset);
@@ -200,11 +215,15 @@ function nextRunOf(s, now = Date.now()) {
 
 // ── run ───────────────────────────────────────────────────────────────────────
 
+// Strip control characters (incl. newlines/CR) so a command/announce can never
+// inject a second line into the MC console.
+function sanitizeCommand(cmd) {
+  // eslint-disable-next-line no-control-regex
+  return String(cmd || '').replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
+}
+
 async function run(s, now) {
   s.lastRun = now;
-  if (s.type === 'once') {
-    s.enabled = false;
-  }
   persist();
   if (s.onlyWhenEmpty && mc.players.size > 0) {
     mc.pushLog(`[dashboard] Skipped scheduled ${s.action}: ${mc.players.size} player(s) online`);
@@ -220,14 +239,21 @@ async function run(s, now) {
       mc.pushLog(`[dashboard] Scheduled backup complete: ${r.file}`);
       require('./utils/notify').notifyAll(`💾 Scheduled world backup complete: \`${r.file}\``, 'Backup complete');
     } else if (s.action === 'command') {
-      if (mc.status === 'online') mc.sendCommand(s.command);
+      if (mc.status === 'online') mc.sendCommand(sanitizeCommand(s.command));
       else mc.pushLog('[dashboard] Skipped scheduled command: server is offline');
     } else if (s.action === 'announce') {
       if (mc.status === 'online') {
-        const json = JSON.stringify(['', { text: '[Server] ', color: 'aqua', bold: true }, { text: s.command, color: 'white' }]);
+        const text = sanitizeCommand(s.command);
+        const json = JSON.stringify(['', { text: '[Server] ', color: 'aqua', bold: true }, { text: text, color: 'white' }]);
         mc.sendCommand(`tellraw @a ${json}`, { quiet: true });
-        mc.pushLog(`[dashboard] Announced: ${s.command}`);
+        mc.pushLog(`[dashboard] Announced: ${text}`);
       }
+    }
+    // Mark a one-time task consumed ONLY after it actually executed, so a task
+    // skipped by the onlyWhenEmpty/offline guards is not permanently disabled.
+    if (s.type === 'once') {
+      s.enabled = false;
+      persist();
     }
   } catch (e) {
     mc.pushLog(`[dashboard] Scheduled task failed: ${e.message}`);
@@ -297,6 +323,8 @@ function validationError(s) {
     if (!['minutes', 'hours', 'days'].includes(s.intervalUnit)) return 'Invalid interval unit';
   } else if (type === 'daily') {
     if (!Array.isArray(s.times) || s.times.length === 0) return 'At least one time is required';
+    // bound the nextRunOf inner loop (also enforced/deduped at the route layer)
+    if (s.times.length > 50) return 'At most 50 times are allowed';
     for (const t of s.times) {
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) return `Invalid time format: ${t}`;
     }

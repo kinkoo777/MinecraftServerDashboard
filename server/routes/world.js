@@ -41,10 +41,11 @@ function requireOffline(res) {
 router.get('/', (req, res) => {
   const name = levelName();
   const props = readProperties(path.join(serverDir(), 'server.properties'));
-  const backups = fs.readdirSync(backupsDir())
+  const bDir = backupsDir();
+  const backups = (fs.existsSync(bDir) ? fs.readdirSync(bDir) : [])
     .filter(f => f.endsWith('.zip'))
     .map(f => {
-      const st = fs.statSync(path.join(backupsDir(), f));
+      const st = fs.statSync(path.join(bDir, f));
       return { name: f, size: st.size, created: st.mtimeMs };
     })
     .sort((a, b) => b.created - a.created);

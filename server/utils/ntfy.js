@@ -13,7 +13,7 @@ async function notify(message, title) {
     const res = await fetch(`https://ntfy.sh/${topic}`, {
       method: 'POST',
       headers,
-      body: message.replace(/\*\*/g, '') // strip markdown bold for plain push
+      body: String(message ?? '').replace(/\*\*/g, '') // strip markdown bold; coerce non-string input
     });
     return res.ok;
   } catch (e) {

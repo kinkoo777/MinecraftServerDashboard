@@ -39,6 +39,12 @@ function normalizeServerDir(srv) {
       srv.serverDir = rel.split(path.sep).join('/');
     }
   }
+  // Reject any serverDir that resolves outside ROOT (e.g. a relative "../../etc"),
+  // otherwise serverDir() would escape ROOT and defeat safePath()'s containment.
+  const resolved = path.resolve(ROOT, srv.serverDir);
+  if (resolved !== ROOT && !resolved.startsWith(ROOT + path.sep)) {
+    throw Object.assign(new Error('serverDir escapes the dashboard root'), { status: 400 });
+  }
 }
 
 function load() {
@@ -65,7 +71,10 @@ function load() {
 }
 
 function persist() {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(store, null, 2));
+  // Atomic write: a crash mid-write can't leave a truncated/corrupt config.json
+  const tmp = CONFIG_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 2));
+  fs.renameSync(tmp, CONFIG_FILE);
 }
 
 // Merged, read-only view used everywhere: globals + the active server's fields
@@ -84,6 +93,8 @@ function saveConfig(patch) {
     if (PER_SERVER.includes(k)) srv[k] = v;
     else s[k] = v;
   }
+  // serverDir may have changed from user input — re-validate it stays inside ROOT
+  if ('serverDir' in patch) normalizeServerDir(srv);
   persist();
   return getConfig();
 }

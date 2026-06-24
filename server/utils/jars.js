@@ -16,7 +16,9 @@ const paperFetch = (url) => fetch(url, { headers: { 'User-Agent': PAPER_UA } });
 //   { versions: { "26.2": ["26.2","26.2-rc-2"], "1.21": ["1.21.11", ...], ... } }
 // Flatten to a single newest-first list of version strings.
 async function paperVersions() {
-  const data = await (await paperFetch(PAPER_API)).json();
+  const res = await paperFetch(PAPER_API);
+  if (!res.ok) throw new Error(`PaperMC version list request failed (HTTP ${res.status})`);
+  const data = await res.json();
   return Object.values(data.versions || {}).flat();
 }
 
@@ -26,7 +28,9 @@ async function getLatestVersion(type) {
     // newest stable release (skip -pre/-rc), falling back to the very newest build
     return all.find(v => !v.includes('-')) || all[0];
   }
-  const manifest = await (await fetch(MOJANG_MANIFEST)).json();
+  const res = await fetch(MOJANG_MANIFEST);
+  if (!res.ok) throw new Error(`Mojang version manifest request failed (HTTP ${res.status})`);
+  const manifest = await res.json();
   return manifest.latest.release;
 }
 
@@ -35,19 +39,29 @@ async function resolveJarUrl(type, version) {
     const res = await paperFetch(`${PAPER_API}/versions/${version}/builds`);
     const noBuild = `Paper hasn't released a server build for Minecraft ${version} yet. Download the Vanilla jar instead and switch to Paper once they release it.`;
     if (res.status === 404) throw new Error(noBuild);
+    if (!res.ok) throw new Error(`PaperMC builds request failed for ${version} (HTTP ${res.status})`);
     const builds = await res.json();
     if (!Array.isArray(builds) || !builds.length) throw new Error(noBuild);
-    // newest build of the STABLE channel, else the newest build overall
+    // Fill v3 build shape we rely on: each entry is
+    //   { id: <number>, channel: "STABLE"|"BETA"|..., downloads: { "server:default": { url } } }
+    // We pick the newest build (numeric `id` descending) on the STABLE channel,
+    // falling back to the newest build overall, then read its
+    // downloads['server:default'].url. Guard if that shape is missing.
     const sorted = [...builds].sort((a, b) => b.id - a.id);
     const build = sorted.find(b => b.channel === 'STABLE') || sorted[0];
+    if (!build) throw new Error(noBuild);
     const dl = build.downloads && build.downloads['server:default'];
     if (!dl || !dl.url) throw new Error(`No server download for Paper ${version} build ${build.id}`);
     return dl.url;
   }
-  const manifest = await (await fetch(MOJANG_MANIFEST)).json();
+  const manifestRes = await fetch(MOJANG_MANIFEST);
+  if (!manifestRes.ok) throw new Error(`Mojang version manifest request failed (HTTP ${manifestRes.status})`);
+  const manifest = await manifestRes.json();
   const entry = manifest.versions.find(v => v.id === version);
   if (!entry) throw new Error(`Unknown vanilla version ${version}`);
-  const meta = await (await fetch(entry.url)).json();
+  const metaRes = await fetch(entry.url);
+  if (!metaRes.ok) throw new Error(`Mojang version metadata request failed for ${version} (HTTP ${metaRes.status})`);
+  const meta = await metaRes.json();
   if (!meta.downloads || !meta.downloads.server) throw new Error(`No server jar for ${version}`);
   return meta.downloads.server.url;
 }
@@ -57,9 +71,13 @@ async function downloadJar(type, version, log = () => {}) {
   log(`[dashboard] Downloading ${type} ${version}…`);
   const dl = await fetch(url);
   if (!dl.ok) throw new Error(`Download failed (HTTP ${dl.status})`);
-  const tmp = path.join(serverDir(), 'server.jar.download');
+  // Unique temp name per download so two concurrent downloads can't both write
+  // the same 'server.jar.download' and corrupt each other's stream.
+  const tmp = path.join(serverDir(), `server.jar.download.${process.pid}.${Date.now()}`);
   await finished(Readable.fromWeb(dl.body).pipe(fs.createWriteStream(tmp)));
   const size = fs.statSync(tmp).size;
+  // Sanity floor: a real server jar is tens of MB; anything under 1 MiB is almost
+  // certainly an HTML error page or a truncated download, so reject it.
   if (size < 1024 * 1024) {
     fs.unlinkSync(tmp);
     throw new Error('Downloaded file is suspiciously small — aborted');

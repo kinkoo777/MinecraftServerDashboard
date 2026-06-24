@@ -49,6 +49,7 @@ const App = {
   stats: { cpu: 0, memory: 0, uptime: 0, online: false },
   logBuffer: [],
   ws: null,
+  reconnectDelay: 1000,
 
   icon(name, size = 16) {
     return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -68,8 +69,11 @@ const App = {
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn.innerHTML = this.icon('logout', 14);
     logoutBtn.onclick = async () => {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      location.reload();
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } finally {
+        location.reload(); // always return to login, even if the request fails
+      }
     };
 
     let st = { setup: false, authed: false };
@@ -237,6 +241,10 @@ const App = {
   route() {
     const name = location.hash.replace('#', '') || 'dashboard';
     const page = this.pages[name] || this.pages.dashboard;
+    // let the outgoing page tear down its timers/listeners before we swap it out
+    if (this.current && this.current !== page && this.current.onLeave) {
+      try { this.current.onLeave(); } catch (e) { /* never let teardown block navigation */ }
+    }
     this.current = page;
     this.currentName = name;
     document.querySelectorAll('#nav a').forEach(a =>
@@ -250,10 +258,17 @@ const App = {
   },
 
   connect() {
+    // guard against overlapping connect() calls (e.g. a queued reconnect firing
+    // while a socket is already opening/open)
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     this.ws = new WebSocket(`${proto}://${location.host}/ws`);
+    this.ws.onopen = () => { this.reconnectDelay = 1000; }; // reset backoff on a healthy connection
     this.ws.onmessage = (e) => {
-      const { type, data } = JSON.parse(e.data);
+      let msg;
+      try { msg = JSON.parse(e.data); }
+      catch (err) { return; } // ignore a malformed frame rather than killing the handler
+      const { type, data } = msg;
       if (type === 'init') {
         this.status = data.status;
         this.players = data.players;
@@ -287,7 +302,11 @@ const App = {
     };
     this.ws.onclose = (e) => {
       if (e.code === 4001) return location.reload(); // logged out
-      setTimeout(() => this.connect(), 2000);
+      // exponential backoff with a ceiling, so a server that stays down doesn't
+      // get hammered with reconnects every 2s
+      const delay = this.reconnectDelay || 1000;
+      this.reconnectDelay = Math.min(delay * 2, 30000);
+      setTimeout(() => this.connect(), delay);
     };
   },
 

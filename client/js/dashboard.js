@@ -83,7 +83,11 @@ App.pages.dashboard = {
       b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
     });
 
-    window.onresize = () => { if (App.currentName === 'dashboard') this.renderChart(); };
+    // re-render the chart on resize; remove the listener in onLeave so it doesn't
+    // pile up (and fire on other pages) each time we visit the dashboard
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    this._onResize = () => { if (App.currentName === 'dashboard') this.renderChart(); };
+    window.addEventListener('resize', this._onResize);
 
     this.onStatus(App.status);
     this.onPlayers(App.players);
@@ -129,8 +133,8 @@ App.pages.dashboard = {
     btn.disabled = false;
     if (!r) { out.textContent = ''; return; }
     out.innerHTML = r.ok
-      ? `<span style="color:var(--accent)">✓ Your server is up and accepting connections on port ${r.port}.</span>`
-      : `<span style="color:var(--red)">✕ Nothing is answering on port ${r.port}. Press <b>Start</b> and wait for “Ready to join”, then test again.</span>`;
+      ? `<span style="color:var(--accent)">✓ Your server is up and accepting connections on port ${App.esc(r.port)}.</span>`
+      : `<span style="color:var(--red)">✕ Nothing is answering on port ${App.esc(r.port)}. Press <b>Start</b> and wait for “Ready to join”, then test again.</span>`;
   },
 
   ramToBytes(s) {
@@ -316,6 +320,11 @@ App.pages.dashboard = {
     if (!c) return;
     c.innerHTML = App.logBuffer.slice(-50).map(l => App.logLineHtml(l)).join('');
     c.scrollTop = c.scrollHeight;
+  },
+
+  onLeave() {
+    clearInterval(this.refreshTimer);
+    if (this._onResize) { window.removeEventListener('resize', this._onResize); this._onResize = null; }
   },
 
   onInit() { this.renderLog(); this.onStatus(App.status); },

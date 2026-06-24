@@ -28,7 +28,7 @@ App.pages.files = {
       for (const f of e.target.files) form.append('files', f);
       try {
         const res = await fetch(`/api/files/upload?path=${encodeURIComponent(this.path)}`, { method: 'POST', body: form });
-        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Upload failed');
         App.toast(`Uploaded ${e.target.files.length} file(s)`);
         this.load();
       } catch (err) { App.toast(err.message, true); }

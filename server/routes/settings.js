@@ -14,6 +14,8 @@ router.get('/servers', (req, res) => res.json(config.listServers()));
 router.post('/servers', (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Name is required' });
+  if (name.length > 64) return res.status(400).json({ error: 'Name is too long (max 64 characters)' });
+  if (!/^[\w.\- ]+$/.test(name)) return res.status(400).json({ error: 'Name: letters, numbers, spaces, - . _ only' });
   res.json(config.addServer({ name }));
 });
 
@@ -118,12 +120,16 @@ router.get('/properties', (req, res) => {
   res.json(readProperties(propsFile()));
 });
 
-router.put('/properties', (req, res) => {
+router.put('/properties', (req, res, next) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Expected an object of properties' });
   }
-  writeProperties(propsFile(), req.body);
-  res.json({ ok: true });
+  try {
+    const props = {};
+    for (const [k, v] of Object.entries(req.body)) props[String(k)] = String(v);
+    writeProperties(propsFile(), props);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 router.get('/config', (req, res) => {

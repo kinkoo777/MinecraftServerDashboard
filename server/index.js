@@ -136,14 +136,17 @@ setInterval(() => {
 const PORT = process.env.PORT || getConfig().dashboardPort || 8080;
 serverDir(); // ensure mc-server folder exists
 server.listen(PORT, () => {
-  console.log(`Minecraft Server Dashboard running at http://localhost:${PORT}`);
+  console.log(`ChunkDeck running at http://localhost:${PORT}`);
 });
 
-// Stop the MC server cleanly when the dashboard is closed
-process.on('SIGINT', async () => {
+// Stop the MC server cleanly when the dashboard is closed.
+// Handle both SIGINT (Ctrl-C) and SIGTERM (systemd/docker stop).
+async function shutdown() {
   playit.stop();
   cf.stop();
   if (mc.status !== 'offline') await mc.stop(); // server exit already saves the console log
   else mc.saveConsoleLog('shutdown');
   process.exit(0);
-});
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

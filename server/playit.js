@@ -32,26 +32,19 @@ function binPath() {
   return path.join(DIR, process.platform === 'win32' ? 'playit.exe' : 'playit');
 }
 
-function daemonBinPath() {
-  return path.join(DIR, process.platform === 'win32' ? 'playitd.exe' : 'playitd');
-}
-
 function stripAnsi(s) {
   return s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
 }
 
-function pickAsset(assets, isDaemon) {
+function pickAsset(assets) {
   const p = process.platform, a = process.arch;
   const matches = (raw) => {
     const n = raw.toLowerCase();
     if (n.endsWith('.deb') || n.endsWith('.rpm') || n.endsWith('.sha256') || n.endsWith('.asc')) return false;
     const base = path.basename(n);
-    if (isDaemon) {
-      if (!base.startsWith('playitd')) return false;
-    } else {
-      if (base.startsWith('playitd')) return false;
-      if (!base.startsWith('playit')) return false;
-    }
+    // Exclude the separate daemon build (playitd…) — we run the wrapper binary.
+    if (base.startsWith('playitd')) return false;
+    if (!base.startsWith('playit')) return false;
     if (p === 'win32') return /(windows|win)/.test(n) && /(x86_64|x64|amd64)/.test(n) && n.endsWith('.exe');
     if (p === 'darwin') return n.includes('darwin') || n.includes('macos');
     if (p === 'linux') {
@@ -76,6 +69,7 @@ class Playit extends EventEmitter {
     this.pendingLink = null; // fallback: link to finish a tunnel manually if auto-create fails
     this.busy = false;       // a setup/claim is in flight
     this.cancelRequested = false; // set by stop() to break out of the claim/resolve loops
+    this.runId = 0;          // bumped on each setup() so a stale resolve loop can detect a restart
   }
 
   installed() { return fs.existsSync(binPath()); }
@@ -100,6 +94,9 @@ class Playit extends EventEmitter {
   saveSecret(secret) {
     if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
     fs.writeFileSync(SECRET_FILE, secret, { mode: 0o600 });
+    // mode in writeFileSync only applies when the file is created — tighten an
+    // already-existing (possibly world-readable) secret file as well.
+    try { fs.chmodSync(SECRET_FILE, 0o600); } catch (_) { /* best effort (e.g. Windows) */ }
   }
 
   async _downloadBin(asset, dest) {
@@ -114,9 +111,16 @@ class Playit extends EventEmitter {
   async install() {
     if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
     this.pushLog('[dashboard] Downloading playit agent…');
-    const rel = await (await fetch(GH_API, { headers: { 'User-Agent': 'mc-dashboard' } })).json();
+  const res = await fetch(GH_API, { headers: { 'User-Agent': 'chunkdeck' } });
+    if (!res.ok) {
+      if (res.status === 403) {
+        throw new Error('GitHub is rate-limiting downloads (HTTP 403) — wait a few minutes and try again, or install the agent manually.');
+      }
+      throw new Error(`Could not fetch the playit release info (HTTP ${res.status}).`);
+    }
+    const rel = await res.json();
     const assets = rel.assets || [];
-    const clientAsset = pickAsset(assets, false);
+    const clientAsset = pickAsset(assets);
     if (!clientAsset) throw new Error('No playit build is available for this operating system.');
     await this._downloadBin(clientAsset, binPath());
     this.pushLog(`[dashboard] Installed ${clientAsset.name}`);
@@ -124,9 +128,13 @@ class Playit extends EventEmitter {
 
   // ---- the one entry point the UI calls ----
   async setup() {
-    if (this.busy || this.proc) return;
+    if (this.busy || this.proc) {
+      this.pushLog('[dashboard] Already starting/running — ignoring the extra start request.');
+      return;
+    }
     this.busy = true;
     this.cancelRequested = false;
+    const runId = ++this.runId; // this start's generation; a later start invalidates our loops
     this.claimUrl = null;
     this.address = null;
     this.pendingLink = null;
@@ -148,7 +156,7 @@ class Playit extends EventEmitter {
       this._setStatus('starting');
       this._spawnAgent(secret);
       // resolve the public address (and create a tunnel if there isn't one) in the background
-      this._resolveAddress(secret).catch(e => this.pushLog(`[dashboard] ${e.message}`));
+      this._resolveAddress(secret, runId).catch(e => this.pushLog(`[dashboard] ${e.message}`));
     } catch (e) {
       this.pushLog(`[dashboard] Setup failed: ${e.message}`);
       this._setStatus('offline');
@@ -191,12 +199,17 @@ class Playit extends EventEmitter {
 
   _spawnAgent(secret) {
     const args = ['--secret', secret];
-    // The daemon binary creates a Unix socket for IPC. The default path is in
-    // /run/ which requires root on Linux — point it at our own writable dir.
+    // The playit wrapper binary launches its own daemon child (playitd) which
+    // creates a Unix socket for IPC. The default socket path is in /run/ which
+    // requires root on Linux — point it at our own writable dir.
     if (process.platform !== 'win32') {
       args.push('--socket-path', path.join(DIR, 'agent.sock'));
     }
-    this.proc = spawn(binPath(), args, { cwd: DIR });
+    // detached on POSIX puts the agent in its own process group so stop() can
+    // signal the whole tree (wrapper + playitd child) via process.kill(-pid).
+    const opts = { cwd: DIR };
+    if (process.platform !== 'win32') opts.detached = true;
+    this.proc = spawn(binPath(), args, opts);
     const onData = (d) => {
       for (const raw of d.toString().split(/\r?\n/)) {
         const line = stripAnsi(raw).trim();
@@ -227,12 +240,14 @@ class Playit extends EventEmitter {
   }
 
   // Poll the account for this agent's tunnels; auto-create a Minecraft tunnel if none exists.
-  async _resolveAddress(secret) {
+  async _resolveAddress(secret, runId) {
     const deadline = Date.now() + ADDR_TIMEOUT_MS;
     let triedCreate = false;
     // Keep polling regardless of daemon status — the user may assign a tunnel on the
     // playit.gg website after the daemon starts, and we want to pick that up.
-    while (Date.now() < deadline && !this.cancelRequested) {
+    // Exit if a newer setup() has started (runId no longer matches) so two concurrent
+    // loops can't run after a stop()/start() — setup() resets cancelRequested=false.
+    while (Date.now() < deadline && !this.cancelRequested && runId === this.runId) {
       let rd;
       try { rd = await api.agentsRundata(secret); }
       catch (e) { await delay(3000); continue; }
@@ -274,7 +289,7 @@ class Playit extends EventEmitter {
       }
       await delay(3000);
     }
-    if (!this.address && !this.pendingLink) {
+    if (runId === this.runId && !this.address && !this.pendingLink) {
       this.pendingLink = 'https://playit.gg/account/tunnels';
       this.pushLog('[dashboard] Connected, but no tunnel address yet — open the link to add one.');
       this.emit('update');
@@ -283,8 +298,24 @@ class Playit extends EventEmitter {
 
   stop() {
     this.cancelRequested = true; // break out of any in-flight claim/resolve loop
-    if (this.proc) { try { this.proc.kill(); } catch (e) { /* already gone */ } }
+    if (this.proc) { this._killTree(this.proc); }
     else if (this.status === 'claiming') { this.claimUrl = null; this._setStatus('offline'); }
+  }
+
+  // Kill the agent *and* its daemon grandchild. A plain proc.kill() only signals
+  // the wrapper, leaving playitd running and the tunnel up — especially on Windows.
+  _killTree(proc) {
+    const pid = proc.pid;
+    if (!pid) { try { proc.kill(); } catch (_) { /* already gone */ } return; }
+    if (process.platform === 'win32') {
+      // taskkill /T kills the whole process tree; /F forces it.
+      try { spawn('taskkill', ['/pid', String(pid), '/T', '/F']); } catch (_) { /* already gone */ }
+    } else {
+      // We spawned detached, so the agent leads its own process group; the
+      // negative pid signals every process in that group (wrapper + playitd).
+      try { process.kill(-pid, 'SIGTERM'); }
+      catch (_) { try { proc.kill(); } catch (__) { /* already gone */ } }
+    }
   }
 
   // Forget the saved secret so the next setup claims a fresh agent.

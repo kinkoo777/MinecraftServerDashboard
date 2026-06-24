@@ -43,7 +43,7 @@ App.pages.plugins = {
       for (const f of e.target.files) form.append('files', f);
       try {
         const res = await fetch(`/api/files/upload?path=${encodeURIComponent(this.dir)}`, { method: 'POST', body: form });
-        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Upload failed');
         App.toast('Uploaded — restart the server to load it');
         this.load();
       } catch (err) { App.toast(err.message, true); }

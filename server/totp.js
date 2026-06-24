@@ -60,8 +60,10 @@ function verify(token, secretB32, window = 2) {
 }
 
 // otpauth:// URI for QR codes / authenticator import
-function otpauthUrl(secretB32, label = 'MC Dashboard', issuer = 'MC Dashboard') {
-  return `otpauth://totp/${encodeURIComponent(label)}?secret=${secretB32}`
+function otpauthUrl(secretB32, label = 'ChunkDeck', issuer = 'ChunkDeck') {
+  // Prefix the label with the issuer ("issuer:label") per the otpauth spec so
+  // authenticator apps group/name the account correctly.
+  return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(label)}?secret=${secretB32}`
     + `&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP}`;
 }
 

@@ -58,31 +58,51 @@ router.get('/content', (req, res) => {
   res.json({ content: fs.readFileSync(file, 'utf8') });
 });
 
-router.put('/content', (req, res) => {
-  const file = safePath(req.body.path || '');
-  fs.writeFileSync(file, req.body.content ?? '');
-  res.json({ ok: true });
+router.put('/content', (req, res, next) => {
+  try {
+    const content = req.body.content ?? '';
+    if (Buffer.byteLength(content, 'utf8') > 512 * 1024) {
+      return res.status(413).json({ error: 'File too large to save inline' });
+    }
+    const file = safePath(req.body.path || '');
+    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
+      return res.status(400).json({ error: 'Target is a directory' });
+    }
+    fs.writeFileSync(file, content);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
-router.post('/upload', upload.array('files'), (req, res) => {
-  res.json({ ok: true, count: (req.files || []).length });
+router.post('/upload', (req, res, next) => {
+  upload.array('files')(req, res, (err) => {
+    if (err) return next(err);
+    res.json({ ok: true, count: (req.files || []).length });
+  });
 });
 
-router.post('/mkdir', (req, res) => {
-  fs.mkdirSync(safePath(req.body.path || ''), { recursive: true });
-  res.json({ ok: true });
+router.post('/mkdir', (req, res, next) => {
+  try {
+    fs.mkdirSync(safePath(req.body.path || ''), { recursive: true });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
-router.post('/rename', (req, res) => {
-  fs.renameSync(safePath(req.body.from || ''), safePath(req.body.to || ''));
-  res.json({ ok: true });
+router.post('/rename', (req, res, next) => {
+  try {
+    const from = safePath(req.body.from || '');
+    if (!fs.existsSync(from)) return res.status(404).json({ error: 'Source not found' });
+    fs.renameSync(from, safePath(req.body.to || ''));
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
-router.delete('/', (req, res) => {
-  const target = safePath(req.query.path || '');
-  if (target === safePath('')) return res.status(400).json({ error: 'Cannot delete the server root' });
-  fs.rmSync(target, { recursive: true, force: true });
-  res.json({ ok: true });
+router.delete('/', (req, res, next) => {
+  try {
+    const target = safePath(req.query.path || '');
+    if (target === safePath('')) return res.status(400).json({ error: 'Cannot delete the server root' });
+    fs.rmSync(target, { recursive: true, force: true });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

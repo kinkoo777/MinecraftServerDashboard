@@ -129,13 +129,13 @@ App.pages.players = {
     if (d.data) {
       const s = d.data;
       statsHtml = `<div class="grid grid-4" style="margin-bottom:16px">
-        <div class="pstat"><span class="label">Health</span>${s.health ?? '—'} / 20</div>
-        <div class="pstat"><span class="label">Food</span>${s.food ?? '—'} / 20</div>
-        <div class="pstat"><span class="label">XP level</span>${s.xpLevel ?? '—'}</div>
+        <div class="pstat"><span class="label">Health</span>${App.esc(s.health ?? '—')} / 20</div>
+        <div class="pstat"><span class="label">Food</span>${App.esc(s.food ?? '—')} / 20</div>
+        <div class="pstat"><span class="label">XP level</span>${App.esc(s.xpLevel ?? '—')}</div>
         <div class="pstat"><span class="label">Gamemode</span>${App.esc(s.gamemode)}</div>
       </div>
       <p class="muted" style="margin-bottom:16px">
-        ${s.pos ? `Position: ${s.pos.join(', ')} (${App.esc(s.dimension)})` : ''}
+        ${s.pos ? `Position: ${App.esc(s.pos.join(', '))} (${App.esc(s.dimension)})` : ''}
         ${d.lastSaved ? ` · data from last save, ${new Date(d.lastSaved).toLocaleString()}` : ''}
       </p>`;
       invHtml = `<h2>Inventory</h2>${this.inventoryHtml(s.inventory)}`;
@@ -155,7 +155,7 @@ App.pages.players = {
       ];
       statsExtra = `<h2 style="margin-top:6px">Statistics</h2>
         <div class="grid grid-4" style="margin-bottom:16px">
-          ${rows.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${v}</div>`).join('')}
+          ${rows.map(([l, v]) => `<div class="pstat"><span class="label">${l}</span>${App.esc(v)}</div>`).join('')}
         </div>`;
     }
 
@@ -180,9 +180,9 @@ App.pages.players = {
         </div>
         <div class="manage-row">
           <span class="manage-label">Teleport to</span>
-          <input id="pm-x" type="number" placeholder="x" value="${pos[0]}">
-          <input id="pm-y" type="number" placeholder="y" value="${pos[1]}">
-          <input id="pm-z" type="number" placeholder="z" value="${pos[2]}">
+          <input id="pm-x" type="number" placeholder="x" value="${App.esc(pos[0])}">
+          <input id="pm-y" type="number" placeholder="y" value="${App.esc(pos[1])}">
+          <input id="pm-z" type="number" placeholder="z" value="${App.esc(pos[2])}">
           <button class="btn-sm" id="pm-tp-go">Teleport</button>
         </div>
         ${tpTargets.length ? `
@@ -225,9 +225,13 @@ App.pages.players = {
 
     const overlay = document.getElementById('pm-overlay');
     this.loadItemIcons(box);
-    overlay.onclick = (e) => { if (e.target === overlay) box.innerHTML = ''; };
-    document.getElementById('pm-close').onclick = () => { box.innerHTML = ''; };
-    const esc = (e) => { if (e.key === 'Escape') { box.innerHTML = ''; document.removeEventListener('keydown', esc); } };
+    // single close path so the Escape listener is always removed, however the
+    // modal is dismissed (overlay click, close button, or Escape)
+    const esc = (e) => { if (e.key === 'Escape') close(); };
+    const close = () => { box.innerHTML = ''; document.removeEventListener('keydown', esc); };
+    this._closeModal = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    document.getElementById('pm-close').onclick = close;
     document.addEventListener('keydown', esc);
 
     box.querySelectorAll('[data-act]').forEach(btn => {
@@ -235,8 +239,13 @@ App.pages.players = {
         if (await App.tryApi('/players/action', {
           method: 'POST', body: { action: btn.dataset.act, name: d.name }
         }, 'Done')) {
-          // give the server a moment to update its json files, then refresh
-          setTimeout(() => { this.load(); this.openModal(d.name); }, 600);
+          // give the server a moment to update its json files, then refresh —
+          // but only if we're still on the players page with the modal open
+          setTimeout(() => {
+            if (App.currentName !== 'players' || !document.getElementById('pm-overlay')) return;
+            this.load();
+            this.openModal(d.name);
+          }, 600);
         }
       };
     });
@@ -312,6 +321,11 @@ App.pages.players = {
       <div class="inv-section"><span class="label">Hotbar</span>
         <div class="inv-grid">${range(0, 8)}</div>
       </div>`;
+  },
+
+  onLeave() {
+    // close any open modal so its Escape listener doesn't outlive the page
+    if (this._closeModal) { this._closeModal(); this._closeModal = null; }
   },
 
   onPlayers() { if (this.tab === 'online') this.load(); },

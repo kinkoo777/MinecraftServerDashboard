@@ -40,6 +40,11 @@ router.post('/reset', (req, res) => {
 router.post('/use-secret', async (req, res) => {
   const secret = String(req.body.secret || '').trim();
   if (!secret) return res.status(400).json({ error: 'Secret key is required' });
+  // playit agent secrets are hex-encoded keys. Validate charset/length before
+  // sending anything to playit, and never echo the secret back in an error.
+  if (!/^[0-9a-fA-F]{32,256}$/.test(secret)) {
+    return res.status(400).json({ error: "That doesn't look like a valid agent secret key — it should be a long hex string." });
+  }
   try {
     await api.agentsRundata(secret);
   } catch (e) {

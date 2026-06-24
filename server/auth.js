@@ -49,7 +49,7 @@ function verifyPassword(pw) {
   // transparently re-hash with the stronger cost on a correct login
   if (ok && params.N < TARGET_PARAMS.N) {
     try { saveConfig({ passwordHash: hashPassword(pw, passwordSalt, TARGET_PARAMS), passwordParams: TARGET_PARAMS }); }
-    catch (e) { /* upgrade is best-effort */ }
+    catch (e) { console.error('Password hash upgrade failed (best-effort):', e.message); }
   }
   return ok;
 }
@@ -68,8 +68,14 @@ function loadSessions() {
 }
 
 function saveSessions() {
-  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 }); }
-  catch (e) { /* best-effort */ }
+  // Atomic write so a crash mid-write can't corrupt the session store.
+  // Note: sessions.json holds RAW session tokens; it is protected only by its
+  // 0600 file permissions, so guard the data dir accordingly.
+  try {
+    const tmp = SESSIONS_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 });
+    fs.renameSync(tmp, SESSIONS_FILE);
+  } catch (e) { /* best-effort */ }
 }
 
 function createSession(remember = true) {
@@ -127,7 +133,12 @@ function recordFail(ip) {
 
 function clearFails(ip) {
   fails.delete(ip);
-  globalFails = { count: 0, until: 0 };
+  // A single successful login must NOT wipe the global brute-force counter to
+  // zero — that would let an attacker reset it by interleaving valid logins.
+  // Decay it by one IP_LIMIT's worth and clear the lock so legitimate use eases
+  // pressure without erasing evidence of a distributed attack.
+  globalFails.count = Math.max(0, globalFails.count - IP_LIMIT);
+  globalFails.until = 0;
 }
 
 /* ---- Two-factor (TOTP) ---- */

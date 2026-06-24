@@ -50,7 +50,14 @@ class Cloudflare extends EventEmitter {
   async install() {
     if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
     this.pushLog('[dashboard] Fetching cloudflared release info…');
-    const rel = await (await fetch(GH_API, { headers: { 'User-Agent': 'mc-dashboard' } })).json();
+  const relRes = await fetch(GH_API, { headers: { 'User-Agent': 'chunkdeck' } });
+    if (!relRes.ok) {
+      if (relRes.status === 403) {
+        throw new Error('GitHub is rate-limiting downloads (HTTP 403) — wait a few minutes and try again, or install cloudflared manually.');
+      }
+      throw new Error(`Could not fetch the cloudflared release info (HTTP ${relRes.status}).`);
+    }
+    const rel = await relRes.json();
     const asset = pickAsset(rel.assets || []);
     if (!asset) throw new Error('No cloudflared build available for this OS');
     this.pushLog(`[dashboard] Downloading ${asset.name}…`);
@@ -60,7 +67,14 @@ class Cloudflare extends EventEmitter {
     const tmp = dest + '.download';
     await finished(Readable.fromWeb(dl.body).pipe(fs.createWriteStream(tmp)));
     if (asset.name.endsWith('.tgz')) {
-      execFileSync('tar', ['xzf', tmp, '-C', DIR]);
+      try {
+        execFileSync('tar', ['xzf', tmp, '-C', DIR]);
+      } catch (e) {
+        if (e.code === 'ENOENT') {
+          throw new Error('Could not extract cloudflared: the "tar" command was not found. Install tar (or download cloudflared manually).');
+        }
+        throw e;
+      }
       fs.unlinkSync(tmp);
     } else {
       fs.renameSync(tmp, dest);
@@ -82,13 +96,19 @@ class Cloudflare extends EventEmitter {
     }
     const port = process.env.PORT || getConfig().dashboardPort || 8080;
     this.pushLog(`[dashboard] Opening tunnel to http://localhost:${port}…`);
-    this.proc = spawn(binPath(), ['tunnel', '--url', `http://localhost:${port}`]);
+    // detached on POSIX gives cloudflared its own process group so stop() can
+    // signal the whole tree via process.kill(-pid), not just the parent.
+    const opts = {};
+    if (process.platform !== 'win32') opts.detached = true;
+    this.proc = spawn(binPath(), ['tunnel', '--url', `http://localhost:${port}`], opts);
     const onData = (chunk) => {
       for (const raw of chunk.toString().split(/\r?\n/)) {
         const line = raw.trim();
         if (!line) continue;
         const clean = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+/, '');
         this.pushLog(clean);
+        // cloudflared prints the trycloudflare.com URL exactly once, on stderr —
+        // URL_RE picks it out of the log lines (we read stdout+stderr together).
         const m = URL_RE.exec(line);
         if (m && !this.url) {
           this.url = m[0];
@@ -111,8 +131,23 @@ class Cloudflare extends EventEmitter {
   }
 
   stop() {
-    if (this.proc) { try { this.proc.kill(); } catch (e) { /* gone */ } }
+    if (this.proc) { this._killTree(this.proc); }
     else { this._setStatus('offline'); }
+  }
+
+  // Kill cloudflared and any children. A plain proc.kill() can leave an orphaned
+  // process holding the tunnel open — especially on Windows.
+  _killTree(proc) {
+    const pid = proc.pid;
+    if (!pid) { try { proc.kill(); } catch (_) { /* gone */ } return; }
+    if (process.platform === 'win32') {
+      // taskkill /T kills the whole process tree; /F forces it.
+      try { spawn('taskkill', ['/pid', String(pid), '/T', '/F']); } catch (_) { /* gone */ }
+    } else {
+      // We spawned detached, so the negative pid signals the whole process group.
+      try { process.kill(-pid, 'SIGTERM'); }
+      catch (_) { try { proc.kill(); } catch (__) { /* gone */ } }
+    }
   }
 }
 

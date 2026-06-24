@@ -19,6 +19,7 @@ router.get('/search', async (req, res) => {
   const facets = JSON.stringify([[`project_type:${projectType}`], [`categories:${loader}`]]);
   try {
     const r = await fetch(`${API}/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent(facets)}&limit=12`);
+    if (!r.ok) return res.status(502).json({ error: `Modrinth search failed (HTTP ${r.status})` });
     const j = await r.json();
     res.json((j.hits || []).map(h => ({
       slug: h.slug,
@@ -39,6 +40,7 @@ router.post('/install', async (req, res) => {
 
   try {
     const r = await fetch(`${API}/project/${slug}/version?loaders=${encodeURIComponent(JSON.stringify([loader]))}`);
+    if (!r.ok) return res.status(502).json({ error: `Modrinth lookup failed (HTTP ${r.status})` });
     const versions = await r.json();
     if (!Array.isArray(versions) || !versions.length) {
       return res.status(404).json({ error: `No ${loader}-compatible version found` });
@@ -52,6 +54,12 @@ router.post('/install', async (req, res) => {
     const name = (file.filename || '').split(/[\\/]/).pop();
     if (!/^[\w.\-+ ]{1,200}\.jar$/i.test(name)) {
       return res.status(400).json({ error: `Unexpected file name from Modrinth: ${name}` });
+    }
+    // only pull binaries from Modrinth's own CDN, never an arbitrary URL in the API response
+    let host;
+    try { host = new URL(file.url).hostname; } catch (e) { return res.status(400).json({ error: 'Invalid download URL from Modrinth' }); }
+    if (!host.endsWith('modrinth.com')) {
+      return res.status(400).json({ error: `Refusing download from untrusted host: ${host}` });
     }
     const dl = await fetch(file.url);
     if (!dl.ok) throw new Error(`Download failed (HTTP ${dl.status})`);

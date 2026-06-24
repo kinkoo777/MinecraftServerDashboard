@@ -11,6 +11,10 @@ const nbt = require('../utils/nbt');
 
 const router = express.Router();
 
+// Player names: Minecraft usernames are 1-16 of [A-Za-z0-9_]. Gamemodes by id index.
+const NAME_RE = /^[A-Za-z0-9_]{1,16}$/;
+const GAMEMODES = ['survival', 'creative', 'adventure', 'spectator'];
+
 /* ---- UUID resolution (for editing whitelist/ops/bans while the server is offline) ---- */
 
 function dashUuid(hex) {
@@ -48,15 +52,17 @@ function readNotes() {
   try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return {}; }
 }
 
-router.put('/note', (req, res) => {
+router.put('/note', (req, res, next) => {
   const { name, note } = req.body;
   if (!name || !NAME_RE.test(name)) return res.status(400).json({ error: 'Invalid player name' });
   const notes = readNotes();
   const key = name.toLowerCase();
   if ((note || '').trim()) notes[key] = String(note).slice(0, 500);
   else delete notes[key];
-  fs.writeFileSync(notesFile(), JSON.stringify(notes, null, 2));
-  res.json({ ok: true });
+  try {
+    fs.writeFileSync(notesFile(), JSON.stringify(notes, null, 2));
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 /* ---- Playtime leaderboard from the world's stats/*.json files ---- */
@@ -145,7 +151,6 @@ router.get('/', (req, res) => {
   });
 });
 
-const GAMEMODES = ['survival', 'creative', 'adventure', 'spectator'];
 let lastForcedSave = 0;
 
 router.get('/detail/:name', async (req, res) => {
@@ -215,8 +220,6 @@ router.get('/detail/:name', async (req, res) => {
 });
 
 // Player actions are routed through console commands so the running server stays in sync.
-const NAME_RE = /^[A-Za-z0-9_]{1,16}$/;
-
 function buildCommands(action, n, a) {
   switch (action) {
     case 'kick': return [`kick ${n}`];

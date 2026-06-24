@@ -9,6 +9,7 @@ const VERSION_RE = /^[\w.\-]{1,32}$/;
 router.get('/versions', async (req, res) => {
   try {
     const [paperList, mojangRes] = await Promise.all([paperVersions(), fetch(MOJANG_MANIFEST)]);
+    if (!mojangRes.ok) throw new Error(`Mojang version manifest request failed (HTTP ${mojangRes.status})`);
     const mojang = await mojangRes.json();
     res.json({
       paper: paperList.slice(0, 60),
