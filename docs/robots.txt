@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+Disallow: /api/
 
-Sitemap: https://kinkoo777.github.io/MinecraftServerDashboard/sitemap.xml
+# Favicon and assets
+Allow: /icon.svg
+Allow: /icon.png
+Allow: /style.css
+Allow: /script.js
+Allow: /og.png
+
+Sitemap: https://chunkdeck.dev/sitemap.xml

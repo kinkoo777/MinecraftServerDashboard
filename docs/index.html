@@ -9,15 +9,15 @@
   <meta name="theme-color" content="#0f1115">
   <meta name="robots" content="index, follow">
   <meta name="author" content="kinkoo777">
-  <link rel="canonical" href="https://kinkoo777.github.io/MinecraftServerDashboard/">
+  <link rel="canonical" href="https://chunkdeck.dev/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ChunkDeck">
-  <meta property="og:url" content="https://kinkoo777.github.io/MinecraftServerDashboard/">
+  <meta property="og:url" content="https://chunkdeck.dev/">
   <meta property="og:title" content="ChunkDeck &mdash; Free Minecraft Server Hosting &amp; Web Manager">
   <meta property="og:description" content="Self-host your Minecraft server for free with a beautiful web dashboard &mdash; a free Aternos alternative with console, backups, players, plugins, schedules and play-with-friends.">
-  <meta property="og:image" content="https://kinkoo777.github.io/MinecraftServerDashboard/og.png">
+  <meta property="og:image" content="https://chunkdeck.dev/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="ChunkDeck — free Minecraft server hosting you run yourself">
@@ -26,9 +26,11 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ChunkDeck &mdash; Free Minecraft Server Hosting &amp; Web Manager">
   <meta name="twitter:description" content="Self-host your Minecraft server for free with a beautiful web dashboard. A free Aternos alternative: console, backups, plugins, schedules and play with friends.">
-  <meta name="twitter:image" content="https://kinkoo777.github.io/MinecraftServerDashboard/og.png">
+  <meta name="twitter:image" content="https://chunkdeck.dev/og.png">
 
   <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
 
   <!-- Structured data: software app -->
   <script type="application/ld+json">
@@ -39,7 +41,7 @@
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Windows, macOS, Linux, Raspberry Pi",
     "description": "Free, open-source self-hosted web control panel for a Minecraft server: live console, one-click start/stop, player management, backups, schedules, plugins and play-with-friends over the internet. A free Aternos alternative.",
-    "url": "https://kinkoo777.github.io/MinecraftServerDashboard/",
+    "url": "https://chunkdeck.dev/",
     "downloadUrl": "https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip",
     "license": "https://opensource.org/licenses/MIT",
     "author": { "@type": "Person", "name": "kinkoo777" },
@@ -95,8 +97,11 @@
       <img src="icon.svg" alt="" width="30" height="30">
       <span>ChunkDeck</span>
     </a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
     <nav class="nav-links">
-      <a href="#features">Features</a> 
+      <a href="#features">Features</a>
       <a href="#why">Why free</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
@@ -152,6 +157,7 @@
   
   <!-- STATS STRIP -->
   <section class="strip reveal">
+    <div class="strip-item" id="dl-strip" hidden><div class="num" id="dl-count">0</div><div class="cap">downloads</div></div>
     <div class="strip-item"><div class="num">$0</div><div class="cap">forever</div></div>
     <div class="strip-item"><div class="num">15+</div><div class="cap">built-in tools</div></div>
     <div class="strip-item"><div class="num">100%</div><div class="cap">open source</div></div>
@@ -270,7 +276,8 @@
         <div>
           <h3>Download the ZIP</h3>
           <p class="s-text">Click the button below. Your browser downloads a file named something like <code class="inline">MinecraftServerDashboard-main.zip</code>.</p>
-          <a class="btn btn-primary" href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip" style="margin-top:10px">&darr; Download ZIP (free)</a>
+          <a class="btn btn-primary" data-dl-btn href="https://github.com/kinkoo777/MinecraftServerDashboard/archive/refs/heads/main.zip" style="margin-top:10px">&darr; Download ZIP (free)</a>
+          <div class="dl-note" id="dl-note" hidden><span class="dot"></span> <span id="dl-note-num">0</span> downloads so far &mdash; join them.</div>
         </div>
       </div>
       <div class="step reveal">
@@ -310,6 +317,7 @@
         <div>
           <h3>Finish in the browser</h3>
           <p class="s-text">The dashboard opens at <b>http://localhost:8080</b>. Create a password, choose Paper or Vanilla, accept the Minecraft EULA, then press <b>Start</b>.</p>
+        </div>
       </div>
     </div>
     <div class="install-cta reveal">
@@ -380,7 +388,7 @@
   <!-- CONTACT / CTA -->
   <section id="contact" class="section contact reveal">
     <h2>Get it, star it, share it</h2>
-    <p>Free and open source. Got stuck, found a bug, or have an idea? <a href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> or email <a href="mailto:admin@chunkdeck.dev">admin@chunkdeck.dev</a> &mdash; I read every one.</p>
+    <p>Free and open source. Got stuck, found a bug, or have an idea? <a href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> &mdash; I read every one.</p>
     <div class="contact-links">
       <a class="clink" href="https://github.com/kinkoo777/MinecraftServerDashboard/issues" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -390,15 +398,11 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
         <span>GitHub</span>
       </a>
-      <a class="clink" href="mailto:admin@chunkdeck.dev">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        <span>Email</span>
-      </a>
-      <a class="clink" href="https://www.youtube.com/@kinkoo777" target="_blank" rel="noopener">
+      <a class="clink" href="https://www.youtube.com/channel/UCZurfGwbCN5b7K_qVzy2I4g" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z"/></svg>
         <span>YouTube</span>
       </a>
-      <a class="clink" href="https://www.tiktok.com/@kinkoo777" target="_blank" rel="noopener">
+      <a class="clink" href="https://www.tiktok.com/@chunkdeck" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.6 2c.3 2.4 1.7 4.1 4 4.3v4.1a8.1 8.1 0 0 1-4-1.1v6.3c0 4-2.6 6.4-6.5 6.4-3.5 0-6.1-2.3-6.1-5.6 0-3.8 3.6-6.6 7.3-5.7v4.3c-1.5-.5-3 .3-3 1.6 0 1.1.9 1.8 2 1.8 1.4 0 2.1-.8 2.1-2.6V2h4.2Z"/></svg>
         <span>TikTok</span>
       </a>
@@ -411,23 +415,20 @@
 
   <footer>
     <div class="foot-inner">
-      <div class="foot-main">
-        <div class="foot-brand">
-          <img src="icon.svg" width="24" height="24" alt="">
-          <span>ChunkDeck</span>
-        </div>
-        <a class="foot-email" href="mailto:admin@chunkdeck.dev">admin@chunkdeck.dev</a>
+      <div class="foot-brand">
+        <img src="icon.svg" width="24" height="24" alt="">
+        <span>ChunkDeck</span>
       </div>
       <div class="foot-links">
         <a href="#features">Features</a>
         <a href="#install">Install</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/kinkoo777/MinecraftServerDashboard" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://www.youtube.com/@kinkoo777" target="_blank" rel="noopener">YouTube</a>
-        <a href="https://www.tiktok.com/@kinkoo777" target="_blank" rel="noopener">TikTok</a>
+        <a href="https://www.youtube.com/channel/UCZurfGwbCN5b7K_qVzy2I4g" target="_blank" rel="noopener">YouTube</a>
+        <a href="https://www.tiktok.com/@chunkdeck" target="_blank" rel="noopener">TikTok</a>
         <a href="https://discord.gg/your-invite" target="_blank" rel="noopener">Discord</a>
       </div>
-      <div class="foot-note">MIT licensed &middot; Open source &middot; Made for the community<br>Not affiliated with Mojang or Microsoft.</div>
+      <div class="foot-note">MIT licensed &middot; Open source &middot; Made for the community &middot; Not affiliated with Mojang or Microsoft.<br><a href="mailto:admin@chunkdeck.dev">admin@chunkdeck.dev</a></div>
     </div>
   </footer>
 

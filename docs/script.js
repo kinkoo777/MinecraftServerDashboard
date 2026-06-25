@@ -30,3 +30,74 @@ const header = document.querySelector('header');
 addEventListener('scroll', () => {
   header.style.boxShadow = window.scrollY > 10 ? '0 6px 24px rgba(0,0,0,0.3)' : 'none';
 }, { passive: true });
+
+// ---------- Download counter (counts Download-button clicks) ----------
+// Uses the free Abacus hit-counter (no signup, CORS-enabled): /get reads the
+// running total without incrementing; /hit adds one when a Download button is
+// clicked. The ZIP download keeps the page open, so the increment completes.
+(function () {
+  const API = 'https://abacus.jasoncameron.dev';
+  const NS = 'chunkdeck-dev-dl', KEY = 'total';
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmt = (n) => n.toLocaleString('en-US');
+  let current = 0, shown = false;
+
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  function reveal() {
+    if (shown) return; shown = true;
+    ['dl-strip', 'dl-note'].forEach((id) => { const el = document.getElementById(id); if (el) el.hidden = false; });
+  }
+
+  function countUp(id, to, from) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (reduceMotion || to - from < 2) { el.textContent = fmt(to); return; }
+    const dur = 800, start = performance.now();
+    (function tick(now) {
+      const p = Math.min(1, (now - start) / dur);
+      el.textContent = fmt(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick);
+    })(start);
+  }
+
+  function paint(value) {
+    const from = current; current = value;
+    reveal();
+    countUp('dl-count', value, from);
+    setText('dl-note-num', fmt(value));
+  }
+
+  // show the running total on load (404 = counter not created yet = 0)
+  fetch(`${API}/get/${NS}/${KEY}`)
+    .then((r) => (r.ok ? r.json() : { value: 0 }))
+    .then((d) => paint(d.value || 0))
+    .catch(() => { /* counter service unreachable — leave the tracker hidden */ });
+
+  // count a download when a Download button is clicked
+  document.querySelectorAll('[data-dl-btn]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      fetch(`${API}/hit/${NS}/${KEY}`, { keepalive: true })
+        .then((r) => r.json())
+        .then((d) => { if (typeof d.value === 'number') paint(d.value); })
+        .catch(() => {});
+    });
+  });
+})();
+
+// Mobile nav toggle
+const navToggle = document.querySelector('.nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => {
+    const open = navLinks.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open);
+  });
+  // Close nav when a link is clicked
+  navLinks.querySelectorAll('a').forEach((a) => {
+    a.addEventListener('click', () => {
+      navLinks.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+}
