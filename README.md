@@ -22,6 +22,7 @@ A complete web control panel for a Minecraft server: live console, one-click sta
 - [Playing with friends](#-playing-with-friends)
 - [Backups & schedules](#-backups--schedules)
 - [Plugins & mods](#-plugins--mods)
+- [Keeping it up to date](#-keeping-it-up-to-date)
 - [Features](#-features)
 - [Troubleshooting](#-troubleshooting)
 - [Security](#-security)
@@ -129,11 +130,20 @@ On the **Plugins** page you can **search Modrinth and install** plugins/mods wit
 
 ---
 
+## 🔄 Keeping it up to date
+
+ChunkDeck updates itself — no re-downloading. Go to **Settings → Updates** and click **Check for updates**. If a newer version has been published, click **Update** and the dashboard downloads the latest release from GitHub and applies it **in place**.
+
+Your data is never touched: your world (`mc-server/`), backups, `config.json`, schedules, logs and tunnel setup are all preserved, and a snapshot of the replaced files is saved under `update-backups/` in case you want to roll back. After an update, restart the launcher window so the new version runs.
+
+---
+
 ## ✨ Features
 
 - **One-click controls** — start / stop / restart, with **auto-restart on crash**
 - **Live console** — real-time log over WebSocket, command input with history, saved logs of past runs
 - **Server downloader & update checker** — install Paper/Vanilla in a click; get told when a newer build exists
+- **Self-updating dashboard** — one-click in-place updates from GitHub Releases, keeping your world, config and backups intact
 - **Players** — online / whitelist / ops / banned lists, an **inventory viewer** with real item icons, playtime/deaths/kills **stats**, a **leaderboard**, admin **notes**, and actions: op, whitelist, ban, kick, heal, feed, kill, gamemode, teleport, give items (whitelist/op/ban editing works even while the server is stopped)
 - **Settings** — Java/RAM options, full `server.properties` editor with typed controls and presets, config export/import
 - **Backups** — one-click zip backups with retention, restore, download
@@ -206,7 +216,7 @@ Avoid exposing port 8080 directly over plain HTTP.
 
 ## 💻 Run manually, or as a service
 
-**Manual (for developers):** requires [Node.js](https://nodejs.org) 18+ and Java 17+ (21 for recent Minecraft).
+**Manual (for developers):** requires [Node.js](https://nodejs.org) 18+ and Java (21+ for current Minecraft; the newest 1.21+/26.x builds need Java 25). The one-click launchers install a suitable Java for you.
 
 ```bash
 npm install
