@@ -47,6 +47,12 @@ const PROP_CATS = ['General', 'Gameplay', 'World', 'Network', 'Performance', 'Ot
 App.pages.settings = {
   props: null,
 
+  // A password input with a show/hide (eye) toggle, matching the login screen.
+  pwField(id, ac) {
+    return `<div class="pw-wrap"><input type="password" id="${id}" autocomplete="${ac}">
+      <button type="button" class="pw-toggle" data-for="${id}" aria-label="Show password" tabindex="-1">${App.icon('eye', 18)}</button></div>`;
+  },
+
   async render(el) {
     el.innerHTML = `
       <div class="page-head"><h1>Settings</h1></div>
@@ -157,6 +163,7 @@ App.pages.settings = {
               <button id="props-preset-apply" class="btn-sm">Apply</button>
             </div>
           </div>
+          <input id="props-search" placeholder="Search settings…" style="margin-bottom:12px">
           <div id="props-box"><div class="empty">Loading…</div></div>
           <div class="btn-row" style="margin-top:14px">
             <button id="props-save" class="btn-primary">Save properties</button>
@@ -180,9 +187,9 @@ App.pages.settings = {
         <div class="card">
           <h2>Change password</h2>
           <div style="display:flex;flex-direction:column;gap:10px;max-width:400px;margin-bottom:12px">
-            <div class="field" style="margin:0"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password"></div>
-            <div class="field" style="margin:0"><label>New password</label><input type="password" id="pw-new" autocomplete="new-password"></div>
-            <div class="field" style="margin:0"><label>Confirm new password</label><input type="password" id="pw-new2" autocomplete="new-password"></div>
+            <div class="field" style="margin:0"><label>Current password</label>${this.pwField('pw-current', 'current-password')}</div>
+            <div class="field" style="margin:0"><label>New password</label>${this.pwField('pw-new', 'new-password')}</div>
+            <div class="field" style="margin:0"><label>Confirm new password</label>${this.pwField('pw-new2', 'new-password')}</div>
           </div>
           <button id="pw-save" class="btn-primary">Change password</button>
           <span id="pw-msg" class="muted" style="margin-left:12px;font-size:13px"></span>
@@ -199,6 +206,17 @@ App.pages.settings = {
           </div>
         </div>
       </div>`;
+
+    el.querySelectorAll('.pw-toggle').forEach(btn => {
+      btn.onclick = () => {
+        const inp = document.getElementById(btn.dataset.for);
+        const reveal = inp.type === 'password';
+        inp.type = reveal ? 'text' : 'password';
+        btn.innerHTML = App.icon(reveal ? 'eyeoff' : 'eye', 18);
+        btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+        inp.focus();
+      };
+    });
 
     el.querySelectorAll('#stabs button').forEach(btn => {
       btn.onclick = () => {
@@ -224,6 +242,34 @@ App.pages.settings = {
     this.initAppUpdates();
     this.init2fa();
     this.initCloudflare();
+
+    // Unsaved-changes tracking: Launch settings, server.properties and MOTD are all
+    // edited in-place and only persisted on an explicit Save click. Warn before the
+    // user loses edits by closing the tab or navigating to another page.
+    this.cfgDirty = this.propsDirty = this.motdDirty = false;
+    const markDirty = (flag) => () => { this[flag] = true; };
+    const cfgGrid = document.getElementById('cfg-grid');
+    cfgGrid.addEventListener('input', markDirty('cfgDirty'));
+    cfgGrid.addEventListener('change', markDirty('cfgDirty'));
+    const propsBox = document.getElementById('props-box');
+    propsBox.addEventListener('input', markDirty('propsDirty'));
+    propsBox.addEventListener('change', markDirty('propsDirty'));
+
+    window.onbeforeunload = (e) => {
+      if (!(this.cfgDirty || this.propsDirty || this.motdDirty)) return undefined;
+      e.preventDefault();
+      return (e.returnValue = '');
+    };
+    this._navGuard = (e) => {
+      if (!(this.cfgDirty || this.propsDirty || this.motdDirty)) return;
+      if (!e.target.closest('a')) return;
+      if (!confirm('You have unsaved changes in Settings. Leave without saving?')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    document.getElementById('nav').addEventListener('click', this._navGuard, true);
+
     document.getElementById('cfg-save').onclick = async () => {
       const body = {};
       for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook', 'ntfyTopic']) {
@@ -231,7 +277,7 @@ App.pages.settings = {
       }
       body.backupKeep = Number(document.getElementById('cfg-backupKeep').value);
       body.autoRestart = document.getElementById('cfg-autoRestart').checked;
-      await App.tryApi('/settings/config', { method: 'PUT', body }, 'Launch settings saved');
+      if (await App.tryApi('/settings/config', { method: 'PUT', body }, 'Launch settings saved')) this.cfgDirty = false;
     };
     document.getElementById('cfg-discord-test').onclick = () =>
       App.tryApi('/settings/discord-test', { method: 'POST' }, 'Test message sent — check Discord');
@@ -300,6 +346,8 @@ App.pages.settings = {
       }
     };
 
+    document.getElementById('props-search').oninput = (e) => this.filterProps(e.target.value);
+
     this.props = await App.tryApi('/settings/properties');
     this.renderProps();
     this.initMotdEditor();
@@ -350,20 +398,40 @@ App.pages.settings = {
   async init2fa() {
     const status = await App.tryApi('/auth/status');
     if (!status) return;
-    this.renderTfa(status.totp);
+    this.renderTfa(status.totp, status.totpRecoveryCodes || 0);
   },
 
-  renderTfa(enabled) {
+  renderTfa(enabled, recoveryCount = 0) {
     const box = document.getElementById('tfa-body');
     if (!box) return;
     if (enabled) {
+      const noCodes = recoveryCount === 0;
       box.innerHTML = `
         <p class="chip chip-green" style="display:inline-block;margin-bottom:12px">✓ Two-factor is ON</p>
-        <p class="muted" style="margin-bottom:10px">To turn it off, confirm your password:</p>
+        ${noCodes
+          ? `<div class="notice" style="margin-bottom:14px"><span class="notice-text">⚠ No recovery codes saved yet. Without one, losing your authenticator device means losing access — generate a set now.</span></div>`
+          : `<p class="muted" style="margin-bottom:10px">${recoveryCount} recovery code${recoveryCount === 1 ? '' : 's'} left for getting back in if you lose your authenticator.</p>`}
+        <div class="btn-row" style="margin-bottom:6px">
+          <input type="password" id="tfa-recovery-pw" placeholder="Your dashboard password" autocomplete="current-password" style="max-width:220px">
+          <button id="tfa-regen" class="btn-sm">${noCodes ? 'Generate recovery codes' : 'Regenerate recovery codes'}</button>
+        </div>
+        <div id="tfa-recovery-box"></div>
+        <p class="muted" style="margin:14px 0 10px">To turn 2FA off, confirm your password:</p>
         <div class="btn-row">
           <input type="password" id="tfa-pw" placeholder="Your dashboard password" autocomplete="current-password">
           <button id="tfa-disable" class="btn-danger btn-sm">Turn off 2FA</button>
         </div>`;
+      document.getElementById('tfa-regen').onclick = async () => {
+        const pwInput = document.getElementById('tfa-recovery-pw');
+        const password = pwInput.value;
+        if (!password) return App.toast('Enter your password', true);
+        const r = await App.tryApi('/auth/2fa/recovery-codes', { method: 'POST', body: { password } });
+        if (r) {
+          pwInput.value = '';
+          this.showRecoveryCodes(r.recoveryCodes, document.getElementById('tfa-recovery-box'));
+          App.toast('New recovery codes generated — save them now');
+        }
+      };
       document.getElementById('tfa-disable').onclick = async () => {
         const password = document.getElementById('tfa-pw').value;
         if (!password) return App.toast('Enter your password', true);
@@ -375,6 +443,24 @@ App.pages.settings = {
       box.innerHTML = `<button id="tfa-enable" class="btn-primary">Enable two-factor</button>`;
       document.getElementById('tfa-enable').onclick = () => this.startTfaEnroll();
     }
+  },
+
+  // Render a one-time recovery-code panel (used right after enrollment and after
+  // regeneration). Codes only ever exist as plaintext here — the server keeps hashes.
+  showRecoveryCodes(codes, container) {
+    if (!container || !codes) return;
+    container.innerHTML = `
+      <div class="wiz-note" style="flex-direction:column;align-items:stretch;gap:10px;margin-bottom:14px">
+        <b>Save these somewhere safe — each code works once, and they won't be shown again.</b>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-family:var(--mono);font-size:13px">
+          ${codes.map(c => `<span class="tfa-key" style="text-align:center">${App.esc(c)}</span>`).join('')}
+        </div>
+        <button class="btn-sm" id="tfa-codes-copy" style="align-self:flex-start">Copy all</button>
+      </div>`;
+    document.getElementById('tfa-codes-copy').onclick = () => {
+      navigator.clipboard?.writeText(codes.join('\n'));
+      App.toast('Recovery codes copied');
+    };
   },
 
   async startTfaEnroll() {
@@ -398,8 +484,10 @@ App.pages.settings = {
     document.getElementById('tfa-confirm').onclick = async () => {
       const code = document.getElementById('tfa-code').value.trim();
       if (!/^\d{6}$/.test(code)) return App.toast('Enter the 6-digit code', true);
-      if (await App.tryApi('/auth/2fa/enable', { method: 'POST', body: { code } }, 'Two-factor is now ON 🎉')) {
-        this.renderTfa(true);
+      const r = await App.tryApi('/auth/2fa/enable', { method: 'POST', body: { code } }, 'Two-factor is now ON 🎉');
+      if (r) {
+        this.renderTfa(true, r.recoveryCodes.length);
+        this.showRecoveryCodes(r.recoveryCodes, document.getElementById('tfa-recovery-box'));
       }
     };
     document.getElementById('tfa-cancel').onclick = () => this.renderTfa(false);
@@ -608,10 +696,10 @@ App.pages.settings = {
     }
 
     box.innerHTML = PROP_CATS.filter(c => groups[c].length).map(cat => `
-      <div class="settings-group">
+      <div class="settings-group" data-group="${cat}">
         <h2>${cat}</h2>
         ${groups[cat].map(({ key, value, meta }) => `
-          <div class="prop-row">
+          <div class="prop-row" data-search="${App.esc((key + ' ' + (meta.desc || '')).toLowerCase())}">
             <div class="prop-info">
               <div class="prop-key">${App.esc(key)}</div>
               ${meta.desc ? `<div class="prop-desc">${meta.desc}</div>` : ''}
@@ -619,6 +707,38 @@ App.pages.settings = {
             <div class="prop-control">${this.control(key, value, meta)}</div>
           </div>`).join('')}
       </div>`).join('');
+
+    const search = document.getElementById('props-search');
+    if (search) this.filterProps(search.value);
+  },
+
+  // Hide non-matching rows (and whole categories once empty) instead of re-rendering,
+  // so in-progress edits in other rows aren't lost while the user types.
+  filterProps(term) {
+    const box = document.getElementById('props-box');
+    if (!box) return;
+    const q = term.trim().toLowerCase();
+    box.querySelectorAll('.settings-group').forEach(group => {
+      let visible = 0;
+      group.querySelectorAll('.prop-row').forEach(row => {
+        const match = !q || row.dataset.search.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      group.style.display = visible ? '' : 'none';
+    });
+    let empty = box.querySelector('.props-no-match');
+    const anyVisible = [...box.querySelectorAll('.settings-group')].some(g => g.style.display !== 'none');
+    if (!anyVisible && q) {
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'empty props-no-match';
+        box.appendChild(empty);
+      }
+      empty.textContent = `No settings match "${term.trim()}"`;
+    } else if (empty) {
+      empty.remove();
+    }
   },
 
   control(key, value, meta) {
@@ -644,6 +764,7 @@ App.pages.settings = {
       body[el.dataset.prop] = el.dataset.type === 'bool' ? String(el.checked) : el.value;
     });
     if (await App.tryApi('/settings/properties', { method: 'PUT', body }, 'Properties saved')) {
+      this.propsDirty = false;
       document.getElementById('props-note').textContent =
         App.status === 'online' ? 'Restart the server to apply changes.' : '';
     }
@@ -659,17 +780,18 @@ App.pages.settings = {
       const s = input.selectionStart, e = input.selectionEnd, v = input.value;
       input.value = v.slice(0, s) + '§' + code + v.slice(e);
       input.selectionStart = input.selectionEnd = s + 2;
-      input.focus(); this.renderMotd(input.value);
+      input.focus(); this.motdDirty = true; this.renderMotd(input.value);
     };
     toolbar.innerHTML =
       COLORS.map(([c, h]) => `<button class="motd-clr" title="§${c}" style="background:${h}" data-code="${c}"></button>`).join('') +
       FMTS.map(([c, l]) => `<button class="motd-fmt btn-sm" data-code="${c}">${l}</button>`).join('');
     toolbar.querySelectorAll('[data-code]').forEach(b => b.onclick = () => insert(b.dataset.code));
-    input.oninput = () => this.renderMotd(input.value);
+    input.oninput = () => { this.motdDirty = true; this.renderMotd(input.value); };
     if (this.props && this.props.motd != null) { input.value = this.props.motd; this.renderMotd(this.props.motd); }
     document.getElementById('motd-save').onclick = async () => {
       const msg = document.getElementById('motd-msg');
       if (await App.tryApi('/settings/properties', { method: 'PUT', body: { motd: input.value } }, null)) {
+        this.motdDirty = false;
         msg.textContent = '✓ Saved'; setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
       }
     };
@@ -733,6 +855,15 @@ App.pages.settings = {
       logBox.innerHTML = s.log.map(l => App.logLineHtml(l)).join('');
       logBox.scrollTop = logBox.scrollHeight;
     }
+  },
+
+  onLeave() {
+    if (this._navGuard) {
+      document.getElementById('nav').removeEventListener('click', this._navGuard, true);
+      this._navGuard = null;
+    }
+    window.onbeforeunload = null;
+    this.cfgDirty = this.propsDirty = this.motdDirty = false;
   },
 
   onCfLog(line) {

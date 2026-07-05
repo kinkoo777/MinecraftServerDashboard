@@ -118,6 +118,11 @@ const App = {
         <div class="pw-2fa" id="auth-2fa-wrap" style="display:none">
           <input id="auth-2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code from your app">
           <div style="margin-top:8px"><a href="#" id="auth-2fa-recover" class="muted" style="font-size:12px">Lost access to your authenticator?</a></div>
+          <div id="auth-2fa-recover-box" style="display:none;margin-top:10px;text-align:left">
+            <p class="muted" style="font-size:12px;margin-bottom:8px">Enter one of the recovery codes you saved when you turned 2FA on. This disables 2FA — you can turn it back on afterward.</p>
+            <input id="auth-2fa-recovery-code" placeholder="Recovery code (e.g. ABCD-2345)" autocomplete="off" style="margin-bottom:8px">
+            <button type="button" id="auth-2fa-recover-submit" class="btn-sm">Disable 2FA & log in</button>
+          </div>
         </div>
         <label class="auth-remember">
           <span class="switch"><input type="checkbox" id="auth-remember" checked><span class="track"></span></span>
@@ -208,19 +213,28 @@ const App = {
         err(j.error || '');
         twoFa.focus();
         const recoverLink = $('#auth-2fa-recover');
-        if (recoverLink) recoverLink.onclick = async (e) => {
+        const recoverBox = $('#auth-2fa-recover-box');
+        if (recoverLink) recoverLink.onclick = (e) => {
           e.preventDefault();
-          if (!confirm('This will turn off 2FA using your password. Continue?')) return;
+          const show = recoverBox.style.display === 'none';
+          recoverBox.style.display = show ? '' : 'none';
+          if (show) $('#auth-2fa-recovery-code').focus();
+        };
+        const recoverSubmit = $('#auth-2fa-recover-submit');
+        if (recoverSubmit) recoverSubmit.onclick = async () => {
+          const recoveryCode = $('#auth-2fa-recovery-code').value.trim();
+          if (!recoveryCode) return err('Enter one of your recovery codes');
           const r = await fetch('/api/auth/2fa/recover', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw.value })
+            body: JSON.stringify({ password: pw.value, recoveryCode })
           });
           const rj = await r.json().catch(() => ({}));
           if (!r.ok) return err(rj.error || 'Recovery failed');
           err('2FA disabled — log in with your password.');
           need2fa = false;
           twoFaWrap.style.display = 'none';
+          recoverBox.style.display = 'none';
           pw.closest('.pw-wrap').style.display = '';
           $('#auth-submit').textContent = isSetup ? 'Log in' : 'Set password & enter';
         };

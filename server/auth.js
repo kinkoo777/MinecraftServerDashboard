@@ -153,20 +153,72 @@ function startTotpEnroll() {
   return secret;
 }
 
+// One-time recovery codes, shown once in plaintext and stored only as hashes.
+// They're high-entropy and machine-generated (not user-chosen), so a fast hash
+// is fine — there's nothing for an offline dictionary attack to exploit.
+const RECOVERY_CODE_COUNT = 8;
+
+function normalizeRecoveryCode(code) {
+  return String(code || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+}
+
+function hashRecoveryCode(code) {
+  return crypto.createHash('sha256').update(normalizeRecoveryCode(code)).digest('hex');
+}
+
+function generateRecoveryCodes() {
+  const codes = [];
+  for (let i = 0; i < RECOVERY_CODE_COUNT; i++) {
+    const raw = totp.base32Encode(crypto.randomBytes(5)).slice(0, 8); // 8 chars from the base32 alphabet
+    codes.push(`${raw.slice(0, 4)}-${raw.slice(4)}`);
+  }
+  return codes;
+}
+
+function recoveryCodesRemaining() {
+  return (getConfig().totpRecoveryCodes || []).length;
+}
+
+// Regenerate the recovery code set (used at enrollment, and whenever the owner
+// wants a fresh batch — e.g. an existing install upgrading to this feature).
+// Invalidates any previously issued codes.
+function regenerateRecoveryCodes() {
+  const codes = generateRecoveryCodes();
+  saveConfig({ totpRecoveryCodes: codes.map(hashRecoveryCode) });
+  return codes;
+}
+
 function confirmTotpEnroll(code) {
   const pending = getConfig().totpPending || '';
-  if (!pending || !totp.verify(code, pending)) return false;
-  saveConfig({ totpSecret: pending, totpPending: '' });
-  return true;
+  if (!pending || !totp.verify(code, pending)) return null;
+  const codes = generateRecoveryCodes();
+  saveConfig({ totpSecret: pending, totpPending: '', totpRecoveryCodes: codes.map(hashRecoveryCode) });
+  return codes;
 }
 
 function disableTotp() {
-  saveConfig({ totpSecret: '', totpPending: '' });
+  saveConfig({ totpSecret: '', totpPending: '', totpRecoveryCodes: [] });
 }
 
 function verifyTotp(code) {
   const s = getConfig().totpSecret;
   return !!s && totp.verify(code, s);
+}
+
+// One-time use: a matching code is removed from the store so it can't be replayed.
+function verifyAndConsumeRecoveryCode(code) {
+  const hashes = getConfig().totpRecoveryCodes || [];
+  if (!hashes.length) return false;
+  const target = Buffer.from(hashRecoveryCode(code));
+  const idx = hashes.findIndex(h => {
+    const b = Buffer.from(h);
+    return b.length === target.length && crypto.timingSafeEqual(b, target);
+  });
+  if (idx === -1) return false;
+  const remaining = hashes.slice();
+  remaining.splice(idx, 1);
+  saveConfig({ totpRecoveryCodes: remaining });
+  return true;
 }
 
 function otpauthUrl() {
@@ -189,5 +241,6 @@ module.exports = {
   isSetup, setPassword, verifyPassword,
   createSession, destroySession, tokenFrom, authed,
   limited, recordFail, clearFails,
-  isTotpEnabled, startTotpEnroll, confirmTotpEnroll, disableTotp, verifyTotp, otpauthUrl
+  isTotpEnabled, startTotpEnroll, confirmTotpEnroll, disableTotp, verifyTotp, otpauthUrl,
+  recoveryCodesRemaining, regenerateRecoveryCodes, verifyAndConsumeRecoveryCode
 };

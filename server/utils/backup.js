@@ -24,7 +24,12 @@ function backupsDir() {
 }
 
 function levelName() {
-  return readProperties(path.join(serverDir(), 'server.properties'))['level-name'] || 'world';
+  const raw = readProperties(path.join(serverDir(), 'server.properties'))['level-name'] || 'world';
+  // level-name feeds directly into filesystem paths (world dir, backup file names,
+  // and a recursive force-delete on world reset) — reject anything that isn't a
+  // single path segment instead of letting a crafted value escape serverDir.
+  const safe = /^[^/\\]+$/.test(raw) && raw !== '.' && raw !== '..';
+  return safe ? raw : 'world';
 }
 
 function createBackup() {

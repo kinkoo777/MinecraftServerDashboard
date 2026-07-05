@@ -71,9 +71,11 @@ function load() {
 }
 
 function persist() {
-  // Atomic write: a crash mid-write can't leave a truncated/corrupt config.json
+  // Atomic write: a crash mid-write can't leave a truncated/corrupt config.json.
+  // config.json holds the password hash/salt and the TOTP secret, so it gets the
+  // same 0600 treatment as sessions.json and the playit agent secret.
   const tmp = CONFIG_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(store, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 2), { mode: 0o600 });
   fs.renameSync(tmp, CONFIG_FILE);
 }
 
