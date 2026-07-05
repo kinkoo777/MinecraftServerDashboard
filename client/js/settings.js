@@ -398,20 +398,40 @@ App.pages.settings = {
   async init2fa() {
     const status = await App.tryApi('/auth/status');
     if (!status) return;
-    this.renderTfa(status.totp);
+    this.renderTfa(status.totp, status.totpRecoveryCodes || 0);
   },
 
-  renderTfa(enabled) {
+  renderTfa(enabled, recoveryCount = 0) {
     const box = document.getElementById('tfa-body');
     if (!box) return;
     if (enabled) {
+      const noCodes = recoveryCount === 0;
       box.innerHTML = `
         <p class="chip chip-green" style="display:inline-block;margin-bottom:12px">✓ Two-factor is ON</p>
-        <p class="muted" style="margin-bottom:10px">To turn it off, confirm your password:</p>
+        ${noCodes
+          ? `<div class="notice" style="margin-bottom:14px"><span class="notice-text">⚠ No recovery codes saved yet. Without one, losing your authenticator device means losing access — generate a set now.</span></div>`
+          : `<p class="muted" style="margin-bottom:10px">${recoveryCount} recovery code${recoveryCount === 1 ? '' : 's'} left for getting back in if you lose your authenticator.</p>`}
+        <div class="btn-row" style="margin-bottom:6px">
+          <input type="password" id="tfa-recovery-pw" placeholder="Your dashboard password" autocomplete="current-password" style="max-width:220px">
+          <button id="tfa-regen" class="btn-sm">${noCodes ? 'Generate recovery codes' : 'Regenerate recovery codes'}</button>
+        </div>
+        <div id="tfa-recovery-box"></div>
+        <p class="muted" style="margin:14px 0 10px">To turn 2FA off, confirm your password:</p>
         <div class="btn-row">
           <input type="password" id="tfa-pw" placeholder="Your dashboard password" autocomplete="current-password">
           <button id="tfa-disable" class="btn-danger btn-sm">Turn off 2FA</button>
         </div>`;
+      document.getElementById('tfa-regen').onclick = async () => {
+        const pwInput = document.getElementById('tfa-recovery-pw');
+        const password = pwInput.value;
+        if (!password) return App.toast('Enter your password', true);
+        const r = await App.tryApi('/auth/2fa/recovery-codes', { method: 'POST', body: { password } });
+        if (r) {
+          pwInput.value = '';
+          this.showRecoveryCodes(r.recoveryCodes, document.getElementById('tfa-recovery-box'));
+          App.toast('New recovery codes generated — save them now');
+        }
+      };
       document.getElementById('tfa-disable').onclick = async () => {
         const password = document.getElementById('tfa-pw').value;
         if (!password) return App.toast('Enter your password', true);
@@ -423,6 +443,24 @@ App.pages.settings = {
       box.innerHTML = `<button id="tfa-enable" class="btn-primary">Enable two-factor</button>`;
       document.getElementById('tfa-enable').onclick = () => this.startTfaEnroll();
     }
+  },
+
+  // Render a one-time recovery-code panel (used right after enrollment and after
+  // regeneration). Codes only ever exist as plaintext here — the server keeps hashes.
+  showRecoveryCodes(codes, container) {
+    if (!container || !codes) return;
+    container.innerHTML = `
+      <div class="wiz-note" style="flex-direction:column;align-items:stretch;gap:10px;margin-bottom:14px">
+        <b>Save these somewhere safe — each code works once, and they won't be shown again.</b>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-family:var(--mono);font-size:13px">
+          ${codes.map(c => `<span class="tfa-key" style="text-align:center">${App.esc(c)}</span>`).join('')}
+        </div>
+        <button class="btn-sm" id="tfa-codes-copy" style="align-self:flex-start">Copy all</button>
+      </div>`;
+    document.getElementById('tfa-codes-copy').onclick = () => {
+      navigator.clipboard?.writeText(codes.join('\n'));
+      App.toast('Recovery codes copied');
+    };
   },
 
   async startTfaEnroll() {
@@ -446,8 +484,10 @@ App.pages.settings = {
     document.getElementById('tfa-confirm').onclick = async () => {
       const code = document.getElementById('tfa-code').value.trim();
       if (!/^\d{6}$/.test(code)) return App.toast('Enter the 6-digit code', true);
-      if (await App.tryApi('/auth/2fa/enable', { method: 'POST', body: { code } }, 'Two-factor is now ON 🎉')) {
-        this.renderTfa(true);
+      const r = await App.tryApi('/auth/2fa/enable', { method: 'POST', body: { code } }, 'Two-factor is now ON 🎉');
+      if (r) {
+        this.renderTfa(true, r.recoveryCodes.length);
+        this.showRecoveryCodes(r.recoveryCodes, document.getElementById('tfa-recovery-box'));
       }
     };
     document.getElementById('tfa-cancel').onclick = () => this.renderTfa(false);
