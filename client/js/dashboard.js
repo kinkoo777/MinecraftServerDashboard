@@ -68,9 +68,23 @@ App.pages.dashboard = {
         <div id="db-console" class="console console-mini"></div>
       </div>`;
 
+    // Stopping/restarting while players are connected kicks them without warning —
+    // confirm first so that doesn't happen by accident.
+    const confirmIfPlayers = (verb) => {
+      const n = App.players.length;
+      if (!n) return true;
+      return confirm(`${n} player${n === 1 ? ' is' : 's are'} currently online. ${verb} will disconnect ${n === 1 ? 'them' : 'everyone'}. Continue?`);
+    };
+
     document.getElementById('db-start').onclick = () => App.tryApi('/server/start', { method: 'POST' }, 'Starting server…');
-    document.getElementById('db-stop').onclick = () => App.tryApi('/server/stop', { method: 'POST' }, 'Stopping server…');
-    document.getElementById('db-restart').onclick = () => App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
+    document.getElementById('db-stop').onclick = () => {
+      if (!confirmIfPlayers('Stopping the server')) return;
+      App.tryApi('/server/stop', { method: 'POST' }, 'Stopping server…');
+    };
+    document.getElementById('db-restart').onclick = () => {
+      if (!confirmIfPlayers('Restarting the server')) return;
+      App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
+    };
 
     document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
       b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); App.toast('Copied ' + b.dataset.copy); });
