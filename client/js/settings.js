@@ -564,36 +564,67 @@ App.pages.settings = {
       const latest = applyBtn.dataset.latest || 'the latest version';
       const current = applyBtn.dataset.current || '';
       if (!confirm(`Download and apply v${latest}? Your config, world and settings are kept. You'll need to restart the dashboard afterward.`)) return;
+
+      // Full-screen blocking overlay — nothing else is touchable while the update runs.
+      const ov = document.createElement('div');
+      ov.id = 'update-overlay';
+      ov.innerHTML = `
+        <div class="update-card">
+          <div class="update-spinner"></div>
+          <h2>Updating to v${App.esc(latest)}</h2>
+          <p>Downloading and installing the update. This can take a minute — please don't close this tab or stop the dashboard.</p>
+        </div>`;
+      document.body.appendChild(ov);
+      // absorb any stray interaction aimed at the UI behind the overlay
+      ov.addEventListener('mousedown', (e) => { if (e.target === ov) e.preventDefault(); });
+
       applyBtn.disabled = true;
-      applyBtn.textContent = 'Updating…';
       checkBtn.disabled = true;
 
-      const r = await App.tryApi('/updates/apply', { method: 'POST' });
+      const card = ov.querySelector('.update-card');
+      const dismissable = (labelText) => {
+        const btn = ov.querySelector('#update-dismiss');
+        btn.textContent = labelText;
+        btn.onclick = () => ov.remove();
+      };
 
-      applyBtn.disabled = false;
-      applyBtn.innerHTML = `${App.icon('download', 14)} Update now`;
-      checkBtn.disabled = false;
+      try {
+        const r = await App.api('/updates/apply', { method: 'POST' });
 
-      if (!r) {
-        // tryApi already toasted the error; if it was 400 "Already up to date", re-check
-        await check();
-        return;
+        let msg = App.esc(r.message || 'Update applied.');
+        if (r.depsChanged && !r.npmInstalled) {
+          msg += ' Dependencies changed — run <code>npm install</code> before restarting.';
+        }
+
+        card.innerHTML = `
+          <div class="update-ico ok">${App.icon('check', 30)}</div>
+          <h2>Updated to v${App.esc(r.to || latest)}</h2>
+          <p>Updated from v${App.esc(r.from || current)}. <b>Stop and start the dashboard</b> to finish applying the update.</p>
+          <div class="update-note"><p>${msg}</p></div>
+          <button type="button" class="btn-sm" id="update-dismiss">Dismiss</button>`;
+        dismissable('Dismiss');
+
+        // reflect the new state in the Settings panel underneath the overlay
+        App.toast('Update applied — restart to finish');
+        applyBtn.style.display = 'none';
+        const status = document.getElementById('app-update-status');
+        const note = document.getElementById('app-update-note');
+        if (status) status.innerHTML = `Updated from v${App.esc(r.from || current)} to v${App.esc(r.to || latest)}.`;
+        if (note) note.innerHTML = `<div class="notice" style="margin-top:8px"><span class="notice-text">${msg} Stop and start the dashboard to finish.</span></div>`;
+      } catch (e) {
+        const alreadyCurrent = /up to date/i.test(e.message || '');
+        card.innerHTML = `
+          <div class="update-ico err">${App.icon('alert', 30)}</div>
+          <h2>${alreadyCurrent ? 'Already up to date' : 'Update failed'}</h2>
+          <p>${App.esc(e.message || 'Something went wrong.')}${alreadyCurrent ? '' : ' Your install was left unchanged — you can try again.'}</p>
+          <button type="button" class="btn-sm" id="update-dismiss">Close</button>`;
+        dismissable('Close');
+        if (alreadyCurrent) await check();
+      } finally {
+        applyBtn.disabled = false;
+        checkBtn.disabled = false;
+        applyBtn.innerHTML = `${App.icon('download', 14)} Update now`;
       }
-
-      App.toast('Update applied — restart to finish');
-      applyBtn.style.display = 'none';
-
-      const status = document.getElementById('app-update-status');
-      const note = document.getElementById('app-update-note');
-
-      let msg = App.esc(r.message || 'Update applied.');
-      if (r.depsChanged && !r.npmInstalled) {
-        msg += ' Dependencies changed — run <code>npm install</code> before restarting.';
-      }
-
-      const successBox = `<div class="notice" style="margin-top:8px"><span class="notice-text">${msg} Stop and start the dashboard to finish.</span></div>`;
-      if (status) status.innerHTML = `Updated from v${App.esc(r.from || current)} to v${App.esc(r.to || latest)}.`;
-      if (note) note.innerHTML = successBox;
     };
 
     checkBtn.onclick = () => check();

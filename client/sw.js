@@ -1,5 +1,7 @@
-/* Network-first service worker: live data always fresh, static shell available offline. */
-const CACHE = 'chunkdeck-v2';
+/* Network-first service worker: live data always fresh, static shell available offline.
+   Bump CACHE on each release so stale caches are purged and open tabs pick up the new
+   build (the page auto-reloads on controllerchange — see index.html). */
+const CACHE = 'chunkdeck-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {

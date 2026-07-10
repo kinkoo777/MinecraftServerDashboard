@@ -37,3 +37,6 @@ cloudflare/
 ruvector.db
 *.channel
 v.id
+
+# Marketing site lives in its own repo (MinecraftServerDashboardWeb)
+/docs/

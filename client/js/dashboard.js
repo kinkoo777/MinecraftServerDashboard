@@ -2,46 +2,57 @@ App.pages.dashboard = {
   chartTab: 'players',
   overview: { history: [], recent: [] },
   refreshTimer: null,
+  editMode: false,
+  connectInfo: null,
 
-  async render(el) {
-    el.innerHTML = `
-      <div class="page-head">
-        <h1>Dashboard</h1>
-        <span class="badge"><span id="db-dot" class="dot offline"></span><span id="db-status">Offline</span></span>
-      </div>
-      <div id="db-notices"></div>
-      <div id="db-health"></div>
-      <div class="card">
-        <div class="btn-row">
-          <button id="db-start" class="btn-primary">${App.icon('play', 14)} Start</button>
-          <button id="db-stop" class="btn-danger">${App.icon('stop', 14)} Stop</button>
-          <button id="db-restart">${App.icon('restart', 14)} Restart</button>
-        </div>
-      </div>
-      <div class="card" id="db-connect">
-        <div class="card-title-row">
-          <h2>How to connect</h2>
-          <button id="db-conntest" class="btn-sm">Test connection</button>
-        </div>
-        <div class="connect-rows">
-          <div class="connect-row">
-            <div><b>This computer</b><span class="muted">Minecraft → Multiplayer → Add Server</span></div>
-            <span class="connect-addr"><code>localhost</code><button class="btn-sm" data-copy="localhost">Copy</button></span>
+  // The movable content sections, in default order. `stats` is the tile row;
+  // `activity` and `recent` are independent full-width cards.
+  SECTIONS: [
+    { id: 'controls', title: 'Server controls' },
+    { id: 'connect',  title: 'How to connect' },
+    { id: 'stats',    title: 'Stats' },
+    { id: 'activity', title: 'Activity chart' },
+    { id: 'recent',   title: 'Recent players' },
+    { id: 'console',  title: 'Console' }
+  ],
+
+  // HTML body for each section id (without the movable wrapper).
+  sectionInner() {
+    return {
+      controls: `
+        <div class="card">
+          <div class="btn-row">
+            <button id="db-start" class="btn-primary">${App.icon('play', 14)} Start</button>
+            <button id="db-stop" class="btn-danger">${App.icon('stop', 14)} Stop</button>
+            <button id="db-restart">${App.icon('restart', 14)} Restart</button>
           </div>
-          <div class="connect-row" id="db-lan" style="display:none">
-            <div><b>Friends on your Wi-Fi</b><span class="muted">Same home network — no setup needed</span></div>
-            <span class="connect-addr"><code id="db-lan-addr"></code><button class="btn-sm" id="db-lan-copy">Copy</button></span>
+        </div>`,
+      connect: `
+        <div class="card" id="db-connect">
+          <div class="card-title-row">
+            <h2>How to connect</h2>
+            <button id="db-conntest" class="btn-sm">Test connection</button>
           </div>
-        </div>
-        <div class="hint muted" id="db-conntest-result" style="margin-top:10px"></div>
-      </div>
-      <div class="grid grid-4">
-        <div class="card stat-card"><div class="label">Players online</div><div class="value" id="db-players">0</div></div>
-        <div class="card stat-card"><div class="label">RAM</div><div class="value" id="db-ram">—</div></div>
-        <div class="card stat-card"><div class="label">CPU</div><div class="value" id="db-cpu">—</div></div>
-        <div class="card stat-card"><div class="label">Uptime</div><div class="value" id="db-uptime">—</div></div>
-      </div>
-      <div class="grid grid-2" style="align-items:stretch">
+          <div class="connect-rows">
+            <div class="connect-row">
+              <div><b>This computer</b><span class="muted">Minecraft → Multiplayer → Add Server</span></div>
+              <span class="connect-addr"><code>localhost</code><button class="btn-sm" data-copy="localhost">Copy</button></span>
+            </div>
+            <div class="connect-row" id="db-lan" style="display:none">
+              <div><b>Friends on your Wi-Fi</b><span class="muted">Same home network — no setup needed</span></div>
+              <span class="connect-addr"><code id="db-lan-addr"></code><button class="btn-sm" id="db-lan-copy">Copy</button></span>
+            </div>
+          </div>
+          <div class="hint muted" id="db-conntest-result" style="margin-top:10px"></div>
+        </div>`,
+      stats: `
+        <div class="grid grid-4">
+          <div class="card stat-card"><div class="label">Players online</div><div class="value" id="db-players">0</div></div>
+          <div class="card stat-card"><div class="label">RAM</div><div class="value" id="db-ram">—</div></div>
+          <div class="card stat-card"><div class="label">CPU</div><div class="value" id="db-cpu">—</div></div>
+          <div class="card stat-card"><div class="label">Uptime</div><div class="value" id="db-uptime">—</div></div>
+        </div>`,
+      activity: `
         <div class="card">
           <div class="chart-head">
             <h2 style="margin:0">Activity</h2>
@@ -54,48 +65,49 @@ App.pages.dashboard = {
           </div>
           <canvas id="db-chart" height="160"></canvas>
           <div id="db-chart-cap" class="chart-cap muted"></div>
-        </div>
+        </div>`,
+      recent: `
         <div class="card">
           <h2>Recent players</h2>
           <div id="db-recent" class="recent-list"><div class="empty">Loading…</div></div>
+        </div>`,
+      console: `
+        <div class="card">
+          <div class="card-title-row">
+            <h2>Console</h2>
+            <a href="#console" class="muted text-link">Open full console</a>
+          </div>
+          <div id="db-console" class="console console-mini"></div>
+        </div>`
+    };
+  },
+
+  async render(el) {
+    el.innerHTML = `
+      <div class="page-head">
+        <h1>Dashboard</h1>
+        <div class="page-head-right">
+          <span class="badge"><span id="db-dot" class="dot offline"></span><span id="db-status">Offline</span></span>
+          <button id="db-customize" class="btn-sm">${App.icon('layout', 14)} Customize</button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title-row">
-          <h2>Console</h2>
-          <a href="#console" class="muted text-link">Open full console</a>
-        </div>
-        <div id="db-console" class="console console-mini"></div>
-      </div>`;
+      <div id="db-notices"></div>
+      <div id="db-health"></div>
+      <div id="db-sections"></div>`;
 
-    // Stopping/restarting while players are connected kicks them without warning —
-    // confirm first so that doesn't happen by accident.
-    const confirmIfPlayers = (verb) => {
-      const n = App.players.length;
-      if (!n) return true;
-      return confirm(`${n} player${n === 1 ? ' is' : 's are'} currently online. ${verb} will disconnect ${n === 1 ? 'them' : 'everyone'}. Continue?`);
+    this.editMode = false;
+    this.layout = App.dashLayout.load(this.SECTIONS.map(s => s.id));
+    document.getElementById('db-customize').onclick = () => {
+      this.editMode = !this.editMode;
+      this.updateCustomizeBtn();
+      this.renderSections();
     };
+    this.updateCustomizeBtn();
+    this.renderSections();
 
-    document.getElementById('db-start').onclick = () => App.tryApi('/server/start', { method: 'POST' }, 'Starting server…');
-    document.getElementById('db-stop').onclick = () => {
-      if (!confirmIfPlayers('Stopping the server')) return;
-      App.tryApi('/server/stop', { method: 'POST' }, 'Stopping server…');
-    };
-    document.getElementById('db-restart').onclick = () => {
-      if (!confirmIfPlayers('Restarting the server')) return;
-      App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
-    };
-
-    document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
-      b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); App.toast('Copied ' + b.dataset.copy); });
-    document.getElementById('db-conntest').onclick = () => this.testConnection();
-    this.loadConnect();
     // max RAM as bytes, so the health banner can warn when the server nears its ceiling
     App.tryApi('/settings/config').then(cfg => { if (cfg) this.maxRamBytes = this.ramToBytes(cfg.maxRam); });
-
-    document.querySelectorAll('#db-chart-tabs button').forEach(b => {
-      b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
-    });
+    this.loadConnect();
 
     // re-render the chart on resize; remove the listener in onLeave so it doesn't
     // pile up (and fire on other pages) each time we visit the dashboard
@@ -103,10 +115,6 @@ App.pages.dashboard = {
     this._onResize = () => { if (App.currentName === 'dashboard') this.renderChart(); };
     window.addEventListener('resize', this._onResize);
 
-    this.onStatus(App.status);
-    this.onPlayers(App.players);
-    this.onStats(App.stats);
-    this.renderLog();
     this.checkSetup();
     this.loadOverview();
 
@@ -117,6 +125,142 @@ App.pages.dashboard = {
     }, 30000);
   },
 
+  updateCustomizeBtn() {
+    const btn = document.getElementById('db-customize');
+    if (btn) btn.innerHTML = this.editMode
+      ? `${App.icon('check', 14)} Done`
+      : `${App.icon('layout', 14)} Customize`;
+  },
+
+  // (Re)build the movable section area from the current layout, then reattach all
+  // handlers and repopulate live content. Called on every reorder/hide/edit toggle.
+  renderSections() {
+    const host = document.getElementById('db-sections');
+    if (!host) return;
+    const inner = this.sectionInner();
+    const titles = Object.fromEntries(this.SECTIONS.map(s => [s.id, s.title]));
+
+    let html = '';
+    if (this.editMode) {
+      html += `
+        <div class="db-edit-bar">
+          <span class="muted">Drag, use ↑ ↓, or the eye to hide. Saved automatically.</span>
+          <span class="db-edit-actions">
+            <button id="db-reset" class="btn-sm">Reset to default</button>
+            <button id="db-done" class="btn-primary btn-sm">${App.icon('check', 14)} Done</button>
+          </span>
+        </div>`;
+    }
+
+    for (const id of this.layout.order) {
+      const hidden = App.dashLayout.isHidden(this.layout, id);
+      if (hidden && !this.editMode) continue;
+      if (this.editMode) {
+        html += `
+          <section class="db-section editing${hidden ? ' is-hidden' : ''}" data-section="${id}" draggable="true">
+            <div class="db-sec-tools">
+              <span class="db-drag" title="Drag to reorder">${App.icon('move', 15)}</span>
+              <span class="db-sec-title">${App.esc(titles[id] || id)}${hidden ? ' <span class="muted">(hidden)</span>' : ''}</span>
+              <button class="db-up" title="Move up">${App.icon('chevup', 15)}</button>
+              <button class="db-down" title="Move down">${App.icon('chevdown', 15)}</button>
+              <button class="db-hide" title="${hidden ? 'Show' : 'Hide'}">${App.icon(hidden ? 'eyeoff' : 'eye', 15)}</button>
+            </div>
+            <div class="db-sec-body">${inner[id]}</div>
+          </section>`;
+      } else {
+        html += `<section class="db-section" data-section="${id}">${inner[id]}</section>`;
+      }
+    }
+    host.innerHTML = html;
+
+    this.wireSections();
+    if (this.editMode) this.wireEditControls(host);
+
+    // repopulate dynamic content into whatever sections are now present
+    this.onStatus(App.status);
+    this.onPlayers(App.players);
+    this.onStats(App.stats);
+    this.renderChart();
+    this.renderRecent();
+    this.renderLog();
+    this.fillConnect();
+  },
+
+  // Attach the normal (non-edit) handlers for whichever sections exist right now.
+  // Every lookup is guarded so a hidden section can't throw.
+  wireSections() {
+    // Stopping/restarting while players are connected kicks them without warning —
+    // confirm first so that doesn't happen by accident.
+    const confirmIfPlayers = (verb) => {
+      const n = App.players.length;
+      if (!n) return true;
+      return confirm(`${n} player${n === 1 ? ' is' : 's are'} currently online. ${verb} will disconnect ${n === 1 ? 'them' : 'everyone'}. Continue?`);
+    };
+
+    const start = document.getElementById('db-start');
+    if (start) start.onclick = () => App.tryApi('/server/start', { method: 'POST' }, 'Starting server…');
+    const stop = document.getElementById('db-stop');
+    if (stop) stop.onclick = () => {
+      if (!confirmIfPlayers('Stopping the server')) return;
+      App.tryApi('/server/stop', { method: 'POST' }, 'Stopping server…');
+    };
+    const restart = document.getElementById('db-restart');
+    if (restart) restart.onclick = () => {
+      if (!confirmIfPlayers('Restarting the server')) return;
+      App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
+    };
+
+    document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
+      b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); App.toast('Copied ' + b.dataset.copy); });
+    const conntest = document.getElementById('db-conntest');
+    if (conntest) conntest.onclick = () => this.testConnection();
+
+    document.querySelectorAll('#db-chart-tabs button').forEach(b => {
+      b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
+    });
+  },
+
+  // Wire the edit-mode controls: Done, Reset, per-section up/down/hide, and drag.
+  wireEditControls(host) {
+    const persistAndRerender = () => { App.dashLayout.save(this.layout); this.renderSections(); };
+
+    const done = document.getElementById('db-done');
+    if (done) done.onclick = () => { this.editMode = false; this.updateCustomizeBtn(); this.renderSections(); };
+    const reset = document.getElementById('db-reset');
+    if (reset) reset.onclick = () => {
+      if (!confirm('Reset the dashboard layout to its default order and show all sections?')) return;
+      App.dashLayout.reset();
+      this.layout = App.dashLayout.load(this.SECTIONS.map(s => s.id));
+      this.renderSections();
+    };
+
+    host.querySelectorAll('.db-section.editing').forEach(sec => {
+      const id = sec.dataset.section;
+      sec.querySelector('.db-up').onclick = () => { if (App.dashLayout.move(this.layout, id, -1)) persistAndRerender(); };
+      sec.querySelector('.db-down').onclick = () => { if (App.dashLayout.move(this.layout, id, 1)) persistAndRerender(); };
+      sec.querySelector('.db-hide').onclick = () => { App.dashLayout.toggleHidden(this.layout, id); persistAndRerender(); };
+
+      sec.addEventListener('dragstart', (e) => {
+        this._dragId = id;
+        sec.classList.add('dragging');
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+      });
+      sec.addEventListener('dragend', () => { sec.classList.remove('dragging'); this._dragId = null; });
+      sec.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (this._dragId && this._dragId !== id) sec.classList.add('drag-over');
+      });
+      sec.addEventListener('dragleave', () => sec.classList.remove('drag-over'));
+      sec.addEventListener('drop', (e) => {
+        e.preventDefault();
+        sec.classList.remove('drag-over');
+        if (this._dragId && this._dragId !== id && App.dashLayout.reorder(this.layout, this._dragId, id)) {
+          persistAndRerender();
+        }
+      });
+    });
+  },
+
   async loadOverview() {
     const data = await App.tryApi('/server/overview');
     if (!data || App.currentName !== 'dashboard') return;
@@ -125,15 +269,26 @@ App.pages.dashboard = {
     this.renderRecent();
   },
 
-  // Fill in the LAN address friends on the same Wi-Fi use.
+  // Fetch the LAN address friends on the same Wi-Fi use, cache it, then fill it in.
+  // Cached so re-renders (reorder/hide) don't refetch on every change.
   async loadConnect() {
     const c = await App.tryApi('/server/connect');
-    if (!c || !c.lanIp || App.currentName !== 'dashboard') return;
-    const addr = c.port && c.port !== 25565 ? `${c.lanIp}:${c.port}` : c.lanIp;
+    if (!c || App.currentName !== 'dashboard') return;
+    this.connectInfo = c;
+    this.fillConnect();
+  },
+
+  // Populate the LAN row from cached connect info, if the connect section is shown.
+  fillConnect() {
+    const c = this.connectInfo;
+    if (!c || !c.lanIp) return;
     const row = document.getElementById('db-lan');
     if (!row) return;
-    document.getElementById('db-lan-addr').textContent = addr;
-    document.getElementById('db-lan-copy').onclick = () => { navigator.clipboard?.writeText(addr); App.toast('Copied ' + addr); };
+    const addr = c.port && c.port !== 25565 ? `${c.lanIp}:${c.port}` : c.lanIp;
+    const addrEl = document.getElementById('db-lan-addr');
+    if (addrEl) addrEl.textContent = addr;
+    const copy = document.getElementById('db-lan-copy');
+    if (copy) copy.onclick = () => { navigator.clipboard?.writeText(addr); App.toast('Copied ' + addr); };
     row.style.display = '';
   },
 
@@ -172,115 +327,7 @@ App.pages.dashboard = {
     box.innerHTML = msgs.map(m => `<div class="notice"><span class="notice-text">⚠ ${m}</span></div>`).join('');
   },
 
-  renderChart() {
-    const canvas = document.getElementById('db-chart');
-    if (!canvas) return;
-    document.querySelectorAll('#db-chart-tabs button').forEach(b =>
-      b.classList.toggle('active', b.dataset.ct === this.chartTab));
-
-    const caps = {
-      players: 'Number of players connected over time.',
-      cpu: 'CPU used by the server process. Brief spikes during world generation or chunk loading are normal.',
-      mem: 'RAM used by the server process. It usually climbs then plateaus near your Max RAM setting.',
-      tps: 'TPS = ticks per second, the server’s heartbeat (20 ticks = 1 second of game time). 20 is perfect; a flat line at 20 means no lag. If it drops below ~18 and stays there, the server is struggling to keep up — that’s lag. Needs a server that answers /tick query (MC 1.20.3+).'
-    };
-    const cap = document.getElementById('db-chart-cap');
-    if (cap) cap.textContent = caps[this.chartTab] || '';
-
-    const css = getComputedStyle(document.body);
-    const accent = css.getPropertyValue('--accent').trim();
-    const border = css.getPropertyValue('--border').trim();
-    const muted = css.getPropertyValue('--muted').trim();
-
-    const w = canvas.parentElement.clientWidth - 36;
-    const h = 160;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
-    ctx.font = '10px system-ui, sans-serif';
-
-    let pts = this.overview.history;
-    if (this.chartTab === 'tps') pts = pts.filter(p => p.tps != null);
-    if (pts.length < 2) {
-      ctx.fillStyle = muted;
-      ctx.textAlign = 'center';
-      ctx.fillText(this.chartTab === 'tps'
-        ? 'No TPS data yet — appears about a minute after the server is online.'
-        : 'Collecting data — the chart fills in as the dashboard runs…', w / 2, h / 2);
-      return;
-    }
-
-    const val = { players: p => p.players, cpu: p => p.cpu, mem: p => p.mem / 1048576, tps: p => p.tps }[this.chartTab];
-    const fmt = {
-      players: v => String(Math.round(v)),
-      cpu: v => Math.round(v) + '%',
-      mem: v => v >= 1024 ? (v / 1024).toFixed(1) + ' GB' : Math.round(v) + ' MB',
-      tps: v => v.toFixed(0)
-    }[this.chartTab];
-
-    const padL = 8, padR = 44, padT = 10, padB = 18;
-    const cw = w - padL - padR, ch = h - padT - padB;
-    const rawMax = Math.max(...pts.map(val));
-    const max = { players: Math.max(4, Math.ceil(rawMax)), cpu: Math.max(25, Math.ceil(rawMax / 25) * 25), mem: Math.max(256, Math.ceil(rawMax / 256) * 256), tps: 20 }[this.chartTab];
-    const x = i => padL + (i / (pts.length - 1)) * cw;
-    const y = v => padT + ch - (v / max) * ch;
-
-    // horizontal grid lines + right-side labels
-    ctx.textAlign = 'left';
-    for (let g = 0; g <= 3; g++) {
-      const gy = padT + (g / 3) * ch;
-      ctx.strokeStyle = border;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(padL, gy);
-      ctx.lineTo(padL + cw, gy);
-      ctx.stroke();
-      ctx.fillStyle = muted;
-      ctx.fillText(fmt(max * (1 - g / 3)), padL + cw + 6, gy + 3);
-    }
-
-    // time labels
-    ctx.fillStyle = muted;
-    const t = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    ctx.textAlign = 'left';
-    ctx.fillText(t(pts[0].t), padL, h - 4);
-    ctx.textAlign = 'right';
-    ctx.fillText(t(pts[pts.length - 1].t), padL + cw, h - 4);
-
-    // area fill
-    const grad = ctx.createLinearGradient(0, padT, 0, padT + ch);
-    grad.addColorStop(0, accent + '4d');
-    grad.addColorStop(1, accent + '00');
-    ctx.beginPath();
-    ctx.moveTo(x(0), y(val(pts[0])));
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(x(i), y(val(pts[i])));
-    ctx.lineTo(x(pts.length - 1), padT + ch);
-    ctx.lineTo(x(0), padT + ch);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // line
-    ctx.beginPath();
-    ctx.moveTo(x(0), y(val(pts[0])));
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(x(i), y(val(pts[i])));
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // last-value dot
-    const last = pts[pts.length - 1];
-    ctx.beginPath();
-    ctx.arc(x(pts.length - 1), y(val(last)), 3, 0, Math.PI * 2);
-    ctx.fillStyle = accent;
-    ctx.fill();
-  },
+  // renderChart() is defined in dashboard-chart.js (extracted to keep this file focused).
 
   renderRecent() {
     const box = document.getElementById('db-recent');
@@ -345,13 +392,18 @@ App.pages.dashboard = {
   onLog() { this.renderLog(); },
 
   onStatus(status) {
+    // db-dot / db-status live in the (always-present) page header; the Start/Stop/
+    // Restart buttons live in the `controls` section, which the user may have hidden.
     const dot = document.getElementById('db-dot');
-    if (!dot) return;
-    dot.className = `dot ${status}`;
-    document.getElementById('db-status').textContent = App.statusText(status);
-    document.getElementById('db-start').disabled = status !== 'offline';
-    document.getElementById('db-stop').disabled = status === 'offline' || status === 'stopping';
-    document.getElementById('db-restart').disabled = status !== 'online';
+    if (dot) dot.className = `dot ${status}`;
+    const stEl = document.getElementById('db-status');
+    if (stEl) stEl.textContent = App.statusText(status);
+    const start = document.getElementById('db-start');
+    if (start) start.disabled = status !== 'offline';
+    const stop = document.getElementById('db-stop');
+    if (stop) stop.disabled = status === 'offline' || status === 'stopping';
+    const restart = document.getElementById('db-restart');
+    if (restart) restart.disabled = status !== 'online';
     if (status === 'offline') this.checkSetup();
   },
 
@@ -362,10 +414,11 @@ App.pages.dashboard = {
 
   onStats(stats) {
     const ram = document.getElementById('db-ram');
-    if (!ram) return;
-    ram.textContent = stats.online ? App.fmtBytes(stats.memory) : '—';
-    document.getElementById('db-cpu').textContent = stats.online ? `${stats.cpu.toFixed(0)}%` : '—';
-    document.getElementById('db-uptime').textContent = stats.online ? App.fmtUptime(stats.uptime) : '—';
+    if (ram) ram.textContent = stats.online ? App.fmtBytes(stats.memory) : '—';
+    const cpu = document.getElementById('db-cpu');
+    if (cpu) cpu.textContent = stats.online ? `${stats.cpu.toFixed(0)}%` : '—';
+    const up = document.getElementById('db-uptime');
+    if (up) up.textContent = stats.online ? App.fmtUptime(stats.uptime) : '—';
     this.renderHealth(stats);
   }
 };

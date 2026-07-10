@@ -33,6 +33,9 @@
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark theme"></button>
       <button id="logout-btn" class="theme-toggle" style="margin-left:4px" title="Log out"></button>
     </div>
+    <a id="report-bug" class="sidebar-report" href="https://github.com/kinkoo777/MinecraftServerDashboard/issues/new" target="_blank" rel="noopener" title="Found a bug? Report it on GitHub">
+      <span id="report-bug-icon" class="icon"></span> Report a bug
+    </a>
   </aside>
 
   <main id="content"></main>
@@ -41,7 +44,9 @@
 
   <script src="js/app.js"></script>
   <script src="js/setup.js"></script>
+  <script src="js/dashboard-layout.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/dashboard-chart.js"></script>
   <script src="js/history.js"></script>
   <script src="js/console.js"></script>
   <script src="js/players.js"></script>
@@ -53,7 +58,25 @@
   <script src="js/schedules.js"></script>
   <script>
     App.init();
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    // Register the service worker and auto-reload open tabs when a new build ships, so
+    // an update (or restart) never leaves the browser stuck on a stale, half-broken UI.
+    if ('serviceWorker' in navigator) {
+      // Whether this page was already controlled at load. On a first-ever visit the SW
+      // claims the page (controllerchange fires) but there's no *new* version to show —
+      // only reload when an already-controlled tab gets a newer SW.
+      const hadController = !!navigator.serviceWorker.controller;
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing || !hadController) return;
+        refreshing = true;
+        location.reload();
+      });
+      // updateViaCache:'none' forces the browser to revalidate sw.js instead of serving
+      // it from the HTTP cache, so a new service worker is detected promptly.
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(reg => reg.update())
+        .catch(() => {});
+    }
   </script>
 </body>
 </html>

@@ -120,6 +120,20 @@ nav a .icon { width: 20px; display: flex; align-items: center; justify-content: 
 }
 .theme-toggle:hover { color: var(--text); border: none; }
 
+.sidebar-report {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: color .15s, background .15s;
+}
+.sidebar-report:hover { color: var(--text); background: var(--card-hover); }
+.sidebar-report .icon { display: inline-flex; }
+
 /* ---------- Main ---------- */
 main { flex: 1; min-width: 0; padding: 28px 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
@@ -128,6 +142,7 @@ h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
 .page-head h1 { margin: 0; }
+.page-head-right { display: flex; align-items: center; gap: 10px; }
 
 .card-title-row {
   display: flex;
@@ -1130,6 +1145,77 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
   .wiz-choices { grid-template-columns: 1fr; }
   .wiz-connect-row { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
+
+/* ---------- Update overlay (blocking, shown while dashboard self-updates) ---------- */
+#update-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(8, 10, 14, 0.82); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.update-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 30px; width: min(440px, 100%); text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.update-spinner {
+  width: 46px; height: 46px; margin: 0 auto 18px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: wiz-spin .8s linear infinite;
+}
+.update-ico {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.update-ico.ok { background: var(--accent-dim); color: var(--accent); }
+.update-ico.err { background: var(--red-dim); color: var(--red); }
+.update-card h2 { font-size: 19px; margin-bottom: 8px; }
+.update-card p { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 auto; max-width: 340px; }
+.update-card .update-note { margin-top: 14px; }
+.update-card .update-note code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px;
+}
+.update-card .btn-primary, .update-card .btn-sm { margin-top: 20px; }
+
+/* ---------- Dashboard customizable layout ---------- */
+/* Normal mode: sections are transparent wrappers — inner .card margins keep spacing. */
+.db-section { display: block; }
+
+.db-edit-bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 12px;
+  font-size: 12.5px;
+}
+.db-edit-actions { display: flex; align-items: center; gap: 8px; }
+
+.db-section.editing {
+  position: relative;
+  border: 1.5px dashed var(--border); border-radius: 14px;
+  padding: 10px; margin-bottom: 14px; background: var(--bg);
+  transition: border-color .12s, opacity .12s;
+}
+.db-section.editing:hover { border-color: var(--muted); }
+.db-section.editing.is-hidden { opacity: 0.5; }
+.db-section.dragging { opacity: 0.4; }
+.db-section.drag-over { border-color: var(--accent); border-style: solid; box-shadow: 0 0 0 2px var(--accent-dim); }
+
+.db-sec-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.db-sec-title { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
+.db-drag { display: inline-flex; color: var(--muted); cursor: grab; }
+.db-drag:active { cursor: grabbing; }
+.db-sec-tools button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border); color: var(--muted);
+}
+.db-sec-tools button:hover { color: var(--text); border-color: var(--muted); }
+/* while arranging, the section body is a preview only — clicks shouldn't fire inner controls */
+.db-section.editing .db-sec-body { pointer-events: none; }
+/* inner cards inside an editing wrapper shouldn't add their own bottom margin */
+.db-section.editing .db-sec-body > .card,
+.db-section.editing .db-sec-body > .grid > .card { margin-bottom: 0; }
 
 /* ---------- RAM picker (Settings) ---------- */
 .ram-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
