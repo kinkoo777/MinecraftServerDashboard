@@ -696,6 +696,12 @@ body.light .slot.filled { border-color: #b9c0cc; }
 .pw-wrap input { width: 100%; padding-right: 42px; }
 .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px; display: flex; border-radius: 6px; }
 .pw-toggle:hover { color: var(--text); }
+/* The global `button:not(:disabled):active { transform: translateY(1px) }` press effect
+   (further down) would override this button's centering transform and drop it ~19px
+   mid-press, so the mouseup lands on the input behind it and the click never fires (the
+   eye "jumps" and toggling appears to do nothing). Re-assert centering on press with
+   higher specificity so the button stays put and clicks always land. */
+.pw-toggle:not(:disabled):active { transform: translateY(calc(-50% + 1px)); }
 .auth-warn { background: var(--red-dim); border: 1px solid rgba(255, 92, 92, 0.3); color: var(--red); font-size: 12.5px; line-height: 1.45; border-radius: 10px; padding: 10px 12px; }
 .auth-note { display: none; color: var(--amber); font-size: 12.5px; text-align: center; }
 .auth-note.show { display: block; }
