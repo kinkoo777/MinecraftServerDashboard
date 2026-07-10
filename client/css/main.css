@@ -1069,9 +1069,12 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
 .wizard-card h1 { font-size: 22px; margin: 14px 0 6px; }
 .wiz-sub { font-size: 14px; margin-bottom: 20px; }
 
-.wiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+/* Stacked one per row: two columns overflowed the fixed-width wizard card because grid
+   items default to min-width:auto and the long "Recommended" copy couldn't shrink. */
+.wiz-choices { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 8px; }
 .wiz-choice {
   position: relative; text-align: left; display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
   padding: 16px; border-radius: 12px; background: var(--bg); border: 1.5px solid var(--border);
   color: var(--text); cursor: pointer; transition: border-color .15s, background .15s;
 }
