@@ -10,6 +10,7 @@ backups/
 # machine-local state
 config.json
 schedules.json
+security-report.json
 console-logs/
 *.log
 
@@ -32,6 +33,7 @@ cloudflare/
 
 # stray artifacts from local agent/swarm tooling
 .claude-flow/
+.claude/
 .swarm/
 .remember/
 ruvector.db
