@@ -19,7 +19,7 @@ const SERVER_DEFAULTS = {
   minRam: '1G',
   maxRam: '2G',
   jvmArgs: '',
-  installedJar: '' // e.g. "paper 1.21.4" — set by the jar downloader, used by the update checker
+  installedJar: '' // e.g. "vanilla 1.21.4" or "paper 1.21.4 132" (3rd token = Paper build id) — set by the jar downloader, used by the update checker
 };
 const GLOBAL_DEFAULTS = {
   dashboardPort: 8080,

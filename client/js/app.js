@@ -94,6 +94,7 @@ const App = {
   boot() {
     window.addEventListener('hashchange', () => this.route());
     this.connect();
+    this.startPlayerSync();
     this.route();
   },
 
@@ -298,6 +299,10 @@ const App = {
         this.logBuffer = data.log;
         this.updateSidebar();
         if (this.current?.onStatus) this.current.onStatus(data.status);
+        // init carries the current player list too — push it to the page so a fresh
+        // connect/reconnect (with players already online) updates the count immediately
+        // instead of sitting stale until the next join/leave broadcast.
+        if (this.current?.onPlayers) this.current.onPlayers(data.players);
         if (this.current?.onInit) this.current.onInit(data);
       } else if (type === 'log') {
         this.logBuffer.push(data);
@@ -331,6 +336,26 @@ const App = {
       this.reconnectDelay = Math.min(delay * 2, 30000);
       setTimeout(() => this.connect(), delay);
     };
+  },
+
+  // REST fallback that keeps the online-player list correct even when the WebSocket
+  // never delivers it. The live count normally arrives over the WS, but many remote
+  // setups this app supports (reverse proxy, Cloudflare Tunnel, playit.gg, flaky Pi
+  // Wi-Fi) forward plain HTTP fine while failing to upgrade or silently dropping the
+  // long-lived socket — which would freeze the count with no error shown. Polling
+  // /api/players (the same in-memory list the WS broadcasts) covers that gap.
+  startPlayerSync() {
+    clearInterval(this._playerPoll);
+    const poll = async () => {
+      try {
+        const d = await this.api('/players');
+        if (!Array.isArray(d.online)) return;
+        this.players = d.online;
+        if (this.current?.onPlayers) this.current.onPlayers(this.players);
+      } catch (e) { /* transient network/API error — WS or the next poll recovers */ }
+    };
+    this._playerPoll = setInterval(poll, 8000);
+    poll();
   },
 
   // plain-language status for non-technical users (keep the raw value for dot classes)

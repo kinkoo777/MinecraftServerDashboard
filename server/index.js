@@ -136,7 +136,9 @@ setInterval(() => {
 const PORT = process.env.PORT || getConfig().dashboardPort || 8080;
 serverDir(); // ensure mc-server folder exists
 server.listen(PORT, () => {
-  console.log(`ChunkDeck running at http://localhost:${PORT}`);
+  let version = 'unknown';
+  try { version = require('./utils/updater').getCurrentVersion(); } catch (_) {}
+  console.log(`ChunkDeck v${version} running at http://localhost:${PORT}`);
 });
 
 // Stop the MC server cleanly when the dashboard is closed.

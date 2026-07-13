@@ -104,12 +104,13 @@ App.pages.plugins = {
       return;
     }
     box.innerHTML = `<table>
-      <thead><tr><th>File</th><th>Size</th><th>Modified</th><th></th></tr></thead>
+      <thead><tr><th>File</th><th>Size</th><th>Modified</th><th>Update</th><th></th></tr></thead>
       <tbody>${jars.map(j => `
-        <tr>
+        <tr data-row="${App.esc(j.name)}">
           <td><span style="display:inline-flex;align-items:center;gap:10px">${App.icon('plugins', 15)} ${App.esc(j.name)}</span></td>
           <td class="muted">${App.fmtBytes(j.size)}</td>
           <td class="muted">${new Date(j.modified).toLocaleString()}</td>
+          <td class="pg-update muted" style="font-size:12px">Checking…</td>
           <td style="text-align:right"><button class="btn-icon btn-danger" title="Delete" data-del="${App.esc(j.name)}">${App.icon('trash', 14)}</button></td>
         </tr>`).join('')}</tbody>
     </table>`;
@@ -118,6 +119,50 @@ App.pages.plugins = {
       b.onclick = async () => {
         if (!confirm(`Delete "${b.dataset.del}"?`)) return;
         if (await App.tryApi(`/files?path=${encodeURIComponent(this.dir + '/' + b.dataset.del)}`, { method: 'DELETE' }, 'Deleted')) this.load();
+      };
+    });
+
+    this.checkUpdates(box);
+  },
+
+  // Fill in the Update column asynchronously so a slow/unreachable Modrinth never
+  // blocks the jar list. `box` is captured so a directory switch mid-flight is a no-op.
+  async checkUpdates(box) {
+    const loader = this.dir === 'mods' ? 'fabric' : 'paper';
+    const res = await App.tryApi(`/modrinth/check-updates?path=${encodeURIComponent(this.dir)}`);
+    if (!box.isConnected) return;
+    if (!res) { box.querySelectorAll('.pg-update').forEach(c => { c.textContent = ''; }); return; }
+    const byFile = {};
+    for (const it of res.items) byFile[it.file] = it;
+
+    box.querySelectorAll('tr[data-row]').forEach(row => {
+      const cell = row.querySelector('.pg-update');
+      if (!cell) return;
+      const it = byFile[row.dataset.row];
+      if (!it || !it.matched) { cell.textContent = it ? 'Unknown' : ''; return; }
+      if (!it.updateAvailable) {
+        cell.className = 'pg-update';
+        cell.innerHTML = `<span style="color:var(--ok,#3fb950)">Up to date</span> <span class="muted">${App.esc(it.latestVersion)}</span>`;
+        return;
+      }
+      cell.className = 'pg-update';
+      cell.innerHTML = `<button class="btn-sm" data-update="${App.esc(it.latestVersionId)}"
+        title="${App.esc(it.currentVersion)} → ${App.esc(it.latestVersion)}">Update to ${App.esc(it.latestVersion)}</button>`;
+      const btn = cell.querySelector('[data-update]');
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Updating…';
+        const r = await App.tryApi('/modrinth/install', {
+          method: 'POST',
+          body: { loader, versionId: btn.dataset.update, replaceFile: row.dataset.row }
+        });
+        if (r) {
+          App.toast(`Updated to ${r.file} (${r.version}) — restart the server to load it`);
+          this.load();
+        } else {
+          btn.disabled = false;
+          btn.textContent = `Update to ${it.latestVersion}`;
+        }
       };
     });
   }

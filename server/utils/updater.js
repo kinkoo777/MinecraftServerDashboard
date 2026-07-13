@@ -17,7 +17,7 @@ const PRESERVE = new Set([
   'node_modules', 'mc-server', 'backups', 'update-backups', 'config.json',
   'schedules.json', 'console-logs', 'reports.json', 'sessions.json',
   'playit', 'cloudflare', '.git', '.claude-flow', '.swarm', '.remember',
-  'ruvector.db', '.test-config.json', '.test-server'
+  'ruvector.db', '.test-config.json', '.test-server', '.update-state.json'
 ]);
 const PRESERVE_EXT = ['.log', '.msi', '.exe'];
 
@@ -69,6 +69,22 @@ function getCurrentVersion() {
   return _cachedVersion;
 }
 
+// Marker written after every applyUpdate: records which release tag we applied and
+// which version its files actually declared. Used by checkForUpdate to detect a
+// "broken release" loop — a release whose tag (e.g. v1.0.4) is newer than the
+// version inside its own package.json (e.g. 1.0.3). Applying such a release never
+// clears "update available", so we must recognise it and stop telling the user to
+// keep restarting/re-applying. Kept in PRESERVE so an update can't clobber it.
+const UPDATE_STATE_FILE = path.join(PROJECT_ROOT, '.update-state.json');
+function readUpdateState() {
+  try { return JSON.parse(fs.readFileSync(UPDATE_STATE_FILE, 'utf8')); }
+  catch (_) { return null; }
+}
+function writeUpdateState(state) {
+  try { fs.writeFileSync(UPDATE_STATE_FILE, JSON.stringify(state, null, 2)); }
+  catch (_) { /* best-effort — a missing marker only disables the loop hint */ }
+}
+
 // Strip leading 'v', compare dot-separated numeric cores. Pre-release (dash suffix) < no suffix.
 // Returns -1 if a < b, 0 if equal, 1 if a > b.
 // LIMITATIONS: only the numeric core is ordered — any non-numeric segment becomes NaN,
@@ -117,10 +133,26 @@ async function checkForUpdate() {
   const latest = tag.replace(/^v/, '');
   const updateAvailable = compareSemver(latest, current) === 1;
 
+  // Detect the broken-release loop: if we've already applied this exact tag but the
+  // running version still isn't the tag's version, the release's files declare an
+  // older version than its tag, so applying again (or restarting) can never clear
+  // "update available". Surface it honestly instead of looping forever.
+  let staleRelease = false;
+  let deliveredVersion = null;
+  if (updateAvailable) {
+    const state = readUpdateState();
+    if (state && state.appliedTag === latest) {
+      staleRelease = true;
+      deliveredVersion = state.deliveredVersion || null;
+    }
+  }
+
   return {
     current,
     latest,
     updateAvailable,
+    staleRelease,
+    deliveredVersion,
     noReleases: false,
     releaseUrl: data.html_url,
     notes: (data.body || '').slice(0, 4000),
@@ -354,14 +386,29 @@ async function applyUpdate(log = () => {}) {
 
     const backupDirRelative = path.relative(PROJECT_ROOT, backupDir);
 
+    // Record what we applied so a future check can detect a broken-release loop.
+    const deliveredVersion = (newPkg && newPkg.version) || null;
+    writeUpdateState({ appliedTag: latest, deliveredVersion, appliedAt: new Date().toISOString() });
+
+    // If the release's own package.json declares a version different from its tag,
+    // restarting will NOT clear "update available" — be honest about that instead of
+    // telling the user the generic "restart to finish".
+    const versionMismatch = deliveredVersion !== null && compareSemver(deliveredVersion, latest) !== 0;
+    const message = versionMismatch
+      ? `Files were installed, but this release is tagged v${latest} while its files report v${deliveredVersion}. ` +
+        `The dashboard will keep showing "update available" until the release itself is fixed — restarting or re-applying won't clear it.`
+      : 'Update applied — fully restart the dashboard to finish.';
+
     return {
       ok: true,
       from: current,
       to: latest,
+      deliveredVersion,
+      versionMismatch,
       backupDir: backupDirRelative,
       depsChanged,
       npmInstalled,
-      message: 'Update applied — restart the dashboard to finish.'
+      message
     };
   } finally {
     // best-effort cleanup

@@ -42,20 +42,25 @@ class MinecraftServer extends EventEmitter {
 
   handleLine(line) {
     this.pushLog(line);
-    if (this.status === 'starting' && DONE_RE.test(line)) {
+    // Some server builds/log4j configs (common on Linux/Pi consoles) wrap console
+    // output in ANSI colour codes, which can land between the `]` and `:` the
+    // join/leave/done/TPS regexes anchor on. Strip them before matching so player
+    // presence is still detected. The raw line is kept for the console display above.
+    const text = line.replace(/\x1b\[[0-9;]*m/g, '');
+    if (this.status === 'starting' && DONE_RE.test(text)) {
       this.crashCount = 0; // a healthy boot wipes the crash-loop slate
       this.setStatus('online');
     }
     let m;
-    if ((m = JOIN_RE.exec(line))) {
+    if ((m = JOIN_RE.exec(text))) {
       this.players.add(m[1]);
       this.emit('players', [...this.players]);
       this.emit('join', m[1]);
-    } else if ((m = LEAVE_RE.exec(line))) {
+    } else if ((m = LEAVE_RE.exec(text))) {
       this.players.delete(m[1]);
       this.emit('players', [...this.players]);
       this.emit('leave', m[1]);
-    } else if ((m = TICK_RE.exec(line))) {
+    } else if ((m = TICK_RE.exec(text))) {
       const ms = parseFloat(m[1]);
       if (ms > 0) {
         // TPS = 1000/ms-per-tick, clamped to 20 (the server's max tick rate;

@@ -9,8 +9,7 @@ const { getConfig, serverDir } = require('../config');
 const { levelName } = require('../utils/backup');
 const { readProperties } = require('../utils/properties');
 const history = require('../history');
-const { getLatestVersion, downloadJar } = require('../utils/jars');
-const { compareSemver } = require('../utils/updater');
+const { checkJarUpdate, downloadJar } = require('../utils/jars');
 
 const router = express.Router();
 
@@ -138,16 +137,23 @@ router.post('/start', (req, res) => {
 });
 
 async function startWithUpdate() {
-  const installed = getConfig().installedJar; // e.g. "vanilla 1.21.4" or ""
+  const installed = getConfig().installedJar; // e.g. "vanilla 1.21.4" or "paper 1.21.4 132" or ""
   if (installed) {
-    const [type, version] = installed.split(' ');
     mc.setStatus('starting'); // disable Start button on the client right away
     mc.pushLog('[dashboard] Checking for updates…');
     try {
-      const latest = await getLatestVersion(type);
-      if (latest && version && compareSemver(latest, version) === 1) {
-        mc.pushLog(`[dashboard] Update available: ${type} ${latest} — downloading`);
-        await downloadJar(type, latest, msg => mc.pushLog(msg));
+      const info = await checkJarUpdate(installed);
+      if (info.updateAvailable) {
+        // Paper never auto-jumps MC version (see checkJarUpdate) — only a newer
+        // build of the same version. Vanilla has no build concept, so any update
+        // there is a real version bump.
+        if (info.type === 'paper') {
+          const from = info.build != null ? `build ${info.build}` : 'build unknown';
+          mc.pushLog(`[dashboard] Update available: ${info.type} ${info.version} ${from} → build ${info.latestBuild} — downloading`);
+        } else {
+          mc.pushLog(`[dashboard] Update available: ${info.type} ${info.version} → ${info.latestVersion} — downloading`);
+        }
+        await downloadJar(info.type, info.latestVersion, msg => mc.pushLog(msg));
       } else {
         mc.pushLog(`[dashboard] ${installed} is up to date`);
       }

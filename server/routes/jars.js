@@ -1,7 +1,7 @@
 const express = require('express');
 const mc = require('../minecraft');
 const { getConfig } = require('../config');
-const { getLatestVersion, downloadJar, paperVersions, MOJANG_MANIFEST } = require('../utils/jars');
+const { checkJarUpdate, downloadJar, paperVersions, MOJANG_MANIFEST } = require('../utils/jars');
 
 const router = express.Router();
 const VERSION_RE = /^[\w.\-]{1,32}$/;
@@ -20,14 +20,22 @@ router.get('/versions', async (req, res) => {
   }
 });
 
-// Compare the installed jar against the newest available build of the same line
+// Compare the installed jar against the newest available build of the same line.
+// For Paper this detects same-MC-version build bumps, not just MC version changes.
 router.get('/check', async (req, res) => {
   const installed = getConfig().installedJar;
   if (!installed) return res.json({ installed: null });
-  const [type, version] = installed.split(' ');
   try {
-    const latest = await getLatestVersion(type);
-    return res.json({ installed, type, version, latest, updateAvailable: latest !== version });
+    const info = await checkJarUpdate(installed);
+    return res.json({
+      installed,
+      type: info.type,
+      version: info.version,
+      latest: info.latestVersion,
+      build: info.build,
+      latestBuild: info.latestBuild,
+      updateAvailable: info.updateAvailable
+    });
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

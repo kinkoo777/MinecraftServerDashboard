@@ -1,6 +1,6 @@
 {
   "name": "chunkdeck",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "ChunkDeck - manage your Minecraft server from the browser",
   "main": "server/index.js",
   "license": "MIT",

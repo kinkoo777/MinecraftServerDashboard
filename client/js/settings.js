@@ -500,7 +500,12 @@ App.pages.settings = {
     try { info = await App.api('/jars/check'); } catch (e) { return; }
     if (!info || !info.installed) return;
     if (info.updateAvailable) {
-      box.innerHTML = `<div class="notice" style="margin-bottom:12px"><span class="notice-text">Update available: ${App.esc(info.type)} <b>${App.esc(info.latest)}</b> (you have ${App.esc(info.version)}). Pick it below and download — the server must be stopped.</span></div>`;
+      // Same MC version but a newer Paper build → phrase it as a build bump, not a version change.
+      const buildBump = info.type === 'paper' && info.latest === info.version && info.latestBuild != null;
+      const what = buildBump
+        ? `${App.esc(info.type)} <b>${App.esc(info.version)}</b> build ${App.esc(String(info.latestBuild))} (you have ${info.build != null ? 'build ' + App.esc(String(info.build)) : 'an older build'})`
+        : `${App.esc(info.type)} <b>${App.esc(info.latest)}</b> (you have ${App.esc(info.version)})`;
+      box.innerHTML = `<div class="notice" style="margin-bottom:12px"><span class="notice-text">Update available: ${what}. Pick it below and download — the server must be stopped.</span></div>`;
     } else {
       box.innerHTML = `<p class="muted" style="margin-bottom:12px">✓ ${App.esc(info.installed)} is up to date.</p>`;
     }
@@ -533,6 +538,20 @@ App.pages.settings = {
         statusHtml += `<span class="muted">No published releases yet — you're on the latest local build.</span>`;
         if (status) status.innerHTML = statusHtml;
         if (applyBtn) applyBtn.style.display = 'none';
+      } else if (info.updateAvailable && info.staleRelease) {
+        // We already applied this release, but it keeps showing as available because
+        // the release's files declare an older version than its tag. Re-applying or
+        // restarting won't fix it — don't send the user around the loop again.
+        const delivered = info.deliveredVersion ? `v${App.esc(info.deliveredVersion)}` : 'an older version';
+        statusHtml += `<span style="color:var(--accent)">Release v${App.esc(info.latest)} keeps showing as available, but you've already applied it.</span>`;
+        if (status) status.innerHTML = statusHtml;
+        if (applyBtn) applyBtn.style.display = 'none';
+        if (note) {
+          note.innerHTML = `<div class="notice" style="margin-top:8px"><span class="notice-text">` +
+            `This release is tagged v${App.esc(info.latest)} but its files report ${delivered}, so the dashboard can't tell it has been installed. ` +
+            `This is a problem with the release itself — re-applying or restarting won't clear it. You already have the latest files. ` +
+            `Nothing more to do on your side.</span></div>`;
+        }
       } else if (info.updateAvailable) {
         statusHtml += `<span style="color:var(--accent)">Update available: v${App.esc(info.latest)} (you have v${App.esc(info.current)}).</span>`;
         if (status) status.innerHTML = statusHtml;
@@ -596,21 +615,46 @@ App.pages.settings = {
           msg += ' Dependencies changed — run <code>npm install</code> before restarting.';
         }
 
-        card.innerHTML = `
-          <div class="update-ico ok">${App.icon('check', 30)}</div>
-          <h2>Updated to v${App.esc(r.to || latest)}</h2>
-          <p>Updated from v${App.esc(r.from || current)}. <b>Stop and start the dashboard</b> to finish applying the update.</p>
-          <div class="update-note"><p>${msg}</p></div>
-          <button type="button" class="btn-sm" id="update-dismiss">Dismiss</button>`;
-        dismissable('Dismiss');
+        // Explicit restart instruction: non-technical users often just reload the
+        // browser tab, which does nothing — the Node process must actually be stopped.
+        const restartHtml =
+          `<b>To finish, fully restart the dashboard:</b> close the ChunkDeck window ` +
+          `(the black command window titled "ChunkDeck", or press Ctrl+C in it) to stop it, ` +
+          `then start it again with start.bat. Just reloading this page in your browser is not enough.`;
 
-        // reflect the new state in the Settings panel underneath the overlay
-        App.toast('Update applied — restart to finish');
-        applyBtn.style.display = 'none';
-        const status = document.getElementById('app-update-status');
-        const note = document.getElementById('app-update-note');
-        if (status) status.innerHTML = `Updated from v${App.esc(r.from || current)} to v${App.esc(r.to || latest)}.`;
-        if (note) note.innerHTML = `<div class="notice" style="margin-top:8px"><span class="notice-text">${msg} Stop and start the dashboard to finish.</span></div>`;
+        if (r.versionMismatch) {
+          // Files were installed, but the release's version tag doesn't match its
+          // contents — restarting won't clear "update available". Be honest.
+          card.innerHTML = `
+            <div class="update-ico err">${App.icon('alert', 30)}</div>
+            <h2>Files installed, but release is misconfigured</h2>
+            <p>${msg}</p>
+            <div class="update-note"><p>You now have the newest files. There's nothing more to do on your side.</p></div>
+            <button type="button" class="btn-sm" id="update-dismiss">Dismiss</button>`;
+          dismissable('Dismiss');
+          App.toast('Newest files installed');
+          applyBtn.style.display = 'none';
+          const status = document.getElementById('app-update-status');
+          const note = document.getElementById('app-update-note');
+          if (status) status.innerHTML = `Latest files installed (release v${App.esc(r.to || latest)} is misconfigured).`;
+          if (note) note.innerHTML = `<div class="notice" style="margin-top:8px"><span class="notice-text">${msg}</span></div>`;
+        } else {
+          card.innerHTML = `
+            <div class="update-ico ok">${App.icon('check', 30)}</div>
+            <h2>Updated to v${App.esc(r.to || latest)}</h2>
+            <p>Updated from v${App.esc(r.from || current)}. ${restartHtml}</p>
+            <div class="update-note"><p>${msg}</p></div>
+            <button type="button" class="btn-sm" id="update-dismiss">Dismiss</button>`;
+          dismissable('Dismiss');
+
+          // reflect the new state in the Settings panel underneath the overlay
+          App.toast('Update applied — fully restart to finish');
+          applyBtn.style.display = 'none';
+          const status = document.getElementById('app-update-status');
+          const note = document.getElementById('app-update-note');
+          if (status) status.innerHTML = `Updated from v${App.esc(r.from || current)} to v${App.esc(r.to || latest)}.`;
+          if (note) note.innerHTML = `<div class="notice" style="margin-top:8px"><span class="notice-text">${restartHtml}</span></div>`;
+        }
       } catch (e) {
         const alreadyCurrent = /up to date/i.test(e.message || '');
         card.innerHTML = `
