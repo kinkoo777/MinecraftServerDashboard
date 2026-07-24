@@ -87,6 +87,11 @@ if not exist "node_modules" (
   echo.
 )
 
+rem ---- Auto-fix known dependency vulnerabilities, if any ----
+echo  Checking dependencies for security fixes...
+call npm audit fix 2>nul
+echo.
+
 echo  Starting the dashboard...
 echo  Your browser will open at http://localhost:8080
 echo  ^(Keep this window open while you play. Close it to stop.^)

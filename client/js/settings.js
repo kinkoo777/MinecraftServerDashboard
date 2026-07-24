@@ -141,7 +141,7 @@ App.pages.settings = {
           <input id="motd-input" type="text" maxlength="120" placeholder="A Minecraft Server" style="font-family:var(--mono);margin-top:6px;width:100%">
           <div class="motd-preview-box" style="margin-top:10px">
             <div style="display:flex;align-items:flex-start;gap:10px">
-              <img src="/icon.svg" style="width:40px;height:40px;border-radius:4px;flex-shrink:0;image-rendering:pixelated" onerror="this.style.display='none'" alt="">
+              <img src="/icon.png" style="width:40px;height:40px;border-radius:4px;flex-shrink:0;image-rendering:pixelated" onerror="this.style.display='none'" alt="">
               <div style="flex:1;min-width:0">
                 <div style="color:#fff;font-size:13px;margin-bottom:3px">Minecraft Server</div>
                 <div id="motd-rendered" style="font-size:12px;line-height:1.5;min-height:1.5em"></div>

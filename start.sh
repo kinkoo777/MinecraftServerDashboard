@@ -147,6 +147,11 @@ if [ ! -d node_modules ]; then
   echo
 fi
 
+# ---- Auto-fix known dependency vulnerabilities, if any ----
+echo "Checking dependencies for security fixes..."
+npm audit fix 2>/dev/null || true
+echo
+
 echo "Starting the dashboard at http://localhost:8080"
 echo "(Keep this window open while you play. Press Ctrl+C to stop.)"
 echo

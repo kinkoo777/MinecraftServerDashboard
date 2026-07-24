@@ -60,7 +60,7 @@ App.pages.plugins = {
       if (!hits.length) { box.innerHTML = `<div class="empty">No results</div>`; return; }
       box.innerHTML = hits.map(h => `
         <div class="mr-row">
-          <img src="${h.icon ? App.esc(h.icon) : 'icon.svg'}" alt="" loading="lazy">
+          <img src="${h.icon ? App.esc(h.icon) : 'icon.png'}" alt="" loading="lazy">
           <div class="mr-info">
             <div class="t">${App.esc(h.title)} <span class="muted" style="font-weight:400;font-size:11px">${(h.downloads / 1000).toFixed(0)}k downloads</span></div>
             <div class="d">${App.esc(h.description)}</div>

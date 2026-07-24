@@ -23,6 +23,7 @@ A complete web control panel for a Minecraft server: live console, one-click sta
 - [Backups & schedules](#-backups--schedules)
 - [Plugins & mods](#-plugins--mods)
 - [Keeping it up to date](#-keeping-it-up-to-date)
+- [Changelog](#-changelog)
 - [Features](#-features)
 - [Troubleshooting](#-troubleshooting)
 - [Security](#-security)
@@ -135,6 +136,16 @@ On the **Plugins** page you can **search Modrinth and install** plugins/mods wit
 ChunkDeck updates itself — no re-downloading. Go to **Settings → Updates** and click **Check for updates**. If a newer version has been published, click **Update** and the dashboard downloads the latest release from GitHub and applies it **in place**.
 
 Your data is never touched: your world (`mc-server/`), backups, `config.json`, schedules, logs and tunnel setup are all preserved, and a snapshot of the replaced files is saved under `update-backups/` in case you want to roll back. After an update, restart the launcher window so the new version runs.
+
+---
+
+## 📋 Changelog
+
+### v1.0.6
+- **New logo** — replaced the placeholder grass-block icon with the official ChunkDeck mark everywhere it appears: favicon, sidebar, setup wizard, PWA icon, and the MOTD/plugin-search placeholders
+- **Auto-patched dependencies** — `start.bat` and `start.sh` now run `npm audit fix` on every launch, automatically applying non-breaking security fixes for known vulnerabilities in the background (silently skipped if you're offline)
+
+See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/releases) for older versions.
 
 ---
 

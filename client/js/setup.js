@@ -25,7 +25,7 @@ App.wizard = {
     ov.innerHTML = `
       <div class="wizard-card">
         <button class="wiz-close" title="Close" aria-label="Close">${App.icon('x', 18)}</button>
-        <div class="wiz-logo"><img src="icon.svg" class="logo-img" alt=""><span>Quick setup</span></div>
+        <div class="wiz-logo"><img src="icon.png" class="logo-img" alt=""><span>Quick setup</span></div>
         <h1>Let's set up your server</h1>
         <p class="muted wiz-sub">A couple of clicks and you're playing. We'll download a server, accept Mojang's rules, and start it for you.</p>
         <div id="wiz-body"></div>
