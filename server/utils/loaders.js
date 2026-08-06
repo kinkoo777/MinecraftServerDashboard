@@ -43,11 +43,19 @@ async function fabricInstallerVersion() {
   return stable.version;
 }
 
-// NeoForge '21.4.63' belongs to MC 1.21.4; '21.0.30' to MC 1.21
+// NeoForge legacy 3-part '21.4.157' belongs to MC 1.21.4; new calendar-scheme
+// 4-part '26.2.0.48-beta' belongs to MC 26.2 (third segment = MC patch, 0 = none).
 function neoToMc(v) {
-  const m = String(v).match(/^(\d+)\.(\d+)\./);
-  if (!m) return null;
-  return m[2] === '0' ? `1.${m[1]}` : `1.${m[1]}.${m[2]}`;
+  const parts = String(v).split('-')[0].split('.');
+  if (parts.length === 4) {
+    const [a, b, c] = parts;
+    return c === '0' ? `${a}.${b}` : `${a}.${b}.${c}`;
+  }
+  if (parts.length === 3) {
+    const [a, b] = parts;
+    return b === '0' ? `1.${a}` : `1.${a}.${b}`;
+  }
+  return null;
 }
 
 async function neoforgeVersionMap() {
