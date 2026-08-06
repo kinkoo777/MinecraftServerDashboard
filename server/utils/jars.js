@@ -4,6 +4,7 @@ const { Readable } = require('stream');
 const { finished } = require('stream/promises');
 const { serverDir, saveConfig } = require('../config');
 const { compareSemver } = require('./updater');
+const loaders = require('./loaders');
 
 // PaperMC's old v2 API is frozen at the 1.21.x line and never receives the newer
 // (26.x) Minecraft versions — those only exist on the v3 "Fill" API. Use v3 for Paper.
@@ -88,6 +89,13 @@ async function checkJarUpdate(installed) {
   const [type, version, buildStr] = installed.split(' ');
   const build = buildStr && /^\d+$/.test(buildStr) ? parseInt(buildStr, 10) : null;
 
+  if (loaders.MODDED_TYPES.includes(type) && version) {
+    const latest = await loaders.latestLoaderFor(type, version);
+    const cur = buildStr || null;
+    const updateAvailable = cur == null || loaders.cmpDotted(latest, cur) > 0;
+    return { type, version, build: cur, latestVersion: version, latestBuild: latest, updateAvailable };
+  }
+
   if (type === 'paper' && version) {
     const latestBuild = (await resolvePaperBuild(version)).id;
     const updateAvailable = build == null || latestBuild > build;
@@ -100,7 +108,14 @@ async function checkJarUpdate(installed) {
   return { type, version, build: null, latestVersion, latestBuild: null, updateAvailable };
 }
 
-async function downloadJar(type, version, log = () => {}) {
+async function downloadJar(type, version, log = () => {}, opts = {}) {
+  if (loaders.MODDED_TYPES.includes(type)) {
+    const r = await loaders.installLoaderServer(type, version, log, opts.pinnedLoader || null);
+    const patch = { jarFile: r.jarFile, installedJar: `${type} ${version} ${r.loaderVersion}` };
+    if (!opts.keepModpackName) patch.modpackName = '';
+    saveConfig(patch);
+    return r.size;
+  }
   let url, build = null;
   if (type === 'paper') {
     const info = await resolvePaperBuild(version);
@@ -127,7 +142,7 @@ async function downloadJar(type, version, log = () => {}) {
   // Record the Paper build id as a 3rd token so the update checker can detect
   // "same MC version, newer build". Vanilla has no build concept — stays 2 tokens.
   const installedJar = build != null ? `${type} ${version} ${build}` : `${type} ${version}`;
-  saveConfig({ jarFile: 'server.jar', installedJar });
+  saveConfig({ jarFile: 'server.jar', installedJar, modpackName: '' });
   log(`[dashboard] Downloaded ${type} ${version}${build != null ? ` build ${build}` : ''} (${(size / 1048576).toFixed(1)} MB) as server.jar`);
   return size;
 }

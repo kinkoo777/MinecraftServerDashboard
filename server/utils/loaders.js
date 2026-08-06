@@ -112,9 +112,112 @@ function requiredJava(mc) {
   return 8;
 }
 
+const fs = require('fs');
+const path = require('path');
+const { Readable } = require('stream');
+const { finished } = require('stream/promises');
+const { spawn } = require('child_process');
+const INSTALLER_CAP = 100 * 1024 * 1024;
+
+async function downloadToFile(url, dest, cap, what) {
+  const r = await fetch(url, UA);
+  if (!r.ok) throw new Error(`${what} download failed (HTTP ${r.status})`);
+  const len = Number(r.headers.get('content-length') || 0);
+  if (cap && len > cap) throw new Error(`${what} is too large (${(len / 1048576).toFixed(0)} MB)`);
+  await finished(Readable.fromWeb(r.body).pipe(fs.createWriteStream(dest)));
+  const size = fs.statSync(dest).size;
+  if (cap && size > cap) { fs.unlinkSync(dest); throw new Error(`${what} exceeded the size cap`); }
+  return size;
+}
+
+function runInstaller(jarPath, dir, log, extraFlag) {
+  return new Promise((resolve, reject) => {
+    const java = require('../config').getConfig().javaPath || 'java';
+    const proc = spawn(java, ['-jar', jarPath, extraFlag || '--installServer'], { cwd: dir });
+    let out = '';
+    const onData = (d) => {
+      out += d.toString();
+      for (const line of d.toString().split(/\r?\n/)) if (line.trim()) log(`[installer] ${line.trim()}`);
+    };
+    proc.stdout.on('data', onData);
+    proc.stderr.on('data', onData);
+    proc.on('error', (e) => reject(new Error(`Could not run the installer with Java: ${e.message}`)));
+    proc.on('exit', (code) => {
+      if (code === 0) return resolve();
+      const tail = out.trim().split('\n').slice(-8).join('\n');
+      reject(Object.assign(new Error(`Installer exited with code ${code}. Last output:\n${tail}`), { installerFailed: true }));
+    });
+  });
+}
+
+const VENDOR_DIRS = { neoforge: 'libraries/net/neoforged/neoforge', forge: 'libraries/net/minecraftforge/forge' };
+
+function findArgfile(dir, type) {
+  const base = path.join(dir, ...VENDOR_DIRS[type].split('/'));
+  let subs;
+  try { subs = fs.readdirSync(base); } catch (e) { return null; }
+  const name = process.platform === 'win32' ? 'win_args.txt' : 'unix_args.txt';
+  const cands = [];
+  for (const sub of subs) {
+    const f = path.join(base, sub, name);
+    try { cands.push({ f, mtime: fs.statSync(f).mtimeMs }); } catch (e) { /* not a version dir */ }
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) => b.mtime - a.mtime);
+  return path.relative(dir, cands[0].f).split(path.sep).join('/');
+}
+
+function findLegacyForgeJar(dir) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch (e) { return null; }
+  return names.filter(n => /^forge-.*\.jar$/i.test(n) && !/installer/i.test(n)).sort().pop() || null;
+}
+
+async function installLoaderServer(type, mc, log = () => {}, pinnedLoader = null) {
+  const dir = require('../config').serverDir();
+  if (type === 'fabric') {
+    const loader = pinnedLoader || await fabricLatestLoader();
+    const installer = await fabricInstallerVersion();
+    log(`[dashboard] Downloading Fabric ${mc} (loader ${loader})…`);
+    const url = `${FABRIC_META}/versions/loader/${encodeURIComponent(mc)}/${encodeURIComponent(loader)}/${encodeURIComponent(installer)}/server/jar`;
+    const tmp = path.join(dir, `server.jar.download.${process.pid}.${Date.now()}`);
+    const size = await downloadToFile(url, tmp, INSTALLER_CAP, 'Fabric server launcher');
+    if (size < 50 * 1024) { fs.unlinkSync(tmp); throw new Error('Fabric launcher download is suspiciously small — aborted'); }
+    fs.renameSync(tmp, path.join(dir, 'server.jar'));
+    log(`[dashboard] Fabric ${mc} (loader ${loader}) installed as server.jar`);
+    return { loaderVersion: loader, jarFile: 'server.jar', size };
+  }
+  const ver = pinnedLoader || await latestLoaderFor(type, mc);
+  const url = type === 'forge'
+    ? `${FORGE_DL}/${mc}-${ver}/forge-${mc}-${ver}-installer.jar`
+    : `${NEOFORGE_DL}/${ver}/neoforge-${ver}-installer.jar`;
+  const instPath = path.join(dir, `.${type}-installer-${Date.now()}.jar`);
+  log(`[dashboard] Downloading ${type} ${ver} installer…`);
+  const size = await downloadToFile(url, instPath, INSTALLER_CAP, `${type} installer`);
+  log(`[dashboard] Running the ${type} installer — this can take a few minutes…`);
+  try {
+    try {
+      await runInstaller(instPath, dir, log);
+    } catch (e) {
+      // some NeoForge builds only accept the dashed flag
+      if (type === 'neoforge' && e.installerFailed) await runInstaller(instPath, dir, log, '--install-server');
+      else throw e;
+    }
+  } finally {
+    try { fs.unlinkSync(instPath); } catch (e) { /* already gone */ }
+    try { fs.unlinkSync(instPath + '.log'); } catch (e) { /* no log */ }
+  }
+  const argfile = findArgfile(dir, type);
+  const legacy = !argfile && type === 'forge' ? findLegacyForgeJar(dir) : null;
+  if (!argfile && !legacy) throw new Error(`The ${type} installer finished but no launch files were found — try again or pick another version`);
+  log(`[dashboard] ${type} ${ver} for MC ${mc} installed (${argfile ? 'argfile launch' : `legacy jar ${legacy}`})`);
+  return { loaderVersion: ver, jarFile: legacy || 'server.jar', size };
+}
+
 module.exports = {
   MODDED_TYPES, cmpDotted, requiredJava,
   fabricGameVersions, fabricLatestLoader, fabricInstallerVersion,
   neoforgeVersionMap, forgeVersionMap, latestLoaderFor, mcListFor,
-  FABRIC_META, NEOFORGE_DL, FORGE_DL, UA
+  FABRIC_META, NEOFORGE_DL, FORGE_DL, UA,
+  installLoaderServer, findArgfile, findLegacyForgeJar
 };
