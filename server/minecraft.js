@@ -77,16 +77,32 @@ class MinecraftServer extends EventEmitter {
     clearTimeout(this.restartTimer);
     this.restartTimer = null;
     const dir = require('./config').serverDir();
-    const jar = path.join(dir, config.jarFile);
-    if (!fs.existsSync(jar)) {
-      const err = new Error(`Server jar not found: ${config.jarFile}. Put it in the server folder (Files page) or fix the jar name in Settings.`);
-      err.status = 400;
-      throw err;
+    const type = (config.installedJar || '').split(' ')[0];
+    let launchArgs;
+    if (type === 'forge' || type === 'neoforge') {
+      const loaders = require('./utils/loaders');
+      const argfile = loaders.findArgfile(dir, type);
+      const legacy = argfile ? null : loaders.findLegacyForgeJar(dir);
+      if (argfile) launchArgs = [`@${argfile}`, 'nogui'];
+      else if (legacy) launchArgs = ['-jar', legacy, 'nogui'];
+      else {
+        const err = new Error(`${type} launch files not found — reinstall ${type} from Settings → Server software.`);
+        err.status = 400;
+        throw err;
+      }
+    } else {
+      const jar = path.join(dir, config.jarFile);
+      if (!fs.existsSync(jar)) {
+        const err = new Error(`Server jar not found: ${config.jarFile}. Put it in the server folder (Files page) or fix the jar name in Settings.`);
+        err.status = 400;
+        throw err;
+      }
+      launchArgs = ['-jar', config.jarFile, 'nogui'];
     }
 
     const args = [`-Xms${config.minRam}`, `-Xmx${config.maxRam}`];
     if (config.jvmArgs) args.push(...config.jvmArgs.split(' ').filter(Boolean));
-    args.push('-jar', config.jarFile, 'nogui');
+    args.push(...launchArgs);
 
     // fresh buffer per run so saved console logs and the live view don't mix sessions
     this.logBuffer = [];
@@ -94,6 +110,9 @@ class MinecraftServer extends EventEmitter {
     this.setStatus('starting');
     this.startedAt = Date.now();
     this.pushLog(`[dashboard] Launching: ${config.javaPath} ${args.join(' ')}`);
+    const mcVer = (config.installedJar || '').split(' ')[1];
+    const needJava = mcVer ? require('./utils/loaders').requiredJava(mcVer) : null;
+    if (needJava >= 17) this.pushLog(`[dashboard] Note: Minecraft ${mcVer} needs Java ${needJava}+ — if the boot fails with a class-version error, update Java (Settings → Java path).`);
 
     this.proc = spawn(config.javaPath, args, { cwd: dir });
 

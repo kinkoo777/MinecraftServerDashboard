@@ -129,6 +129,8 @@ router.get('/stats', async (req, res) => {
 
 router.post('/start', (req, res) => {
   if (mc.status !== 'offline') return res.status(409).json({ error: 'Server is not offline' });
+  const mrpack = require('../utils/mrpack');
+  if (mrpack.isRunning && mrpack.isRunning()) return res.status(409).json({ error: 'A modpack install is in progress — wait for it to finish' });
   res.json({ ok: true });
   startWithUpdate().catch(e => {
     mc.pushLog(`[dashboard] ${e.message}`);
@@ -144,16 +146,19 @@ async function startWithUpdate() {
     try {
       const info = await checkJarUpdate(installed);
       if (info.updateAvailable) {
-        // Paper never auto-jumps MC version (see checkJarUpdate) — only a newer
-        // build of the same version. Vanilla has no build concept, so any update
+        // Paper/modded never auto-jump MC version (see checkJarUpdate) — only a newer
+        // build/loader of the same version. Vanilla has no build concept, so any update
         // there is a real version bump.
-        if (info.type === 'paper') {
+        if (info.latestBuild != null) {
           const from = info.build != null ? `build ${info.build}` : 'build unknown';
           mc.pushLog(`[dashboard] Update available: ${info.type} ${info.version} ${from} → build ${info.latestBuild} — downloading`);
         } else {
           mc.pushLog(`[dashboard] Update available: ${info.type} ${info.version} → ${info.latestVersion} — downloading`);
         }
-        await downloadJar(info.type, info.latestVersion, msg => mc.pushLog(msg));
+        await downloadJar(info.type, info.latestVersion, msg => mc.pushLog(msg), {
+          keepModpackName: true,
+          pinnedLoader: ['fabric', 'neoforge', 'forge'].includes(info.type) ? info.latestBuild : null
+        });
       } else {
         mc.pushLog(`[dashboard] ${installed} is up to date`);
       }

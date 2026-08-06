@@ -10,7 +10,7 @@ const CONFIG_FILE = process.env.CHUNKDECK_CONFIG || process.env.MCDASH_CONFIG ||
 const DATA_DIR = path.dirname(CONFIG_FILE);
 
 // Fields that belong to an individual server profile (vs. global dashboard settings)
-const PER_SERVER = ['name', 'serverDir', 'jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'installedJar'];
+const PER_SERVER = ['name', 'serverDir', 'jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'installedJar', 'modpackName'];
 const SERVER_DEFAULTS = {
   name: 'Main server',
   serverDir: 'mc-server',
@@ -19,7 +19,8 @@ const SERVER_DEFAULTS = {
   minRam: '1G',
   maxRam: '2G',
   jvmArgs: '',
-  installedJar: '' // e.g. "vanilla 1.21.4" or "paper 1.21.4 132" (3rd token = Paper build id) — set by the jar downloader, used by the update checker
+  installedJar: '', // e.g. "vanilla 1.21.4" or "paper 1.21.4 132" (3rd token = Paper build id) — set by the jar downloader, used by the update checker
+  modpackName: '' // modpack title shown next to installedJar, set by the mrpack installer
 };
 const GLOBAL_DEFAULTS = {
   dashboardPort: 8080,
