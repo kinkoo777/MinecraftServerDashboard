@@ -124,10 +124,15 @@ async function downloadToFile(url, dest, cap, what) {
   if (!r.ok) throw new Error(`${what} download failed (HTTP ${r.status})`);
   const len = Number(r.headers.get('content-length') || 0);
   if (cap && len > cap) throw new Error(`${what} is too large (${(len / 1048576).toFixed(0)} MB)`);
-  await finished(Readable.fromWeb(r.body).pipe(fs.createWriteStream(dest)));
-  const size = fs.statSync(dest).size;
-  if (cap && size > cap) { fs.unlinkSync(dest); throw new Error(`${what} exceeded the size cap`); }
-  return size;
+  try {
+    await finished(Readable.fromWeb(r.body).pipe(fs.createWriteStream(dest)));
+    const size = fs.statSync(dest).size;
+    if (cap && size > cap) throw new Error(`${what} exceeded the size cap`);
+    return size;
+  } catch (e) {
+    try { fs.unlinkSync(dest); } catch (e2) { /* nothing to clean */ }
+    throw e;
+  }
 }
 
 function runInstaller(jarPath, dir, log, extraFlag) {
