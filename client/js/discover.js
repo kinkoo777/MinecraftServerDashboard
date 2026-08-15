@@ -220,7 +220,53 @@ App.discover = {
     }
   },
 
-  startPackInstall() { App.toast('Modpack install lands in an upcoming commit'); },
+  startPackInstall(p, v, ov) {
+    const body = ov.querySelector('.disc-body');
+    body.innerHTML = `
+      <div class="notice"><span class="notice-text"><b>Installing "${App.esc(p.title)}" replaces your server setup:</b><br>
+        · Server software becomes the pack's loader + Minecraft version<br>
+        · Your current <code>mods/</code> is set aside as <code>mods-backup-…/</code><br>
+        · The pack's config files overwrite matching ones (world, server.properties, whitelist and ops are never touched)<br>
+        · The server must stay stopped during the install</span></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0">
+        <input type="checkbox" id="disc-pack-backup" checked> Back up my world first (recommended)
+      </label>`;
+    const row = ov.querySelector('.disc-verrow');
+    row.innerHTML = `<button class="btn-primary btn-sm" id="disc-pack-go">Install ${App.esc(v.versionNumber)}</button>
+      <button class="btn-sm" id="disc-pack-cancel">Cancel</button>`;
+    row.querySelector('#disc-pack-cancel').onclick = () => ov.remove();
+    row.querySelector('#disc-pack-go').onclick = async () => {
+      const backupWorld = ov.querySelector('#disc-pack-backup').checked;
+      const r = await App.tryApi('/modrinth/modpack/install', { method: 'POST', body: { versionId: v.id, backupWorld } });
+      if (!r) return;
+      row.innerHTML = '';
+      body.innerHTML = `<div class="empty" id="disc-pack-prog">Starting…</div>
+        <p class="muted" style="font-size:12px">Progress also streams to the Console page.</p>`;
+      const prog = body.querySelector('#disc-pack-prog');
+      const timer = setInterval(async () => {
+        const s = await App.tryApi('/modrinth/modpack/status');
+        if (!s || !ov.isConnected) { if (!ov.isConnected) clearInterval(timer); return; }
+        if (s.running) {
+          const stepName = { download: 'Downloading pack', loader: 'Installing server', mods: 'Downloading mods', overrides: 'Applying configs' }[s.step] || s.step;
+          prog.textContent = `${stepName}… ${s.detail || ''}`;
+          return;
+        }
+        clearInterval(timer);
+        if (s.error) {
+          prog.innerHTML = `<span style="color:#f66">Install failed: ${App.esc(s.error)}</span><br>
+            <span class="muted" style="font-size:12px">Your world backup and mods-backup folder are untouched — restore mods via the Files page if needed.</span>`;
+          return;
+        }
+        const sum = s.summary || {};
+        prog.innerHTML = `✅ <b>${App.esc(sum.name || p.title)}</b> installed — ${App.esc(sum.loader || '')} ${App.esc(sum.mc || '')}.<br>
+          ${sum.installed} files installed${(sum.skipped || []).length ? `, ${sum.skipped.length} skipped:` : '.'}<br>
+          ${(sum.skipped || []).slice(0, 8).map(x => `<span class="muted" style="font-size:11px">· ${App.esc(x.file)} (${App.esc(x.reason)})</span>`).join('<br>')}
+          <br><b>Start the server to play.</b>`;
+        App.toast('Modpack installed — start the server');
+        if (this.hooks.onInstalled) this.hooks.onInstalled('mods');
+      }, 2000);
+    };
+  },
 
   // Escape-first markdown subset, then DOMParser whitelist rebuild for raw-HTML bodies.
   sanitizeBody(src) {
