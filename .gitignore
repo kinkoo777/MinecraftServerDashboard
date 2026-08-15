@@ -10,6 +10,7 @@ backups/
 # machine-local state
 config.json
 schedules.json
+schedule-presets.json
 security-report.json
 console-logs/
 *.log

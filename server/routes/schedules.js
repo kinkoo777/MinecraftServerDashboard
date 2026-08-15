@@ -3,6 +3,23 @@ const scheduler = require('../scheduler');
 
 const router = express.Router();
 
+const presets = require('../utils/schedule-presets');
+
+router.get('/presets', (req, res) => res.json(presets.list()));
+router.post('/presets', (req, res) => {
+  try { res.json(presets.saveCurrent(req.body.name)); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+router.post('/presets/:id/apply', (req, res) => {
+  const mode = req.body.mode === 'replace' ? 'replace' : 'add';
+  try { res.json(presets.apply(req.params.id, mode)); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+router.delete('/presets/:id', (req, res) => {
+  try { presets.remove(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
 function pick(body) {
   const s = {};
   const validTypes = ['daily', 'interval', 'once', 'cron'];
