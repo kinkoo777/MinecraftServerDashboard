@@ -109,7 +109,11 @@ App.discover = {
     if (s.category) params.set('category', s.category);
     const r = await App.tryApi(`/modrinth/search?${params}`);
     s.busy = false;
-    if (!r || !box.isConnected) return;
+    if (!r || !box.isConnected) {
+      const more = document.getElementById('disc-more');
+      if (more) { more.disabled = false; more.textContent = `Load more (${s.hits.length} of ${s.total})`; }
+      return;
+    }
     s.total = r.total;
     s.hits = s.hits.concat(r.hits);
     this.renderResults();
