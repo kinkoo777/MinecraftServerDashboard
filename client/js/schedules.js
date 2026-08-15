@@ -4,6 +4,14 @@ App.pages.schedules = {
   async render(el) {
     el.innerHTML = `
       <div class="page-head"><h1>Schedules</h1></div>
+      <div class="card" id="sc-presets-card">
+        <h2>Presets</h2>
+        <p class="muted" style="margin-bottom:10px;font-size:12px">One-click schedule bundles. <b>Add</b> appends to your current schedules; <b>Replace</b> swaps them out. Save your own with the button below.</p>
+        <div id="sc-presets">Loading…</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button id="sc-preset-save" class="btn-sm">${App.icon('plus', 12)} Save current as preset</button>
+        </div>
+      </div>
       <div class="card">
         <h2 id="sc-form-title">New scheduled task</h2>
         <div class="sched-form">
@@ -136,7 +144,51 @@ App.pages.schedules = {
     this._addTimeRow('04:00');
     syncFields();
 
+    await this.loadPresets();
     await this.load();
+  },
+
+  async loadPresets() {
+    const box = document.getElementById('sc-presets');
+    const list = await App.tryApi('/schedules/presets');
+    if (!box || !list) return;
+    box.innerHTML = list.map(p => `
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border,rgba(128,128,128,.2))">
+        <div style="flex:1;min-width:0">
+          <b>${App.esc(p.name)}</b> ${p.builtIn ? '' : '<span class="badge">custom</span>'}
+          <div class="muted" style="font-size:12px">${App.esc(p.description || '')}</div>
+          <div class="muted" style="font-size:11px;margin-top:2px">${p.tasks.map(t => this.describe(t)).join('<br>')}</div>
+        </div>
+        <button class="btn-sm" data-preset-add="${App.esc(p.id)}">Add</button>
+        <button class="btn-sm" data-preset-replace="${App.esc(p.id)}">Replace</button>
+        ${p.builtIn ? '' : `<button class="btn-icon btn-danger" title="Delete preset" data-preset-del="${App.esc(p.id)}">${App.icon('trash', 13)}</button>`}
+      </div>`).join('');
+    box.querySelectorAll('[data-preset-add]').forEach(b => {
+      b.onclick = () => this.applyPreset(b.dataset.presetAdd, 'add');
+    });
+    box.querySelectorAll('[data-preset-replace]').forEach(b => {
+      b.onclick = () => {
+        if (confirm('Replace ALL current schedules with this preset?')) this.applyPreset(b.dataset.presetReplace, 'replace');
+      };
+    });
+    box.querySelectorAll('[data-preset-del]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Delete this preset?')) return;
+        if (await App.tryApi(`/schedules/presets/${b.dataset.presetDel}`, { method: 'DELETE' }, 'Preset deleted')) this.loadPresets();
+      };
+    });
+    const save = document.getElementById('sc-preset-save');
+    if (save) save.onclick = async () => {
+      const name = prompt('Name for this preset (saves your current schedule list):');
+      if (name == null) return;
+      if (await App.tryApi('/schedules/presets', { method: 'POST', body: { name } }, 'Preset saved')) this.loadPresets();
+    };
+  },
+
+  async applyPreset(id, mode) {
+    const r = await App.tryApi(`/schedules/presets/${id}/apply`, { method: 'POST', body: { mode } },
+      mode === 'replace' ? 'Schedules replaced' : 'Preset added');
+    if (r) this.load();
   },
 
   // add one <input type="time"> row to the daily times list
