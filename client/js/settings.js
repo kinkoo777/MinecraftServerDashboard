@@ -88,7 +88,7 @@ App.pages.settings = {
           <p class="muted" style="margin-bottom:12px">Download a server jar from Paper or Mojang. Switching between Vanilla and Paper keeps your world, players and settings — only the server software changes. Server must be stopped.</p>
           <div class="btn-row" style="align-items:flex-end">
             <div class="field" style="margin:0"><label>Type</label>
-              <select id="jar-type" style="width:130px"><option value="paper">Paper</option><option value="vanilla">Vanilla</option></select></div>
+              <select id="jar-type" style="width:130px"><option value="paper">Paper</option><option value="vanilla">Vanilla</option><option value="fabric">Fabric (mods)</option><option value="neoforge">NeoForge (mods)</option><option value="forge">Forge (mods)</option></select></div>
             <div class="field" style="margin:0"><label>Version</label>
               <select id="jar-version" style="width:150px"><option value="">Loading…</option></select></div>
             <button id="jar-dl" class="btn-primary">${App.icon('download', 14)} Download</button>
@@ -99,6 +99,7 @@ App.pages.settings = {
             <span class="muted" style="font-size:12px">(overrides the dropdown)</span>
           </div>
           <div id="jar-state" style="margin-top:10px;font-size:12px"></div>
+          <div id="jar-java-hint" class="muted" style="font-size:11px;margin-top:4px"></div>
           <div class="hint muted" id="jar-note" style="margin-top:8px"></div>
         </div>
         <div class="card">
@@ -235,6 +236,7 @@ App.pages.settings = {
       document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
       document.getElementById('cfg-autoRestart').checked = cfg.autoRestart !== false;
       this.installedJar = cfg.installedJar || '';
+      this.modpackName = cfg.modpackName || '';
     }
     this.loadServers();
     this.loadPresets();
@@ -694,7 +696,23 @@ App.pages.settings = {
       verSel.innerHTML = versions[typeSel.value].map(v => `<option>${App.esc(v)}</option>`).join('');
     };
 
-    const cap = (t) => t === 'paper' ? 'Paper' : t === 'vanilla' ? 'Vanilla' : t;
+    const JAVA_FOR = (mc) => {
+      let m = String(mc).match(/^1\.(\d+)(?:\.(\d+))?/);
+      if (!m) return /^\d{2}\./.test(String(mc)) ? 21 : null;
+      const minor = +m[1], patch = +(m[2] || 0);
+      if (minor >= 21 || (minor === 20 && patch >= 5)) return 21;
+      if (minor >= 18) return 17;
+      if (minor === 17) return 16;
+      return 8;
+    };
+    const javaHint = () => {
+      const need = JAVA_FOR(verSel.value || '');
+      const el = document.getElementById('jar-java-hint');
+      if (el) el.innerHTML = need ? `Needs Java <b>${need}${need >= 17 ? '+' : ''}</b> — set the right Java path in Settings if yours is older.` : '';
+    };
+    verSel.onchange = javaHint;
+
+    const cap = (t) => ({ paper: 'Paper', vanilla: 'Vanilla', fabric: 'Fabric', neoforge: 'NeoForge', forge: 'Forge' })[t] || t;
     // Show what's installed now and, when the selected type differs, reassure the user
     // that downloading simply swaps the server software while keeping their world & settings.
     const showState = () => {
@@ -706,7 +724,7 @@ App.pages.settings = {
         if (!instType) {
           stateBox.innerHTML = `<span class="muted">No server jar installed yet — pick a type and version, then Download.</span>`;
         } else if (!switching) {
-          stateBox.innerHTML = `<span class="muted">Currently installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b>.</span>`;
+          stateBox.innerHTML = `<span class="muted">Currently installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b>${this.modpackName ? ` — via ${App.esc(this.modpackName)}` : ''}.</span>`;
         } else {
           stateBox.innerHTML = `<span style="color:var(--accent)">⇄ This switches <b>${cap(instType)} ${App.esc(instVer || '')} → ${cap(sel)}</b>. ` +
             `Just pick a version and Download — your world, players and settings are kept; only the server software is replaced.</span>`;
@@ -715,8 +733,9 @@ App.pages.settings = {
       if (btn) btn.innerHTML = `${App.icon('download', 14)} ${switching ? 'Switch to ' + cap(sel) : 'Download'}`;
     };
 
-    typeSel.onchange = () => { fill(); showState(); };
+    typeSel.onchange = () => { fill(); javaHint(); showState(); };
     fill();
+    javaHint();
     showState();
 
     btn.onclick = async () => {
@@ -738,6 +757,7 @@ App.pages.settings = {
         document.getElementById('cfg-jarFile').value = r.jarFile;
         document.getElementById('jar-custom').value = '';
         this.installedJar = `${typeSel.value} ${version}`;
+        this.modpackName = '';
         showState();
         this.checkUpdate();
       } else if (typeSel.value === 'paper') {

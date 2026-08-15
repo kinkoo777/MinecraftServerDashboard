@@ -64,6 +64,18 @@ App.wizard = {
             <b>Vanilla</b>
             <span class="wiz-choice-sub">The pure Mojang server, no plugins.</span>
           </button>
+          <button type="button" class="wiz-choice" data-type="fabric">
+            <b>Fabric</b>
+            <span class="wiz-choice-sub">Runs mods — the go-to for performance and quality-of-life mods.</span>
+          </button>
+          <button type="button" class="wiz-choice" data-type="neoforge">
+            <b>NeoForge</b>
+            <span class="wiz-choice-sub">Modern modded Minecraft — most big modpacks use this.</span>
+          </button>
+          <button type="button" class="wiz-choice" data-type="forge">
+            <b>Forge</b>
+            <span class="wiz-choice-sub">Classic modded — for older packs and mods.</span>
+          </button>
         </div>
         <div class="wiz-adv">
           <a id="wiz-adv-toggle">Choose a specific version…</a>
