@@ -15,6 +15,14 @@ const SLUG_RE = /^[a-zA-Z0-9\-_]{1,64}$/;
 const VERSION_ID_RE = /^[a-zA-Z0-9]{8}$/; // Modrinth version ids are 8-char base62
 const JAR_NAME_RE = /^[\w.\-+ ]{1,200}\.jar$/i;
 
+const UA_HEADERS = { 'User-Agent': `chunkdeck/${require('../../package.json').version} (chunkdeck.dev)` };
+const mrFetch = (url, opts = {}) => fetch(url, { ...opts, headers: { ...UA_HEADERS, ...(opts.headers || {}) } });
+const SORTS = ['relevance', 'downloads', 'updated', 'newest'];
+const PROJECT_TYPES = ['plugin', 'mod', 'modpack'];
+const GAME_VERSION_RE = /^[\w.\-]{1,32}$/;
+const CATEGORY_RE = /^[a-z0-9\-_]{1,32}$/i;
+let categoryCache = { at: 0, data: null };
+
 function dirFor(loader) {
   return path.join(serverDir(), MOD_LOADERS.includes(loader) ? 'mods' : 'plugins');
 }
@@ -37,7 +45,7 @@ async function downloadVersion(v, destDir) {
     throw Object.assign(new Error(`Refusing download from untrusted host: ${host}`), { status: 400 });
   }
   fs.mkdirSync(destDir, { recursive: true });
-  const dl = await fetch(file.url);
+  const dl = await mrFetch(file.url);
   if (!dl.ok) throw new Error(`Download failed (HTTP ${dl.status})`);
   await finished(Readable.fromWeb(dl.body).pipe(fs.createWriteStream(path.join(destDir, name))));
   return name;
@@ -45,20 +53,92 @@ async function downloadVersion(v, destDir) {
 
 router.get('/search', async (req, res) => {
   const q = String(req.query.q || '').slice(0, 100);
-  const loader = LOADERS.includes(req.query.loader) ? req.query.loader : 'paper';
-  const projectType = MOD_LOADERS.includes(loader) ? 'mod' : 'plugin';
-  const facets = JSON.stringify([[`project_type:${projectType}`], [`categories:${loader}`]]);
+  let loader = LOADERS.includes(req.query.loader) ? req.query.loader : null;
+  const type = PROJECT_TYPES.includes(req.query.type) ? req.query.type
+    : (MOD_LOADERS.includes(loader) ? 'mod' : 'plugin'); // legacy calls: infer from loader
+  if (!loader) loader = type === 'plugin' ? 'paper' : 'fabric';
+  const sort = SORTS.includes(req.query.sort) ? req.query.sort : 'relevance';
+  const offset = Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), 1000);
+  const facets = [[`project_type:${type}`], [`categories:${loader}`]];
+  if (GAME_VERSION_RE.test(req.query.gameVersion || '')) facets.push([`versions:${req.query.gameVersion}`]);
+  if (CATEGORY_RE.test(req.query.category || '')) facets.push([`categories:${req.query.category}`]);
   try {
-    const r = await fetch(`${API}/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent(facets)}&limit=12`);
+    const r = await mrFetch(`${API}/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent(JSON.stringify(facets))}&limit=20&offset=${offset}&index=${sort}`);
     if (!r.ok) return res.status(502).json({ error: `Modrinth search failed (HTTP ${r.status})` });
     const j = await r.json();
-    res.json((j.hits || []).map(h => ({
-      slug: h.slug,
-      title: h.title,
-      description: h.description,
-      icon: h.icon_url,
-      downloads: h.downloads
-    })));
+    res.json({
+      total: j.total_hits || 0,
+      hits: (j.hits || []).map(h => ({
+        slug: h.slug, title: h.title, description: h.description,
+        icon: h.icon_url, downloads: h.downloads
+      }))
+    });
+  } catch (e) {
+    res.status(502).json({ error: `Modrinth unreachable: ${e.message}` });
+  }
+});
+
+router.get('/categories', async (req, res) => {
+  const type = PROJECT_TYPES.includes(req.query.type) ? req.query.type : 'mod';
+  const now = Date.now();
+  if (categoryCache.at > now - 3600000 && categoryCache.data) {
+    return res.json(categoryCache.data[type] || []);
+  }
+  try {
+    const r = await mrFetch(`${API}/tag/category`);
+    if (!r.ok) return res.status(502).json({ error: `Modrinth categories failed (HTTP ${r.status})` });
+    const all = await r.json();
+    const data = {};
+    for (const t of PROJECT_TYPES) {
+      data[t] = all.filter(c => c.project_type === t && c.header === 'categories').map(c => c.name);
+    }
+    categoryCache = { at: now, data };
+    res.json(data[type] || []);
+  } catch (e) {
+    res.status(502).json({ error: `Modrinth unreachable: ${e.message}` });
+  }
+});
+
+router.get('/project/:slug', async (req, res) => {
+  if (!SLUG_RE.test(req.params.slug)) return res.status(400).json({ error: 'Invalid project slug' });
+  try {
+    const r = await mrFetch(`${API}/project/${req.params.slug}`);
+    if (r.status === 404) return res.status(404).json({ error: 'Project not found' });
+    if (!r.ok) return res.status(502).json({ error: `Modrinth lookup failed (HTTP ${r.status})` });
+    const p = await r.json();
+    res.json({
+      slug: p.slug, title: p.title, description: p.description, body: p.body || '',
+      icon: p.icon_url, downloads: p.downloads, followers: p.followers,
+      categories: p.categories || [], projectType: p.project_type,
+      gameVersions: p.game_versions || [], loaders: p.loaders || [],
+      sourceUrl: /^https:\/\//.test(p.source_url || '') ? p.source_url : null,
+      gallery: (p.gallery || [])
+        .filter(g => { try { return new URL(g.url).hostname.endsWith('modrinth.com'); } catch (e) { return false; } })
+        .slice(0, 12).map(g => ({ url: g.url, title: g.title || '' }))
+    });
+  } catch (e) {
+    res.status(502).json({ error: `Modrinth unreachable: ${e.message}` });
+  }
+});
+
+router.get('/project/:slug/versions', async (req, res) => {
+  if (!SLUG_RE.test(req.params.slug)) return res.status(400).json({ error: 'Invalid project slug' });
+  const qs = [];
+  if (LOADERS.includes(req.query.loader)) qs.push(`loaders=${encodeURIComponent(JSON.stringify([req.query.loader]))}`);
+  if (GAME_VERSION_RE.test(req.query.gameVersion || '')) qs.push(`game_versions=${encodeURIComponent(JSON.stringify([req.query.gameVersion]))}`);
+  try {
+    const r = await mrFetch(`${API}/project/${req.params.slug}/version${qs.length ? '?' + qs.join('&') : ''}`);
+    if (r.status === 404) return res.status(404).json({ error: 'Project not found' });
+    if (!r.ok) return res.status(502).json({ error: `Modrinth lookup failed (HTTP ${r.status})` });
+    const list = await r.json();
+    res.json((Array.isArray(list) ? list : []).slice(0, 50).map(v => {
+      const f = (v.files || []).find(x => x.primary) || (v.files || [])[0] || {};
+      return {
+        id: v.id, versionNumber: v.version_number, versionType: v.version_type,
+        gameVersions: v.game_versions || [], loaders: v.loaders || [],
+        datePublished: v.date_published, size: f.size || 0
+      };
+    }));
   } catch (e) {
     res.status(502).json({ error: `Modrinth unreachable: ${e.message}` });
   }
@@ -89,7 +169,7 @@ router.get('/check-updates', async (req, res) => {
 
   let matchMap = {};
   try {
-    const r = await fetch(`${API}/version_files`, {
+    const r = await mrFetch(`${API}/version_files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hashes: Object.values(hashes), algorithm: 'sha1' })
@@ -112,7 +192,7 @@ router.get('/check-updates', async (req, res) => {
   const meta = {};
   if (projectIds.size) {
     try {
-      const r = await fetch(`${API}/projects?ids=${encodeURIComponent(JSON.stringify([...projectIds]))}`);
+      const r = await mrFetch(`${API}/projects?ids=${encodeURIComponent(JSON.stringify([...projectIds]))}`);
       if (r.ok) for (const p of await r.json()) meta[p.id] = { slug: p.slug, title: p.title };
     } catch (e) { /* names are nice-to-have */ }
   }
@@ -128,7 +208,7 @@ router.get('/check-updates', async (req, res) => {
     const q = loaders ? `?loaders=${encodeURIComponent(JSON.stringify(loaders))}` : '';
     let newest = null;
     try {
-      const r = await fetch(`${API}/project/${v.project_id}/version${q}`);
+      const r = await mrFetch(`${API}/project/${v.project_id}/version${q}`);
       if (r.ok) { const vs = await r.json(); newest = Array.isArray(vs) && vs.length ? vs[0] : null; }
     } catch (e) { /* leave null — reported as no update */ }
     latestCache[key] = newest;
@@ -170,17 +250,19 @@ router.post('/install', async (req, res) => {
     let v;
     if (versionId != null && versionId !== '') {
       if (!VERSION_ID_RE.test(versionId)) return res.status(400).json({ error: 'Invalid version id' });
-      const r = await fetch(`${API}/version/${versionId}`);
+      const r = await mrFetch(`${API}/version/${versionId}`);
       if (r.status === 404) return res.status(404).json({ error: 'Version not found' });
       if (!r.ok) return res.status(502).json({ error: `Modrinth lookup failed (HTTP ${r.status})` });
       v = await r.json();
     } else {
       if (!SLUG_RE.test(slug || '')) return res.status(400).json({ error: 'Invalid project slug' });
-      const r = await fetch(`${API}/project/${slug}/version?loaders=${encodeURIComponent(JSON.stringify([loader]))}`);
+      const gv = GAME_VERSION_RE.test(req.body.gameVersion || '') ? req.body.gameVersion : null;
+      const q = `loaders=${encodeURIComponent(JSON.stringify([loader]))}` + (gv ? `&game_versions=${encodeURIComponent(JSON.stringify([gv]))}` : '');
+      const r = await mrFetch(`${API}/project/${slug}/version?${q}`);
       if (!r.ok) return res.status(502).json({ error: `Modrinth lookup failed (HTTP ${r.status})` });
       const versions = await r.json();
       if (!Array.isArray(versions) || !versions.length) {
-        return res.status(404).json({ error: `No ${loader}-compatible version found` });
+        return res.status(404).json({ error: `No ${loader}${gv ? ' / MC ' + gv : ''}-compatible version found` });
       }
       v = versions[0]; // Modrinth returns newest first
     }
