@@ -52,6 +52,7 @@ App.discover = {
           : (this.ctx.modded ? this.ctx.type : 'fabric');
         this.renderShell();
         this.loadCategories();
+        this.state.busy = false;
         this.search(true);
       };
     });
@@ -132,7 +133,7 @@ App.discover = {
         ? `<button class="btn-sm disc-more" id="disc-more">Load more (${s.hits.length} of ${s.total})</button>`
         : `<div class="muted disc-total" style="text-align:center;margin-top:8px">${s.hits.length} of ${s.total}</div>`);
     const more = document.getElementById('disc-more');
-    if (more) more.onclick = () => { s.offset += 20; this.search(false); };
+    if (more) more.onclick = () => { more.disabled = true; more.textContent = 'Loading…'; s.offset += 20; this.search(false); };
     box.querySelectorAll('[data-install]').forEach(b => { b.onclick = () => this.quickInstall(b); });
     box.querySelectorAll('[data-details]').forEach(b => { b.onclick = () => this.openDetails(b.dataset.details); });
   },
