@@ -1244,3 +1244,25 @@ body.light .auth-card { box-shadow: 0 20px 60px rgba(16, 24, 40, 0.15); }
   .ram-picker { grid-template-columns: 1fr; }
   .ram-adv { grid-template-columns: 1fr; }
 }
+
+/* ── Content hub / Discover ── */
+.disc-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.disc-tab { padding: 7px 14px; border-radius: 8px; background: none; border: 1px solid var(--border); cursor: pointer; color: var(--text); font-size: 13px; }
+.disc-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.disc-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.disc-controls input { flex: 1; min-width: 140px; }
+.disc-controls select { width: auto; max-width: 160px; }
+.disc-more { display: block; margin: 10px auto 2px; }
+.disc-total { font-size: 11px; }
+.disc-modal-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px; }
+.disc-modal-head img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
+.disc-body { font-size: 13px; line-height: 1.55; max-height: 320px; overflow-y: auto; margin: 10px 0; }
+.disc-body img { max-width: 100%; border-radius: 6px; }
+.disc-body pre { overflow-x: auto; background: var(--bg2, rgba(128,128,128,.1)); padding: 8px; border-radius: 6px; }
+.disc-body h1, .disc-body h2, .disc-body h3 { font-size: 15px; margin: 10px 0 4px; }
+.disc-gallery { display: flex; gap: 8px; overflow-x: auto; margin: 8px 0; }
+.disc-gallery img { height: 74px; border-radius: 6px; cursor: pointer; }
+.disc-verrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.disc-verrow select { flex: 1; min-width: 180px; }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10px; border: 1px solid var(--border); }
+.badge.release { color: var(--ok, #3fb950); } .badge.beta { color: orange; } .badge.alpha { color: #f66; }
