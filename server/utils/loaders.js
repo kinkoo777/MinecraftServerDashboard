@@ -3,7 +3,7 @@ const NEOFORGE_API = 'https://maven.neoforged.net/api/maven/versions/releases/ne
 const NEOFORGE_DL = 'https://maven.neoforged.net/releases/net/neoforged/neoforge';
 const FORGE_PROMOS = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
 const FORGE_DL = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
-const UA = { headers: { 'User-Agent': 'chunkdeck/1.1.0 (chunkdeck.dev)' } };
+const UA = { headers: { 'User-Agent': `chunkdeck/${require('../../package.json').version} (chunkdeck.dev)` } };
 
 const MODDED_TYPES = ['fabric', 'neoforge', 'forge'];
 

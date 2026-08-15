@@ -121,13 +121,15 @@ After the first time the setup is remembered, so it's a single click to go onlin
 - **Run command** or **Announce** a message on a timer
 - Tick **only when empty** so restarts never interrupt players
 
+Save your whole setup as a **preset** to reuse later, or start from a built-in bundle (Daily maintenance, Frequent backups, Public server, Low-maintenance) — apply one to add to your current schedules or replace them outright.
+
 You can also get a **Discord** message or **phone push (ntfy)** when the server starts, crashes, a player joins, or a backup finishes — set these in **Settings**.
 
 ---
 
 ## 🧩 Plugins & mods
 
-On the **Plugins** page you can **search Modrinth and install** plugins/mods with one click, or upload your own `.jar` files. Plugins need a **Paper** server; mods need **Fabric** or **Forge**. Restart the server after adding them.
+On the **Content** page you can **search Modrinth and install** plugins, mods and full **modpacks** with one click, browse project details (description, gallery, versions) first, or upload your own `.jar` files. Plugins need a **Paper** server; mods need **Fabric**, **NeoForge** or **Forge**. A modpack install sets up the matching loader server, mods and config overrides together — just press **Start** when it finishes. For individual plugins/mods, restart the server after adding them.
 
 ---
 
@@ -141,6 +143,12 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.1.0
+- **Modded servers** — install and update **Fabric**, **NeoForge** and **Forge** servers alongside Paper/Vanilla, right from the setup wizard and jar picker
+- **Content hub** — the Plugins page is now **Content**: browse, filter and search Modrinth for plugins, mods and modpacks, with project detail pages (description, gallery, versions) and one-click install
+- **Modpack installs** — pick a Modrinth modpack and the dashboard sets up the matching loader server, downloads and verifies every mod, and applies config overrides in one job
+- **Schedule presets** — save your schedule setup as a reusable preset, or start from a built-in bundle (daily maintenance, frequent backups, public server, low-maintenance)
+
 ### v1.0.6
 - **New logo** — replaced the placeholder grass-block icon with the official ChunkDeck mark everywhere it appears: favicon, sidebar, setup wizard, PWA icon, and the MOTD/plugin-search placeholders
 - **Auto-patched dependencies** — `start.bat` and `start.sh` now run `npm audit fix` on every launch, automatically applying non-breaking security fixes for known vulnerabilities in the background (silently skipped if you're offline)
@@ -153,12 +161,13 @@ See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/rele
 
 - **One-click controls** — start / stop / restart, with **auto-restart on crash**
 - **Live console** — real-time log over WebSocket, command input with history, saved logs of past runs
-- **Server downloader & update checker** — install Paper/Vanilla in a click; get told when a newer build exists
+- **Server downloader & update checker** — install Paper, Vanilla, Fabric, NeoForge or Forge in a click; get told when a newer build exists
+- **Content hub** — browse, filter and search Modrinth for plugins, mods and modpacks with project details (description, gallery, versions) and one-click install, including full **modpack** installs that set up the loader server, mods and overrides together
 - **Self-updating dashboard** — one-click in-place updates from GitHub Releases, keeping your world, config and backups intact
 - **Players** — online / whitelist / ops / banned lists, an **inventory viewer** with real item icons, playtime/deaths/kills **stats**, a **leaderboard**, admin **notes**, and actions: op, whitelist, ban, kick, heal, feed, kill, gamemode, teleport, give items (whitelist/op/ban editing works even while the server is stopped)
 - **Settings** — Java/RAM options, full `server.properties` editor with typed controls and presets, config export/import
 - **Backups** — one-click zip backups with retention, restore, download
-- **Schedules** — daily/interval restart, backup, command and announcement tasks with in-game warnings
+- **Schedules** — daily/interval restart, backup, command and announcement tasks with in-game warnings, plus **presets** to save your own schedule bundle or start from a built-in one
 - **Play Online** — one-click free internet access via playit.gg
 - **History** — daily reports (peak/avg players, uptime, crashes, who played) with per-hour graphs, kept 120 days
 - **Multiple server profiles** — run survival, creative, modded… and switch between them
