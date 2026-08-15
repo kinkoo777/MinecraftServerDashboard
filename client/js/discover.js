@@ -228,7 +228,7 @@ App.discover = {
     const html = looksHtml ? src : this.miniMarkdown(src);
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const ALLOW = new Set(['P', 'BR', 'A', 'IMG', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'B', 'STRONG', 'I', 'EM', 'CODE', 'PRE', 'BLOCKQUOTE', 'HR', 'DETAILS', 'SUMMARY', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'CENTER', 'DIV', 'SPAN']);
-    const okImg = (u) => { try { const h = new URL(u, location.href).hostname; return h.endsWith('modrinth.com') || h.endsWith('githubusercontent.com'); } catch (e) { return false; } };
+    const okImg = (u) => { try { const h = new URL(u, location.href).hostname; return h === 'modrinth.com' || h.endsWith('.modrinth.com') || h === 'githubusercontent.com' || h.endsWith('.githubusercontent.com'); } catch (e) { return false; } };
     const okHref = (u) => { try { return new URL(u, location.href).protocol === 'https:'; } catch (e) { return false; } };
     const walk = (node, out) => {
       for (const child of node.childNodes) {

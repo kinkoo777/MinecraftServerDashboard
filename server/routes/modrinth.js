@@ -41,7 +41,7 @@ async function downloadVersion(v, destDir) {
   try { host = new URL(file.url).hostname; } catch (e) {
     throw Object.assign(new Error('Invalid download URL from Modrinth'), { status: 400 });
   }
-  if (!host.endsWith('modrinth.com')) {
+  if (!(host === 'modrinth.com' || host.endsWith('.modrinth.com'))) {
     throw Object.assign(new Error(`Refusing download from untrusted host: ${host}`), { status: 400 });
   }
   fs.mkdirSync(destDir, { recursive: true });
@@ -113,7 +113,7 @@ router.get('/project/:slug', async (req, res) => {
       gameVersions: p.game_versions || [], loaders: p.loaders || [],
       sourceUrl: /^https:\/\//.test(p.source_url || '') ? p.source_url : null,
       gallery: (p.gallery || [])
-        .filter(g => { try { return new URL(g.url).hostname.endsWith('modrinth.com'); } catch (e) { return false; } })
+        .filter(g => { try { const h = new URL(g.url).hostname; return h === 'modrinth.com' || h.endsWith('.modrinth.com'); } catch (e) { return false; } })
         .slice(0, 12).map(g => ({ url: g.url, title: g.title || '' }))
     });
   } catch (e) {
