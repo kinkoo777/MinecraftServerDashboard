@@ -73,6 +73,8 @@ class MinecraftServer extends EventEmitter {
 
   start(config) {
     if (this.proc) throw new Error('Server is already running');
+    const mrpack = require('./utils/mrpack');
+    if (mrpack.isRunning()) { const err = new Error('A modpack install is in progress — wait for it to finish'); err.status = 409; throw err; }
     // Cancel any pending auto-restart so it can't fire a duplicate start().
     clearTimeout(this.restartTimer);
     this.restartTimer = null;

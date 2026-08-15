@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { Readable } = require('stream');
 const { finished } = require('stream/promises');
 const { serverDir } = require('../config');
+const mrpack = require('../utils/mrpack');
 
 const router = express.Router();
 
@@ -283,5 +284,12 @@ router.post('/install', async (req, res) => {
     res.status(e.status || 502).json({ error: e.message });
   }
 });
+
+router.post('/modpack/install', async (req, res) => {
+  try { res.json(await mrpack.install({ versionId: req.body.versionId, backupWorld: req.body.backupWorld !== false })); }
+  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+router.get('/modpack/status', (req, res) => res.json(mrpack.status()));
 
 module.exports = router;
