@@ -1,7 +1,7 @@
 // Discover zone for the Content page — browse Modrinth (plugins/mods/modpacks).
 App.discover = {
   ctx: null, hooks: null, root: null,
-  state: { tab: 'plugins', q: '', sort: 'relevance', category: '', gameVersion: '', loader: 'paper', offset: 0, total: 0, hits: [], busy: false },
+  state: { tab: 'plugins', q: '', sort: 'relevance', category: '', gameVersion: '', loader: 'paper', offset: 0, total: 0, hits: [], busy: false, reqId: 0 },
   LOADERS: { plugins: ['paper', 'spigot', 'bukkit'], mods: ['fabric', 'neoforge', 'forge'], modpacks: ['fabric', 'neoforge', 'forge'] },
   TYPE: { plugins: 'plugin', mods: 'mod', modpacks: 'modpack' },
 
@@ -52,7 +52,6 @@ App.discover = {
           : (this.ctx.modded ? this.ctx.type : 'fabric');
         this.renderShell();
         this.loadCategories();
-        this.state.busy = false;
         this.search(true);
       };
     });
@@ -96,7 +95,7 @@ App.discover = {
 
   async search(reset) {
     const s = this.state;
-    if (s.busy) return;
+    const myReq = ++s.reqId;
     s.busy = true;
     if (reset) { s.offset = 0; s.hits = []; }
     s.q = (document.getElementById('disc-q') || { value: s.q }).value.trim();
@@ -108,6 +107,7 @@ App.discover = {
     if (s.gameVersion) params.set('gameVersion', s.gameVersion);
     if (s.category) params.set('category', s.category);
     const r = await App.tryApi(`/modrinth/search?${params}`);
+    if (myReq !== s.reqId) return; // a newer search superseded this one — do nothing at all, not even cleanup
     s.busy = false;
     if (!r || !box.isConnected) {
       const more = document.getElementById('disc-more');
