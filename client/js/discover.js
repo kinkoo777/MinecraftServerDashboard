@@ -158,5 +158,132 @@ App.discover = {
     }
   },
 
-  openDetails(slug) { App.toast('Details view lands in the next commit'); }
+  async openDetails(slug) {
+    const [p, versions] = await Promise.all([
+      App.tryApi(`/modrinth/project/${encodeURIComponent(slug)}`),
+      App.tryApi(`/modrinth/project/${encodeURIComponent(slug)}/versions?` + new URLSearchParams({
+        ...(this.state.tab !== 'modpacks' ? { loader: this.state.loader } : {}),
+        ...(this.state.gameVersion ? { gameVersion: this.state.gameVersion } : {})
+      }))
+    ]);
+    if (!p) return;
+    const vlist = versions || [];
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal" style="max-width:640px">
+        <div class="disc-modal-head">
+          <img src="${p.icon ? App.esc(p.icon) : 'icon.png'}" alt="">
+          <div style="flex:1;min-width:0">
+            <h2 style="margin:0">${App.esc(p.title)}</h2>
+            <div class="muted" style="font-size:12px">${(p.downloads / 1000).toFixed(0)}k downloads · ${p.followers} followers
+              ${p.sourceUrl ? ` · <a href="${App.esc(p.sourceUrl)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
+            <div style="margin-top:4px">${(p.categories || []).slice(0, 6).map(c => `<span class="badge">${App.esc(c)}</span>`).join(' ')}</div>
+          </div>
+          <button class="btn-icon" id="disc-close" title="Close">✕</button>
+        </div>
+        ${p.gallery.length ? `<div class="disc-gallery">${p.gallery.map(g =>
+          `<img src="${App.esc(g.url)}" title="${App.esc(g.title)}" loading="lazy" data-full="${App.esc(g.url)}">`).join('')}</div>` : ''}
+        <div class="disc-body">${this.sanitizeBody(p.body || p.description || '')}</div>
+        <div class="disc-verrow">
+          <select id="disc-ver">${vlist.length ? vlist.map(v => `
+            <option value="${App.esc(v.id)}">${App.esc(v.versionNumber)} — MC ${App.esc((v.gameVersions || []).slice(-1)[0] || '?')} · ${App.esc((v.loaders || []).join('/'))} · ${App.esc(v.versionType)}</option>`).join('')
+            : '<option value="">No compatible versions</option>'}</select>
+          <button class="btn-primary btn-sm" id="disc-install" ${vlist.length ? '' : 'disabled'}>
+            ${p.projectType === 'modpack' ? 'Install modpack…' : 'Install'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelector('#disc-close').onclick = () => ov.remove();
+    ov.querySelectorAll('.disc-gallery img').forEach(img => { img.onclick = () => window.open(img.dataset.full, '_blank', 'noopener'); });
+    ov.querySelector('#disc-install').onclick = () => {
+      const versionId = ov.querySelector('#disc-ver').value;
+      const v = vlist.find(x => x.id === versionId);
+      if (!versionId || !v) return;
+      if (p.projectType === 'modpack') this.startPackInstall(p, v, ov);
+      else this.installVersion(p, v, ov.querySelector('#disc-install'));
+    };
+  },
+
+  async installVersion(p, v, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Installing…';
+    const loader = (v.loaders || []).includes(this.state.loader) ? this.state.loader : (v.loaders || [])[0];
+    const r = await App.tryApi('/modrinth/install', { method: 'POST', body: { loader, versionId: v.id } });
+    btn.disabled = false;
+    btn.textContent = r ? 'Installed ✓' : 'Install';
+    if (r) {
+      App.toast(`Installed ${r.file} (${r.version}) — restart the server to load it`);
+      const dir = ['fabric', 'neoforge', 'forge'].includes(loader) ? 'mods' : 'plugins';
+      if (this.hooks.onInstalled) this.hooks.onInstalled(dir);
+    }
+  },
+
+  startPackInstall() { App.toast('Modpack install lands in an upcoming commit'); },
+
+  // Escape-first markdown subset, then DOMParser whitelist rebuild for raw-HTML bodies.
+  sanitizeBody(src) {
+    const looksHtml = /<\/?[a-z][\s\S]*>/i.test(src);
+    const html = looksHtml ? src : this.miniMarkdown(src);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const ALLOW = new Set(['P', 'BR', 'A', 'IMG', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'B', 'STRONG', 'I', 'EM', 'CODE', 'PRE', 'BLOCKQUOTE', 'HR', 'DETAILS', 'SUMMARY', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'CENTER', 'DIV', 'SPAN']);
+    const okImg = (u) => { try { const h = new URL(u, location.href).hostname; return h.endsWith('modrinth.com') || h.endsWith('githubusercontent.com'); } catch (e) { return false; } };
+    const okHref = (u) => { try { return new URL(u, location.href).protocol === 'https:'; } catch (e) { return false; } };
+    const walk = (node, out) => {
+      for (const child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) { out.appendChild(document.createTextNode(child.textContent)); continue; }
+        if (child.nodeType !== Node.ELEMENT_NODE) continue;
+        if (!ALLOW.has(child.tagName)) { walk(child, out); continue; } // unwrap unknown tags, keep their text
+        const el = document.createElement(child.tagName.toLowerCase());
+        if (child.tagName === 'A' && okHref(child.getAttribute('href') || '')) {
+          el.setAttribute('href', child.getAttribute('href'));
+          el.setAttribute('target', '_blank');
+          el.setAttribute('rel', 'noopener');
+        }
+        if (child.tagName === 'IMG') {
+          const src2 = child.getAttribute('src') || '';
+          if (!okImg(src2)) continue; // drop the image entirely
+          el.setAttribute('src', src2);
+          el.setAttribute('loading', 'lazy');
+          if (child.getAttribute('alt')) el.setAttribute('alt', child.getAttribute('alt'));
+        }
+        walk(child, el);
+        out.appendChild(el);
+      }
+    };
+    const out = document.createElement('div');
+    walk(doc.body, out);
+    return out.innerHTML;
+  },
+
+  // Minimal markdown for md-only bodies: headings, bold/italic, inline code, fenced code,
+  // links, images, unordered lists, paragraphs. Input is escaped FIRST so nothing injects.
+  miniMarkdown(src) {
+    const esc = App.esc(src);
+    const lines = esc.split(/\r?\n/);
+    let out = [], inCode = false, inList = false;
+    const inline = (t) => t
+      .replace(/!\[([^\]]*)\]\((https:[^)\s]+)\)/g, '<img src="$2" alt="$1">')
+      .replace(/\[([^\]]+)\]\((https:[^)\s]+)\)/g, '<a href="$2">$1</a>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+    for (const line of lines) {
+      if (/^```/.test(line)) { out.push(inCode ? '</pre>' : '<pre>'); inCode = !inCode; continue; }
+      if (inCode) { out.push(line); continue; }
+      const h = line.match(/^(#{1,6})\s+(.*)/);
+      if (h) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); continue; }
+      if (/^\s*[-*]\s+/.test(line)) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push(`<li>${inline(line.replace(/^\s*[-*]\s+/, ''))}</li>`);
+        continue;
+      }
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push(line.trim() ? `<p>${inline(line)}</p>` : '');
+    }
+    if (inList) out.push('</ul>');
+    if (inCode) out.push('</pre>');
+    return out.join('\n');
+  }
 };
