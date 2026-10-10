@@ -143,18 +143,15 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.2.1
+- **On-screen messages** — type a message on the Dashboard and press **Show to all**: it appears in the middle of every player's screen (a title, not a chat line)
+
 ### v1.2.0
 - **Java installs itself** — if Java is missing or too old for your Minecraft version, the dashboard downloads the right one into its own `java/` folder on first start and whenever a server needs a newer one. No admin rights, Homebrew or PATH setup; Minecraft 26.x now correctly gets Java 25
 - **Folder uploads** — the Files page has an **Upload folder** button and accepts drag-and-drop of files or whole folders, keeping the folder structure
 - **Remote access link survives restarts** — the Cloudflare tunnel keeps running when the dashboard is closed, so the link stays the same until you turn it off or restart the computer
 - **Modded server fixes** — online players now show on Forge 26.x, "Quick setup" no longer reappears after installing Forge/NeoForge, worlds created on Paper 26.x load on Forge/NeoForge/Fabric/Vanilla, and a server that can't load its world is stopped instead of hanging on "Starting up…"
 - **Settings polish** — the server software picker opens on what's actually installed, with less text; the dashboard status pill matches the buttons next to it
-
-### v1.1.0
-- **Modded servers** — install and update **Fabric**, **NeoForge** and **Forge** servers alongside Paper/Vanilla, right from the setup wizard and jar picker
-- **Content hub** — the Plugins page is now **Content**: browse, filter and search Modrinth for plugins, mods and modpacks, with project detail pages (description, gallery, versions) and one-click install
-- **Modpack installs** — pick a Modrinth modpack and the dashboard sets up the matching loader server, downloads and verifies every mod, and applies config overrides in one job
-- **Schedule presets** — save your schedule setup as a reusable preset, or start from a built-in bundle (daily maintenance, frequent backups, public server, low-maintenance)
 
 See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/releases) for older versions.
 

@@ -26,6 +26,10 @@ App.pages.dashboard = {
             <button id="db-stop" class="btn-danger">${App.icon('stop', 14)} Stop</button>
             <button id="db-restart">${App.icon('restart', 14)} Restart</button>
           </div>
+          <div class="btn-row" style="margin-top:12px;flex-wrap:nowrap">
+            <input id="db-announce" maxlength="100" placeholder="Message on everyone's screen (not in chat)" style="flex:1;min-width:0">
+            <button id="db-announce-send">Show to all</button>
+          </div>
         </div>`,
       connect: `
         <div class="card" id="db-connect">
@@ -209,6 +213,21 @@ App.pages.dashboard = {
       if (!confirmIfPlayers('Restarting the server')) return;
       App.tryApi('/server/restart', { method: 'POST' }, 'Restarting server…');
     };
+
+    const annInput = document.getElementById('db-announce');
+    const annSend = document.getElementById('db-announce-send');
+    if (annInput && annSend) {
+      const send = async () => {
+        const message = annInput.value.trim();
+        if (!message) return annInput.focus();
+        const r = await App.tryApi('/server/announce', { method: 'POST', body: { message } });
+        if (!r) return;
+        annInput.value = '';
+        App.toast(r.players ? `Shown to ${r.players} player${r.players === 1 ? '' : 's'}` : 'Sent — but nobody is online to see it');
+      };
+      annSend.onclick = send;
+      annInput.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+    }
 
     document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
       b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); App.toast('Copied ' + b.dataset.copy); });
@@ -404,6 +423,10 @@ App.pages.dashboard = {
     if (stop) stop.disabled = status === 'offline' || status === 'stopping';
     const restart = document.getElementById('db-restart');
     if (restart) restart.disabled = status !== 'online';
+    for (const id of ['db-announce', 'db-announce-send']) {
+      const el = document.getElementById(id);
+      if (el) el.disabled = status !== 'online';
+    }
     if (status === 'offline') this.checkSetup();
   },
 
