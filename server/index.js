@@ -133,19 +133,37 @@ setInterval(() => {
   if (!mc.lastTpsAt) tpsMisses++;
 }, 60000);
 
+// Online-player reconcile: the join/leave log lines are the live signal, this catches
+// anything they miss (modded servers that reword or hide those messages)
+mc.on('status', (s) => { if (s === 'online') setTimeout(() => mc.pollPlayers(), 5000); });
+setInterval(() => mc.pollPlayers(), 30000);
+
 const PORT = process.env.PORT || getConfig().dashboardPort || 8080;
 serverDir(); // ensure mc-server folder exists
 server.listen(PORT, () => {
   let version = 'unknown';
   try { version = require('./utils/updater').getCurrentVersion(); } catch (_) {}
   console.log(`ChunkDeck v${version} running at http://localhost:${PORT}`);
+  // First run: fetch Java in the background when there is none (or it's too old for
+  // the installed server), so the first Start doesn't have to wait for the download.
+  const { requiredJava } = require('./utils/loaders');
+  const mcVer = (getConfig().installedJar || '').split(' ')[1];
+  require('./utils/java').ensure(mcVer ? requiredJava(mcVer) : null, (line) => {
+    console.log(line.replace('[dashboard] ', ''));
+    mc.pushLog(line);
+  }).catch((e) => {
+    const line = `[dashboard] Could not install Java automatically: ${e.message}`;
+    console.log(line.replace('[dashboard] ', ''));
+    mc.pushLog(line);
+  });
 });
 
 // Stop the MC server cleanly when the dashboard is closed.
 // Handle both SIGINT (Ctrl-C) and SIGTERM (systemd/docker stop).
 async function shutdown() {
   playit.stop();
-  cf.stop();
+  // the Cloudflare tunnel is left running on purpose, so the remote link stays the
+  // same across dashboard restarts (Settings → Turn off ends it)
   if (mc.status !== 'offline') await mc.stop(); // server exit already saves the console log
   else mc.saveConsoleLog('shutdown');
   process.exit(0);

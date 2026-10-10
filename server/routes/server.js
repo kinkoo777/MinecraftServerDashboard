@@ -10,6 +10,8 @@ const { levelName } = require('../utils/backup');
 const { readProperties } = require('../utils/properties');
 const history = require('../history');
 const { checkJarUpdate, downloadJar } = require('../utils/jars');
+const { resolveLaunch, requiredJava } = require('../utils/loaders');
+const java = require('../utils/java');
 
 const router = express.Router();
 
@@ -77,7 +79,7 @@ router.get('/status', (req, res) => {
     status: mc.status,
     players: [...mc.players],
     uptime: mc.uptime,
-    jarExists: fs.existsSync(path.join(serverDir(), cfg.jarFile)),
+    jarExists: !!resolveLaunch(serverDir(), cfg), // "a server is installed" — not necessarily a jar (Forge/NeoForge argfile)
     jarFile: cfg.jarFile,
     eula: eulaState(),
     crashGaveUp: mc.crashGaveUp
@@ -140,8 +142,8 @@ router.post('/start', (req, res) => {
 
 async function startWithUpdate() {
   const installed = getConfig().installedJar; // e.g. "vanilla 1.21.4" or "paper 1.21.4 132" or ""
+  mc.setStatus('starting'); // disable Start button on the client right away
   if (installed) {
-    mc.setStatus('starting'); // disable Start button on the client right away
     mc.pushLog('[dashboard] Checking for updates…');
     try {
       const info = await checkJarUpdate(installed);
@@ -166,6 +168,16 @@ async function startWithUpdate() {
       mc.pushLog(`[dashboard] Update check failed: ${e.message} — starting with current jar`);
     }
   }
+  // Java missing or too old for this Minecraft version? Download a suitable one first.
+  if (resolveLaunch(serverDir(), getConfig())) {
+    const mcVer = (getConfig().installedJar || '').split(' ')[1];
+    try {
+      await java.ensure(mcVer ? requiredJava(mcVer) : null, msg => mc.pushLog(msg));
+    } catch (e) {
+      mc.pushLog(`[dashboard] Could not install Java automatically: ${e.message}`);
+    }
+  }
+  if (mc.status !== 'starting' || mc.proc) return; // stopped (or started elsewhere) while we were downloading
   mc.start(getConfig()); // re-reads config so updated jarFile / installedJar is picked up
 }
 

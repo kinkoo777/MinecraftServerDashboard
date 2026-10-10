@@ -7,8 +7,21 @@ const LOG_DIR = path.join(__dirname, '..', 'console-logs');
 const MAX_SAVED_LOGS = 30;
 
 const DONE_RE = /\]: Done \([\d.,]+s\)!/;
-const JOIN_RE = /\]: ([A-Za-z0-9_]+)(?: \[[^\]]*\])? joined the game/;
-const LEAVE_RE = /\]: ([A-Za-z0-9_]+) left the game/;
+// Player presence. Forge 26.x logs server messages as "]: System chat: Steve joined
+// the game", so that prefix is optional everywhere. "joined/left the game" are chat
+// broadcasts that mods may reword or hide, so the server's own connection log lines
+// ("logged in with entity id", "lost connection") count as well, and a background
+// `list` poll (see pollPlayers) corrects anything both miss.
+// A leading . or * is the Floodgate/Geyser prefix for Bedrock players.
+const NAME = '[.*]?[A-Za-z0-9_]{1,16}';
+const MSG = '\\]: (?:System chat: )?';
+const JOIN_RE = new RegExp(`${MSG}(${NAME})(?: \\[[^\\]]*\\])?(?: \\(formerly known as [^)]*\\))? joined the game`);
+const LOGIN_RE = new RegExp(`\\]: (${NAME})\\[[^\\]]*\\] logged in with entity id`);
+const LEAVE_RE = new RegExp(`${MSG}(${NAME}) (?:left the game|lost connection:)`);
+const LIST_RE = new RegExp(`${MSG}There are (\\d+) of a max(?: of)? \\d+ players online:?\\s*(.*)$`);
+const NAME_RE = new RegExp(`^${NAME}$`);
+// Forge/NeoForge log this when the world can't be loaded, then leave the JVM running forever
+const BOOT_FAIL_RE = /Failed to load datapacks, can't proceed with server load/;
 const TICK_RE = /Average time per tick: ([\d.]+)\s*ms/i;
 
 class MinecraftServer extends EventEmitter {
@@ -26,6 +39,9 @@ class MinecraftServer extends EventEmitter {
     this.crashGaveUp = false; // true when auto-restart bailed out after repeated quick crashes
     this.lastTps = null;
     this.lastTpsAt = 0;
+    this.listAskedAt = 0;     // when the last background `list` was sent, 0 once answered
+    this.listMisses = 0;      // unanswered polls in a row; polling stops after 3
+    this.bootFailTimer = null;
   }
 
   setStatus(s) {
@@ -40,26 +56,70 @@ class MinecraftServer extends EventEmitter {
     this.emit('log', line);
   }
 
+  playerJoined(name) {
+    if (this.players.has(name)) return;
+    this.players.add(name);
+    this.emit('players', [...this.players]);
+    this.emit('join', name);
+  }
+
+  playerLeft(name) {
+    if (!this.players.delete(name)) return;
+    this.emit('players', [...this.players]);
+    this.emit('leave', name);
+  }
+
+  // Ask the server who is online. The answer is consumed in handleLine and kept out
+  // of the console. Stops asking if the server never answers in the vanilla format.
+  pollPlayers() {
+    if (this.status !== 'online' || !this.proc) return;
+    if (this.listAskedAt && ++this.listMisses >= 3) return;
+    this.listAskedAt = Date.now();
+    this.sendCommand('list', { quiet: true });
+  }
+
+  // Make the player set match a `list` answer.
+  syncPlayers(count, namesText) {
+    const names = count === 0 ? [] : namesText.split(',').map(n => n.trim()).filter(Boolean);
+    // decorated names (team prefixes, nickname mods): can't map them back, keep what the log lines gave us
+    if (names.length !== count || names.some(n => !NAME_RE.test(n))) return;
+    for (const n of [...this.players]) if (!names.includes(n)) this.playerLeft(n);
+    for (const n of names) this.playerJoined(n);
+  }
+
   handleLine(line) {
-    this.pushLog(line);
     // Some server builds/log4j configs (common on Linux/Pi consoles) wrap console
     // output in ANSI colour codes, which can land between the `]` and `:` the
     // join/leave/done/TPS regexes anchor on. Strip them before matching so player
-    // presence is still detected. The raw line is kept for the console display above.
+    // presence is still detected. The raw line is kept for the console display.
     const text = line.replace(/\x1b\[[0-9;]*m/g, '');
+    let m;
+    if (this.listAskedAt && Date.now() - this.listAskedAt < 5000 && (m = LIST_RE.exec(text))) {
+      this.listAskedAt = 0;
+      this.listMisses = 0;
+      this.syncPlayers(+m[1], m[2]);
+      return;
+    }
+    this.pushLog(line);
     if (this.status === 'starting' && DONE_RE.test(text)) {
       this.crashCount = 0; // a healthy boot wipes the crash-loop slate
       this.setStatus('online');
     }
-    let m;
-    if ((m = JOIN_RE.exec(text))) {
-      this.players.add(m[1]);
-      this.emit('players', [...this.players]);
-      this.emit('join', m[1]);
+    if (this.status === 'starting' && !this.bootFailTimer && BOOT_FAIL_RE.test(text)) {
+      // give the stack trace a moment to print, then end the run so the dashboard
+      // doesn't sit on "starting" forever
+      const proc = this.proc;
+      this.bootFailTimer = setTimeout(() => {
+        this.bootFailTimer = null;
+        if (!proc || this.proc !== proc) return;
+        this.pushLog('[dashboard] The server could not load the world and will never finish starting — stopping it. The error above says why.');
+        proc.kill('SIGKILL');
+      }, 3000);
+    }
+    if ((m = JOIN_RE.exec(text)) || (m = LOGIN_RE.exec(text))) {
+      this.playerJoined(m[1]);
     } else if ((m = LEAVE_RE.exec(text))) {
-      this.players.delete(m[1]);
-      this.emit('players', [...this.players]);
-      this.emit('leave', m[1]);
+      this.playerLeft(m[1]);
     } else if ((m = TICK_RE.exec(text))) {
       const ms = parseFloat(m[1]);
       if (ms > 0) {
@@ -79,44 +139,50 @@ class MinecraftServer extends EventEmitter {
     clearTimeout(this.restartTimer);
     this.restartTimer = null;
     const dir = require('./config').serverDir();
-    const type = (config.installedJar || '').split(' ')[0];
-    let launchArgs;
-    if (type === 'forge' || type === 'neoforge') {
-      const loaders = require('./utils/loaders');
-      const argfile = loaders.findArgfile(dir, type);
-      const legacy = argfile ? null : loaders.findLegacyForgeJar(dir);
-      if (argfile) launchArgs = [`@${argfile}`, 'nogui'];
-      else if (legacy) launchArgs = ['-jar', legacy, 'nogui'];
-      else {
-        const err = new Error(`${type} launch files not found — reinstall ${type} from Settings → Server software.`);
-        err.status = 400;
-        throw err;
-      }
-    } else {
-      const jar = path.join(dir, config.jarFile);
-      if (!fs.existsSync(jar)) {
-        const err = new Error(`Server jar not found: ${config.jarFile}. Put it in the server folder (Files page) or fix the jar name in Settings.`);
-        err.status = 400;
-        throw err;
-      }
-      launchArgs = ['-jar', config.jarFile, 'nogui'];
+    const loaders = require('./utils/loaders');
+    const [type, mcVer] = (config.installedJar || '').split(' ');
+    const launch = loaders.resolveLaunch(dir, config);
+    if (!launch) {
+      const err = new Error(type === 'forge' || type === 'neoforge'
+        ? `${type} launch files not found — reinstall ${type} from Settings → Server software.`
+        : `Server jar not found: ${config.jarFile}. Put it in the server folder (Files page) or fix the jar name in Settings.`);
+      err.status = 400;
+      throw err;
+    }
+
+    // Refuse up front rather than crash-loop on a Java that can't run this version.
+    const needJava = mcVer ? loaders.requiredJava(mcVer) : null;
+    const java = require('./utils/java').pick(needJava);
+    if (!java.bin) {
+      const have = java.major ? `Java ${java.major} is installed` : 'no Java was found';
+      const err = new Error(`${needJava ? `Minecraft ${mcVer} needs Java ${needJava}+` : 'Java is needed to run the server'}, but ${have}. Press Start to let the dashboard download it, or point Settings → Java path at a newer one.`);
+      err.status = 400;
+      throw err;
     }
 
     const args = [`-Xms${config.minRam}`, `-Xmx${config.maxRam}`];
     if (config.jvmArgs) args.push(...config.jvmArgs.split(' ').filter(Boolean));
-    args.push(...launchArgs);
+    args.push(...launch.args);
 
     // fresh buffer per run so saved console logs and the live view don't mix sessions
     this.logBuffer = [];
     this.crashGaveUp = false; // we're trying again — clear any previous give-up
     this.setStatus('starting');
     this.startedAt = Date.now();
-    this.pushLog(`[dashboard] Launching: ${config.javaPath} ${args.join(' ')}`);
-    const mcVer = (config.installedJar || '').split(' ')[1];
-    const needJava = mcVer ? require('./utils/loaders').requiredJava(mcVer) : null;
-    if (needJava >= 17) this.pushLog(`[dashboard] Note: Minecraft ${mcVer} needs Java ${needJava}+ — if the boot fails with a class-version error, update Java (Settings → Java path).`);
+    this.listAskedAt = 0;
+    this.listMisses = 0;
+    if (type !== 'paper') {
+      try {
+        const copied = require('./utils/worldpaths').adoptPaperWorld();
+        if (copied.length) this.pushLog(`[dashboard] This world was saved by Paper — copied ${copied.join(', ')} to data/minecraft so ${type || 'this server'} can load it`);
+      } catch (e) {
+        this.pushLog(`[dashboard] Could not prepare the Paper world for ${type || 'this server'}: ${e.message}`);
+      }
+    }
+    if (java.managed) this.pushLog(`[dashboard] Using the dashboard's own Java ${java.major}`);
+    this.pushLog(`[dashboard] Launching: ${java.bin} ${args.join(' ')}`);
 
-    this.proc = spawn(config.javaPath, args, { cwd: dir });
+    this.proc = spawn(java.bin, args, { cwd: dir });
 
     let buf = '';
     const onData = (data) => {
@@ -137,6 +203,8 @@ class MinecraftServer extends EventEmitter {
 
     this.proc.on('exit', (code) => {
       clearTimeout(this.stopTimer);
+      clearTimeout(this.bootFailTimer);
+      this.bootFailTimer = null;
       // Flush any trailing partial line left in the buffer so the last log line isn't lost.
       if (buf.trim()) { this.handleLine(buf); buf = ''; }
       const wasIntentional = this.stopping;

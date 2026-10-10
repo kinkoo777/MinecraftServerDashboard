@@ -16,7 +16,7 @@ const GH_HEADERS = {
 const PRESERVE = new Set([
   'node_modules', 'mc-server', 'backups', 'update-backups', 'config.json',
   'schedules.json', 'console-logs', 'reports.json', 'sessions.json',
-  'playit', 'cloudflare', '.git', '.claude-flow', '.swarm', '.remember',
+  'playit', 'cloudflare', 'java', '.git', '.claude-flow', '.swarm', '.remember',
   'ruvector.db', '.test-config.json', '.test-server', '.update-state.json'
 ]);
 const PRESERVE_EXT = ['.log', '.msi', '.exe'];

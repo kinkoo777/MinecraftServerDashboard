@@ -47,4 +47,33 @@ function statsDir() {
   return firstExisting([path.join(w, 'players', 'stats'), path.join(w, 'stats')]);
 }
 
-module.exports = { worldDir, regionDir, playerDataFile, statsFile, statsDir };
+/* Paper 26.x keeps world_gen_settings.dat, game_rules.dat, weather.dat and
+   scheduled_events.dat per dimension, inside each dimension folder. Vanilla, Fabric,
+   Forge and NeoForge read one set from world/data/minecraft and refuse to load the
+   world without it ("Overworld settings missing"). Before a non-Paper server boots,
+   copy the overworld's set into place. Never overwrites; returns what it copied. */
+const PAPER_PER_DIMENSION = ['world_gen_settings.dat', 'game_rules.dat', 'weather.dat', 'scheduled_events.dat'];
+
+function adoptPaperWorld() {
+  const w = worldDir();
+  const overworld = path.join(w, 'dimensions', 'minecraft', 'overworld');
+  if (!fs.existsSync(overworld)) return [];
+  const dest = path.join(w, 'data', 'minecraft');
+  const copied = [];
+  for (const name of PAPER_PER_DIMENSION) {
+    const target = path.join(dest, name);
+    if (fs.existsSync(target)) continue;
+    const src = firstExisting([
+      path.join(overworld, 'data', 'minecraft', name),
+      path.join(overworld, 'data', name),
+      path.join(overworld, name)
+    ]);
+    if (!src) continue;
+    fs.mkdirSync(dest, { recursive: true });
+    fs.copyFileSync(src, target);
+    copied.push(name);
+  }
+  return copied;
+}
+
+module.exports = { adoptPaperWorld, worldDir, regionDir, playerDataFile, statsFile, statsDir };

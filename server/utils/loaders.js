@@ -101,10 +101,10 @@ async function mcListFor(type) {
   return Object.keys(map).sort((a, b) => cmpDotted(b, a));
 }
 
-// Minimum Java major for an MC version. Post-2025 date-style versions (e.g. "26.2") need 21.
+// Minimum Java major for an MC version. Post-2025 date-style versions (e.g. "26.2") need 25.
 function requiredJava(mc) {
   let m = String(mc).match(/^1\.(\d+)(?:\.(\d+))?/);
-  if (!m) return /^\d{2}\./.test(String(mc)) ? 21 : null;
+  if (!m) return /^\d{2}\./.test(String(mc)) ? 25 : null;
   const minor = +m[1], patch = +(m[2] || 0);
   if (minor >= 21 || (minor === 20 && patch >= 5)) return 21;
   if (minor >= 18) return 17;
@@ -135,9 +135,8 @@ async function downloadToFile(url, dest, cap, what) {
   }
 }
 
-function runInstaller(jarPath, dir, log, extraFlag) {
+function runInstaller(java, jarPath, dir, log, extraFlag) {
   return new Promise((resolve, reject) => {
-    const java = require('../config').getConfig().javaPath || 'java';
     const proc = spawn(java, ['-jar', jarPath, extraFlag || '--installServer'], { cwd: dir });
     let out = '';
     const onData = (d) => {
@@ -178,6 +177,25 @@ function findLegacyForgeJar(dir) {
   return names.filter(n => /^forge-.*\.jar$/i.test(n) && !/installer/i.test(n)).sort().pop() || null;
 }
 
+// The single answer to "is a server installed, and how is it launched?" — used by
+// both the status route and start(). Modern Forge/NeoForge boot from an argfile and
+// never create the configured server.jar, so checking for that jar alone is wrong.
+// Returns { args } (java arguments after the JVM flags) or null when nothing is installed.
+function resolveLaunch(dir, config) {
+  const type = (config.installedJar || '').split(' ')[0];
+  const argfileLaunch = (t) => {
+    const argfile = findArgfile(dir, t);
+    return argfile ? { args: [`@${argfile}`, 'nogui'] } : null;
+  };
+  if (type === 'forge' || type === 'neoforge') {
+    const legacy = findLegacyForgeJar(dir);
+    return argfileLaunch(type) || (legacy ? { args: ['-jar', legacy, 'nogui'] } : null);
+  }
+  if (config.jarFile && fs.existsSync(path.join(dir, config.jarFile))) return { args: ['-jar', config.jarFile, 'nogui'] };
+  // no jar, but a Forge/NeoForge install was copied in by hand (e.g. uploaded on the Files page)
+  return argfileLaunch('neoforge') || argfileLaunch('forge');
+}
+
 async function installLoaderServer(type, mc, log = () => {}, pinnedLoader = null) {
   const dir = require('../config').serverDir();
   if (type === 'fabric') {
@@ -199,13 +217,15 @@ async function installLoaderServer(type, mc, log = () => {}, pinnedLoader = null
   const instPath = path.join(dir, `.${type}-installer-${Date.now()}.jar`);
   log(`[dashboard] Downloading ${type} ${ver} installer…`);
   const size = await downloadToFile(url, instPath, INSTALLER_CAP, `${type} installer`);
-  log(`[dashboard] Running the ${type} installer — this can take a few minutes…`);
   try {
+    // the installer is a Java program itself — fetch a runtime first if there is none
+    const java = (await require('./java').ensure(requiredJava(mc), log)).bin;
+    log(`[dashboard] Running the ${type} installer — this can take a few minutes…`);
     try {
-      await runInstaller(instPath, dir, log);
+      await runInstaller(java, instPath, dir, log);
     } catch (e) {
       // some NeoForge builds only accept the dashed flag
-      if (type === 'neoforge' && e.installerFailed) await runInstaller(instPath, dir, log, '--install-server');
+      if (type === 'neoforge' && e.installerFailed) await runInstaller(java, instPath, dir, log, '--install-server');
       else throw e;
     }
   } finally {
@@ -224,5 +244,5 @@ module.exports = {
   fabricGameVersions, fabricLatestLoader, fabricInstallerVersion,
   neoforgeVersionMap, forgeVersionMap, latestLoaderFor, mcListFor,
   FABRIC_META, NEOFORGE_DL, FORGE_DL, UA,
-  installLoaderServer, findArgfile, findLegacyForgeJar
+  installLoaderServer, findArgfile, findLegacyForgeJar, resolveLaunch
 };

@@ -83,9 +83,9 @@ App.pages.settings = {
           <p class="hint muted" style="margin-top:10px;font-size:11px">Note: the Minecraft server will stop when the dashboard restarts.</p>
         </div>
         <div class="card">
-          <h2>Server jar</h2>
+          <h2>Server software</h2>
           <div id="jar-update"></div>
-          <p class="muted" style="margin-bottom:12px">Download a server jar from Paper or Mojang. Switching between Vanilla and Paper keeps your world, players and settings — only the server software changes. Server must be stopped.</p>
+          <div id="jar-state" class="muted" style="margin-bottom:12px"></div>
           <div class="btn-row" style="align-items:flex-end">
             <div class="field" style="margin:0"><label>Type</label>
               <select id="jar-type" style="width:130px"><option value="paper">Paper</option><option value="vanilla">Vanilla</option><option value="fabric">Fabric (mods)</option><option value="neoforge">NeoForge (mods)</option><option value="forge">Forge (mods)</option></select></div>
@@ -94,19 +94,16 @@ App.pages.settings = {
             <button id="jar-dl" class="btn-primary">${App.icon('download', 14)} Download</button>
           </div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-            <span class="muted" style="font-size:12px">Version not listed?</span>
+            <span class="muted" style="font-size:12px">Other version:</span>
             <input id="jar-custom" placeholder="e.g. 26.1.2" style="width:120px;font-size:13px">
-            <span class="muted" style="font-size:12px">(overrides the dropdown)</span>
           </div>
-          <div id="jar-state" style="margin-top:10px;font-size:12px"></div>
-          <div id="jar-java-hint" class="muted" style="font-size:11px;margin-top:4px"></div>
           <div class="hint muted" id="jar-note" style="margin-top:8px"></div>
         </div>
         <div class="card">
           <h2>Launch settings</h2>
           <div class="form-grid" id="cfg-grid">
             <div class="field"><label>Server jar file</label><input id="cfg-jarFile"></div>
-            <div class="field"><label>Java path</label><input id="cfg-javaPath"><div class="hint">"java" if it's on PATH</div></div>
+            <div class="field"><label>Java path</label><input id="cfg-javaPath"><div class="hint">Leave as "java". If it's missing or too old for your Minecraft version, the dashboard downloads a suitable Java by itself.</div></div>
             <div class="field"><label>Min RAM</label><input id="cfg-minRam" placeholder="1G"><div class="hint">e.g. 1G or 512M</div></div>
             <div class="field"><label>Max RAM</label><input id="cfg-maxRam" placeholder="4G"><div class="hint">e.g. 2G or 4G</div></div>
             <div class="field"><label>Backups to keep</label><input type="number" id="cfg-backupKeep" min="0" max="1000"><div class="hint">oldest deleted first; 0 = unlimited</div></div>
@@ -696,47 +693,38 @@ App.pages.settings = {
       verSel.innerHTML = versions[typeSel.value].map(v => `<option>${App.esc(v)}</option>`).join('');
     };
 
-    const JAVA_FOR = (mc) => {
-      let m = String(mc).match(/^1\.(\d+)(?:\.(\d+))?/);
-      if (!m) return /^\d{2}\./.test(String(mc)) ? 21 : null;
-      const minor = +m[1], patch = +(m[2] || 0);
-      if (minor >= 21 || (minor === 20 && patch >= 5)) return 21;
-      if (minor >= 18) return 17;
-      if (minor === 17) return 16;
-      return 8;
-    };
-    const javaHint = () => {
-      const need = JAVA_FOR(verSel.value || '');
-      const el = document.getElementById('jar-java-hint');
-      if (el) el.innerHTML = need ? `Needs Java <b>${need}${need >= 17 ? '+' : ''}</b> — set the right Java path in Settings if yours is older.` : '';
-    };
-    verSel.onchange = javaHint;
-
     const cap = (t) => ({ paper: 'Paper', vanilla: 'Vanilla', fabric: 'Fabric', neoforge: 'NeoForge', forge: 'Forge' })[t] || t;
-    // Show what's installed now and, when the selected type differs, reassure the user
-    // that downloading simply swaps the server software while keeping their world & settings.
+    // One short line: what's installed, or what a switch keeps. The picker itself
+    // always opens on the installed software (see selectInstalled).
     const showState = () => {
       const stateBox = document.getElementById('jar-state');
       const [instType, instVer] = (this.installedJar || '').split(' ');
       const sel = typeSel.value;
       const switching = instType && sel !== instType;
       if (stateBox) {
-        if (!instType) {
-          stateBox.innerHTML = `<span class="muted">No server jar installed yet — pick a type and version, then Download.</span>`;
-        } else if (!switching) {
-          stateBox.innerHTML = `<span class="muted">Currently installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b>${this.modpackName ? ` — via ${App.esc(this.modpackName)}` : ''}.</span>`;
-        } else {
-          stateBox.innerHTML = `<span style="color:var(--accent)">⇄ This switches <b>${cap(instType)} ${App.esc(instVer || '')} → ${cap(sel)}</b>. ` +
-            `Just pick a version and Download — your world, players and settings are kept; only the server software is replaced.</span>`;
-        }
+        if (!instType) stateBox.textContent = 'No server installed yet.';
+        else if (!switching) stateBox.innerHTML = `Installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b>${this.modpackName ? ` (${App.esc(this.modpackName)})` : ''}`;
+        else stateBox.innerHTML = `Installed: <b>${cap(instType)} ${App.esc(instVer || '')}</b> — switching to ${cap(sel)} keeps your world and settings.`;
       }
       if (btn) btn.innerHTML = `${App.icon('download', 14)} ${switching ? 'Switch to ' + cap(sel) : 'Download'}`;
     };
 
-    typeSel.onchange = () => { fill(); javaHint(); showState(); };
-    fill();
-    javaHint();
-    showState();
+    // Point the picker at what is actually installed, not the first option
+    const selectInstalled = () => {
+      const [instType, instVer] = (this.installedJar || '').split(' ');
+      if (instType && versions[instType]) typeSel.value = instType;
+      fill();
+      if (instVer && versions[typeSel.value].includes(instVer)) verSel.value = instVer;
+      showState();
+    };
+
+    typeSel.onchange = () => { fill(); showState(); };
+    // ask for the installed server here: render()'s own config request may still be in
+    // flight, and a value left over from an earlier visit can be out of date
+    const cfg = await App.tryApi('/settings/config');
+    if (cfg) { this.installedJar = cfg.installedJar || ''; this.modpackName = cfg.modpackName || ''; }
+    if (!document.body.contains(typeSel)) return; // navigated away meanwhile
+    selectInstalled();
 
     btn.onclick = async () => {
       const custom = document.getElementById('jar-custom').value.trim();
@@ -744,7 +732,7 @@ App.pages.settings = {
       if (!version) return App.toast('Select or enter a version', true);
       btn.disabled = true;
       btn.textContent = 'Downloading…';
-      note.textContent = 'This can take a minute depending on your connection.';
+      note.textContent = 'This can take a minute…';
       const r = await App.tryApi('/jars/download', {
         method: 'POST',
         body: { type: typeSel.value, version }
@@ -752,7 +740,7 @@ App.pages.settings = {
       btn.disabled = false;
       btn.innerHTML = `${App.icon('download', 14)} Download`;
       if (r) {
-        note.textContent = `Done — ${typeSel.value} ${version} is now your server.jar (${App.fmtBytes(r.size)}). Start the server to run it.`;
+        note.textContent = '';
         App.toast('Server jar installed');
         document.getElementById('cfg-jarFile').value = r.jarFile;
         document.getElementById('jar-custom').value = '';
@@ -767,6 +755,7 @@ App.pages.settings = {
           e.preventDefault();
           typeSel.value = 'vanilla';
           fill();
+          showState();
           document.getElementById('jar-custom').value = version;
           note.textContent = `Ready — click Download to get Vanilla ${version}.`;
         };
@@ -941,7 +930,7 @@ App.pages.settings = {
       if (urlRow) urlRow.style.display = 'none';
     } else {
       action.innerHTML = `<button id="cf-start" class="btn-primary">${App.icon('globe', 14)} Enable remote access</button>
-        <p class="hint muted" style="margin-top:8px">First start downloads cloudflared (~30 MB). The URL changes each restart.</p>`;
+        <p class="hint muted" style="margin-top:8px">First start downloads cloudflared (~30 MB). The link stays the same until you turn this off or restart the computer — closing the dashboard keeps it.</p>`;
       document.getElementById('cf-start').onclick = () => App.tryApi('/cloudflare/start', { method: 'POST' });
       if (urlRow) urlRow.style.display = 'none';
     }

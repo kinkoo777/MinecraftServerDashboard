@@ -32,6 +32,9 @@ playit/
 # cloudflared binary download
 cloudflare/
 
+# Java runtimes downloaded by the dashboard
+/java/
+
 # stray artifacts from local agent/swarm tooling
 .claude-flow/
 .claude/

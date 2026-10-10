@@ -6,22 +6,36 @@ const { safePath } = require('../config');
 
 const router = express.Router();
 
+// Folder uploads send each file's path relative to the picked folder ("mods/a.jar")
+// as its filename. Returns the path segments, or throws on anything that could
+// climb out of the target folder.
+function relParts(file) {
+  const raw = file.originalname || '';
+  // a backslash or drive letter is a local path leaking from an old Windows browser
+  // ("C:\fakepath\name.jar"), not a folder upload — keep just the file name
+  const rel = /\\|^[A-Za-z]:/.test(raw) ? raw.split(/[\\/]/).pop() : raw;
+  const parts = rel.split('/').filter(Boolean);
+  if (!parts.length) return ['upload.bin'];
+  if (parts.some(p => p === '.' || p === '..' || p.includes('\0'))) {
+    throw Object.assign(new Error(`Invalid upload path: ${raw}`), { status: 400 });
+  }
+  return parts;
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
       try {
-        const dir = safePath(req.query.path || '');
+        const dir = safePath(path.join(req.query.path || '', ...relParts(file).slice(0, -1)));
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       } catch (e) { cb(e); }
     },
-    // strip any path prefix; Windows browsers may send "C:\fakepath\name.jar"
     filename: (req, file, cb) => {
-      let name = (file.originalname || '').split(/[\\/]/).pop();
-      if (!name || name === '.' || name === '..') name = 'upload.bin';
-      cb(null, name);
+      try { cb(null, relParts(file).pop()); } catch (e) { cb(e); }
     }
   }),
+  preservePath: true, // keep "mods/a.jar" instead of busboy's default basename
   limits: { fileSize: 1024 * 1024 * 1024 } // 1 GB
 });
 

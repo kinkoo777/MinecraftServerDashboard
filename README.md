@@ -44,7 +44,7 @@ A complete web control panel for a Minecraft server: live console, one-click sta
 5. Keep the launcher window open. Your browser opens at **http://localhost:8080**.
 6. In the browser, create a password, download Paper or Vanilla, accept the EULA, and press **Start**.
 
-The launcher tries to install what it needs automatically. If macOS says Node.js or Java is missing, install [Homebrew](https://brew.sh), then run `./start.sh` again:
+The launcher installs Node.js if it's missing, and the dashboard downloads Java by itself the first time it starts (into a `java/` folder next to it — nothing is installed system-wide). If macOS says Node.js is missing, install [Homebrew](https://brew.sh), then run `./start.sh` again:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -72,7 +72,7 @@ Run `start.bat` (Windows) or `./start.sh` (Linux/macOS). A browser tab opens at 
 On the very first visit it asks you to **create a password**. This protects your dashboard so only you can control the server. Pick something memorable (you'll use it every time you log in).
 
 ### 3. Download a server
-Go to **Settings → Server jar**. Choose:
+Go to **Settings → Server software**. Choose:
 - **Paper** — recommended. Fast, and supports plugins.
 - **Vanilla** — the pure Mojang server.
 
@@ -143,15 +143,18 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.2.0
+- **Java installs itself** — if Java is missing or too old for your Minecraft version, the dashboard downloads the right one into its own `java/` folder on first start and whenever a server needs a newer one. No admin rights, Homebrew or PATH setup; Minecraft 26.x now correctly gets Java 25
+- **Folder uploads** — the Files page has an **Upload folder** button and accepts drag-and-drop of files or whole folders, keeping the folder structure
+- **Remote access link survives restarts** — the Cloudflare tunnel keeps running when the dashboard is closed, so the link stays the same until you turn it off or restart the computer
+- **Modded server fixes** — online players now show on Forge 26.x, "Quick setup" no longer reappears after installing Forge/NeoForge, worlds created on Paper 26.x load on Forge/NeoForge/Fabric/Vanilla, and a server that can't load its world is stopped instead of hanging on "Starting up…"
+- **Settings polish** — the server software picker opens on what's actually installed, with less text; the dashboard status pill matches the buttons next to it
+
 ### v1.1.0
 - **Modded servers** — install and update **Fabric**, **NeoForge** and **Forge** servers alongside Paper/Vanilla, right from the setup wizard and jar picker
 - **Content hub** — the Plugins page is now **Content**: browse, filter and search Modrinth for plugins, mods and modpacks, with project detail pages (description, gallery, versions) and one-click install
 - **Modpack installs** — pick a Modrinth modpack and the dashboard sets up the matching loader server, downloads and verifies every mod, and applies config overrides in one job
 - **Schedule presets** — save your schedule setup as a reusable preset, or start from a built-in bundle (daily maintenance, frequent backups, public server, low-maintenance)
-
-### v1.0.6
-- **New logo** — replaced the placeholder grass-block icon with the official ChunkDeck mark everywhere it appears: favicon, sidebar, setup wizard, PWA icon, and the MOTD/plugin-search placeholders
-- **Auto-patched dependencies** — `start.bat` and `start.sh` now run `npm audit fix` on every launch, automatically applying non-breaking security fixes for known vulnerabilities in the background (silently skipped if you're offline)
 
 See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/releases) for older versions.
 
@@ -183,9 +186,8 @@ See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/rele
 |---|---|
 | **Windows Security says "not safe", quarantines a file, or shows "Windows protected your PC"** | Unsigned open-source software — it's safe. Right-click the `.zip` → Properties → **Unblock** before extracting. If Windows quarantined it, open **Windows Security → Protection history** and choose **Allow** / **Restore**. If SmartScreen appears, click **More info → Run anyway**. |
 | **Browser didn't open / "can't reach localhost:8080"** | Make sure the launcher window is still open. Then visit `http://localhost:8080` manually. |
-| **"Server jar not found"** | Download one from **Settings → Server jar**, or drop a `server.jar` into the `mc-server/` folder. |
-| **Server won't start, log mentions Java** | Java isn't installed or wasn't found. Re-run the launcher (it installs Java), then try again. |
-| **Pressed Start right after the launcher installed Java, and it failed** | Close the launcher window and run `start.bat` / `start.sh` again so the new Java is detected. |
+| **"Server jar not found"** | Download one from **Settings → Server software**, or drop a `server.jar` into the `mc-server/` folder. |
+| **Server won't start, log mentions Java** | The dashboard downloads the Java your Minecraft version needs when you press **Start** — check the Console for a download error (usually no internet), then press Start again. To use your own Java, set **Settings → Java path**. |
 | **Friends can't connect** | Use the **Play Online** tab (playit) — it avoids router setup entirely. |
 | **Forgot your dashboard password** | Delete `config.json` and restart — you'll be asked to set a new one. (Your world and settings stay; only the password resets, along with launch options.) |
 | **Port 8080 already in use** | Change `dashboardPort` in `config.json` and restart. |
@@ -236,7 +238,7 @@ Avoid exposing port 8080 directly over plain HTTP.
 
 ## 💻 Run manually, or as a service
 
-**Manual (for developers):** requires [Node.js](https://nodejs.org) 18+ and Java (21+ for current Minecraft; the newest 1.21+/26.x builds need Java 25). The one-click launchers install a suitable Java for you.
+**Manual (for developers):** requires [Node.js](https://nodejs.org) 18+ and Java (21+ for current Minecraft; the newest 1.21+/26.x builds need Java 25). If Java is missing or too old, the dashboard downloads a suitable Temurin runtime into `java/` on first start.
 
 ```bash
 npm install

@@ -10,6 +10,26 @@ const DIR = path.join(__dirname, '..', 'cloudflare');
 const GH_API = 'https://api.github.com/repos/cloudflare/cloudflared/releases/latest';
 const URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
 
+// cloudflared outlives the dashboard so the link survives a dashboard restart: its
+// output goes to a log file (a pipe would break when we exit) and STATE remembers
+// the running tunnel so the next dashboard start can pick it up again.
+const STATE = path.join(DIR, 'tunnel.json');
+const LOG = path.join(DIR, 'tunnel.log');
+
+function alive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+
+// Guard against a recycled pid: is this process really cloudflared?
+function isCloudflared(pid) {
+  try {
+    const out = process.platform === 'win32'
+      ? execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true })
+      : execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' });
+    return /cloudflared/i.test(out);
+  } catch (e) { return false; }
+}
+
 function binPath() {
   return path.join(DIR, process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
 }
@@ -29,10 +49,33 @@ function pickAsset(assets) {
 class Cloudflare extends EventEmitter {
   constructor() {
     super();
-    this.proc = null;
+    this.pid = null;
     this.status = 'offline'; // offline | starting | running
     this.log = [];
     this.url = null;
+    this.watcher = null;
+    this.logPos = 0;
+    this._adopt();
+  }
+
+  port() { return Number(process.env.PORT || getConfig().dashboardPort || 8080); }
+
+  // A tunnel left running by a previous dashboard session: take it over, same link.
+  _adopt() {
+    let st;
+    try { st = JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch (e) { return; }
+    if (!st || !st.pid || !st.url || st.port !== this.port() || !alive(st.pid) || !isCloudflared(st.pid)) {
+      // dead, or pointing at another port — don't leave a stray tunnel behind
+      if (st && st.pid && alive(st.pid) && isCloudflared(st.pid)) this._killTree(st.pid);
+      fs.rmSync(STATE, { force: true });
+      return;
+    }
+    this.pid = st.pid;
+    this.url = st.url;
+    this.status = 'running';
+    try { this.logPos = fs.statSync(LOG).size; } catch (e) { this.logPos = 0; }
+    this.pushLog(`[dashboard] Remote access is still on from before — same link: ${st.url}`);
+    this._watch();
   }
 
   installed() { return fs.existsSync(binPath()); }
@@ -84,7 +127,7 @@ class Cloudflare extends EventEmitter {
   }
 
   async start() {
-    if (this.proc) return;
+    if (this.pid) return;
     this.url = null;
     this._setStatus('starting');
     try {
@@ -94,59 +137,89 @@ class Cloudflare extends EventEmitter {
       this._setStatus('offline');
       return;
     }
-    const port = process.env.PORT || getConfig().dashboardPort || 8080;
+    const port = this.port();
     this.pushLog(`[dashboard] Opening tunnel to http://localhost:${port}…`);
-    // detached on POSIX gives cloudflared its own process group so stop() can
-    // signal the whole tree via process.kill(-pid), not just the parent.
-    const opts = {};
-    if (process.platform !== 'win32') opts.detached = true;
-    this.proc = spawn(binPath(), ['tunnel', '--url', `http://localhost:${port}`], opts);
-    const onData = (chunk) => {
-      for (const raw of chunk.toString().split(/\r?\n/)) {
-        const line = raw.trim();
-        if (!line) continue;
-        const clean = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+/, '');
-        this.pushLog(clean);
-        // cloudflared prints the trycloudflare.com URL exactly once, on stderr —
-        // URL_RE picks it out of the log lines (we read stdout+stderr together).
-        const m = URL_RE.exec(line);
-        if (m && !this.url) {
-          this.url = m[0];
-          this._setStatus('running'); // emits 'update' internally
-        }
-      }
-    };
-    this.proc.stdout.on('data', onData);
-    this.proc.stderr.on('data', onData);
-    this.proc.on('error', (e) => {
+    // detached + unref: cloudflared keeps running after the dashboard exits (and on
+    // POSIX gets its own process group, so stop() can signal the whole tree).
+    const out = fs.openSync(LOG, 'w');
+    this.logPos = 0;
+    const proc = spawn(binPath(), ['tunnel', '--url', `http://localhost:${port}`], {
+      detached: true, stdio: ['ignore', out, out], windowsHide: true
+    });
+    fs.closeSync(out);
+    proc.on('error', (e) => {
       this.pushLog(`[dashboard] Failed to run cloudflared: ${e.message}`);
-      this.proc = null; this.url = null;
-      this._setStatus('offline');
+      this._ended();
     });
-    this.proc.on('exit', (code) => {
-      this.pushLog(`[dashboard] cloudflared stopped (code ${code ?? '?'})`);
-      this.proc = null; this.url = null;
-      this._setStatus('offline');
-    });
+    if (!proc.pid) return;
+    proc.unref();
+    this.pid = proc.pid;
+    this._watch();
   }
 
+  // Follow the log file for new output (and the link), and notice when cloudflared dies.
+  _watch() {
+    clearInterval(this.watcher);
+    let partial = '';
+    this.watcher = setInterval(() => {
+      try {
+        const size = fs.statSync(LOG).size;
+        if (size > this.logPos) {
+          const buf = Buffer.alloc(size - this.logPos);
+          const fd = fs.openSync(LOG, 'r');
+          fs.readSync(fd, buf, 0, buf.length, this.logPos);
+          fs.closeSync(fd);
+          this.logPos = size;
+          const lines = (partial + buf.toString()).split(/\r?\n/);
+          partial = lines.pop();
+          for (const raw of lines) this._line(raw.trim());
+        }
+      } catch (e) { /* log not there yet */ }
+      if (this.pid && !alive(this.pid)) {
+        this.pushLog('[dashboard] cloudflared stopped');
+        this._ended();
+      }
+    }, 500);
+    this.watcher.unref(); // never keeps the dashboard process alive on shutdown
+  }
+
+  _line(line) {
+    if (!line) return;
+    this.pushLog(line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+/, ''));
+    // cloudflared prints the trycloudflare.com URL exactly once
+    const m = URL_RE.exec(line);
+    if (m && !this.url) {
+      this.url = m[0];
+      try { fs.writeFileSync(STATE, JSON.stringify({ pid: this.pid, url: this.url, port: this.port() })); } catch (e) { /* link just won't survive a restart */ }
+      this._setStatus('running'); // emits 'update' internally
+    }
+  }
+
+  _ended() {
+    clearInterval(this.watcher);
+    this.watcher = null;
+    this.pid = null;
+    this.url = null;
+    fs.rmSync(STATE, { force: true });
+    this._setStatus('offline');
+  }
+
+  // Turn remote access off for real. Closing the dashboard does NOT call this.
   stop() {
-    if (this.proc) { this._killTree(this.proc); }
-    else { this._setStatus('offline'); }
+    if (this.pid) this._killTree(this.pid);
+    this._ended();
   }
 
-  // Kill cloudflared and any children. A plain proc.kill() can leave an orphaned
+  // Kill cloudflared and any children. A plain kill can leave an orphaned
   // process holding the tunnel open — especially on Windows.
-  _killTree(proc) {
-    const pid = proc.pid;
-    if (!pid) { try { proc.kill(); } catch (_) { /* gone */ } return; }
+  _killTree(pid) {
     if (process.platform === 'win32') {
       // taskkill /T kills the whole process tree; /F forces it.
-      try { spawn('taskkill', ['/pid', String(pid), '/T', '/F']); } catch (_) { /* gone */ }
+      try { spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }); } catch (_) { /* gone */ }
     } else {
-      // We spawned detached, so the negative pid signals the whole process group.
+      // It was spawned detached, so the negative pid signals the whole process group.
       try { process.kill(-pid, 'SIGTERM'); }
-      catch (_) { try { proc.kill(); } catch (__) { /* gone */ } }
+      catch (_) { try { process.kill(pid, 'SIGTERM'); } catch (__) { /* gone */ } }
     }
   }
 }

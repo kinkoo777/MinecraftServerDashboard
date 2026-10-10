@@ -155,7 +155,7 @@ App.pages.schedules = {
     box.innerHTML = list.map(p => `
       <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border,rgba(128,128,128,.2))">
         <div style="flex:1;min-width:0">
-          <b>${App.esc(p.name)}</b> ${p.builtIn ? '' : '<span class="badge">custom</span>'}
+          <b>${App.esc(p.name)}</b> ${p.builtIn ? '' : '<span class="tag">custom</span>'}
           <div class="muted" style="font-size:12px">${App.esc(p.description || '')}</div>
           <div class="muted" style="font-size:11px;margin-top:2px">${p.tasks.map(t => this.describe(t)).join('<br>')}</div>
         </div>

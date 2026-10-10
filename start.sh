@@ -9,15 +9,6 @@ echo
 
 OS="$(uname -s)"
 
-java_major() {
-  local v
-  v=$(java -version 2>&1 | head -1 | sed 's/.*version "\([0-9][0-9.]*\)".*/\1/')
-  case "$v" in
-    1.*) printf '%s' "$v" | cut -d. -f2 ;;
-    *)   printf '%s' "$v" | cut -d. -f1 ;;
-  esac
-}
-
 open_url() {
   if [ "$OS" = "Darwin" ]; then
     open "$1" >/dev/null 2>&1 || true
@@ -61,41 +52,6 @@ install_node() {
   fi
 }
 
-install_java() {
-  if [ "$OS" = "Darwin" ]; then
-    echo "Java is needed to run the Minecraft server, but it is not installed yet."
-    echo
-    if command -v brew >/dev/null 2>&1; then
-      echo "Installing Java with Homebrew..."
-      brew install --cask temurin || return 1
-    else
-      echo "Homebrew is needed to install Java automatically on macOS, but it isn't installed."
-      echo "Install Homebrew by pasting this into Terminal, then run ./start.sh again:"
-      echo
-      echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-      echo
-      echo "(Opening https://brew.sh. You can also install Java 21 manually from adoptium.net.)"
-      open_url "https://brew.sh"
-      return 1
-    fi
-  elif command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get update && sudo apt-get install -y openjdk-21-jre-headless
-  elif command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y java-21-openjdk-headless
-  elif command -v pacman >/dev/null 2>&1; then
-    sudo pacman -S --noconfirm jre-openjdk-headless
-  elif command -v zypper >/dev/null 2>&1; then
-    sudo zypper install -y java-21-openjdk-headless
-  elif command -v brew >/dev/null 2>&1; then
-    brew install --cask temurin
-  else
-    echo "Could not auto-install Java."
-    echo "Install Java 21 from https://adoptium.net, then run ./start.sh again."
-    open_url "https://adoptium.net/temurin/releases/?version=21"
-    return 1
-  fi
-}
-
 # ---- Node.js (required to run the dashboard) ----
 if ! command -v node >/dev/null 2>&1; then
   install_node || exit 1
@@ -114,31 +70,8 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-# ---- Java: check for version 21+ (needed to run the Minecraft server) ----
-JAVA_OK=0
-if ! command -v java >/dev/null 2>&1; then
-  install_java || true
-  hash -r 2>/dev/null || true
-  if ! command -v java >/dev/null 2>&1; then
-    echo "Java is still not available."
-    echo "The dashboard will open, but the Minecraft server cannot start until Java 21 is installed."
-    echo
-  else
-    JAVA_OK=1
-    echo
-  fi
-else
-  JAVA_MAJOR=$(java_major)
-  if [ -n "$JAVA_MAJOR" ] && [ "$JAVA_MAJOR" -lt 21 ] 2>/dev/null; then
-    echo "Java $JAVA_MAJOR is installed, but Minecraft needs Java 21 or newer. Upgrading..."
-    echo
-    install_java || true
-    hash -r 2>/dev/null || true
-    JAVA_MAJOR=$(java_major)
-    echo
-  fi
-  JAVA_OK=1
-fi
+# Java is not installed here: the dashboard downloads a suitable Java by itself
+# (into ./java) the first time it starts, and whenever a server needs a newer one.
 
 # ---- First-run dependencies ----
 if [ ! -d node_modules ]; then

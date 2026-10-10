@@ -178,7 +178,7 @@ App.discover = {
             <h2 style="margin:0">${App.esc(p.title)}</h2>
             <div class="muted" style="font-size:12px">${(p.downloads / 1000).toFixed(0)}k downloads · ${p.followers} followers
               ${p.sourceUrl ? ` · <a href="${App.esc(p.sourceUrl)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
-            <div style="margin-top:4px">${(p.categories || []).slice(0, 6).map(c => `<span class="badge">${App.esc(c)}</span>`).join(' ')}</div>
+            <div style="margin-top:4px">${(p.categories || []).slice(0, 6).map(c => `<span class="tag">${App.esc(c)}</span>`).join(' ')}</div>
           </div>
           <button class="btn-icon" id="disc-close" title="Close">✕</button>
         </div>
