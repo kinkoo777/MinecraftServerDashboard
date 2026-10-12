@@ -39,6 +39,8 @@ const ICONS = {
   eyeoff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   bug: '<path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
   check: '<polyline points="20 6 9 17 4 12"/>',
+  spark: '<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/>',
+  assistant: '<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/>',
   alert: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
   layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
   move: '<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="9 19 12 22 15 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>',
@@ -92,10 +94,25 @@ const App = {
   },
 
   boot() {
+    this.finishAiSignin();
+    this.aiPanel.init();
     window.addEventListener('hashchange', () => this.route());
     this.connect();
     this.startPlayerSync();
     this.route();
+  },
+
+  // Coming back from "Sign in with OpenRouter": swap the one-time code in the address
+  // for a key, then show the assistant.
+  finishAiSignin() {
+    const q = new URLSearchParams(location.search);
+    if (!q.get('code') || !q.get('state')) return;
+    const body = { code: q.get('code'), state: q.get('state') };
+    history.replaceState(null, '', location.pathname + '#assistant'); // keep the code out of the address bar and history
+    this.tryApi('/ai/oauth/finish', { method: 'POST', body }, 'Signed in — the assistant is ready').then((r) => {
+      if (r) this.ai.cfg = r;
+      if (this.currentName === 'assistant') this.route();
+    });
   },
 
   renderAuth(isSetup) {
@@ -194,9 +211,7 @@ const App = {
       update();
     }
 
-    // the .track click forwards to its checkbox (matches the app's toggle pattern)
     const remember = $('#auth-remember');
-    $('.auth-remember .track').onclick = () => remember.click();
 
     let need2fa = false;
     const twoFaWrap = $('#auth-2fa-wrap');
@@ -271,6 +286,7 @@ const App = {
     }
     this.current = page;
     this.currentName = name;
+    if (this.aiPanel) this.aiPanel.sync();
     document.querySelectorAll('#nav a').forEach(a =>
       a.classList.toggle('active', a.dataset.page === name));
     const el = document.getElementById('content');

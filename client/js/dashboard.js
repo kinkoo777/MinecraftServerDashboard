@@ -1,3 +1,24 @@
+/* How an on-screen message looks and where it appears. The chosen style is kept in
+   this browser and also used by the message box in the player window. */
+App.msg = {
+  WHERE: { title: 'Big, middle of the screen', subtitle: 'Small, middle of the screen', actionbar: 'Above the hotbar', chat: 'In chat' },
+  COLORS: { white: '#ffffff', yellow: '#ffff55', gold: '#ffaa00', red: '#ff5555', green: '#55ff55', aqua: '#55ffff', light_purple: '#ff55ff', gray: '#aaaaaa' },
+  BUILTIN: [
+    { name: 'Announcement', where: 'title', color: 'yellow', bold: true, seconds: 5 },
+    { name: 'Alert', where: 'title', color: 'red', bold: true, seconds: 10 },
+    { name: 'Notice', where: 'subtitle', color: 'white', bold: false, seconds: 5 },
+    { name: 'Quiet hint', where: 'actionbar', color: 'green', bold: false, seconds: 5 },
+    { name: 'Chat line', where: 'chat', color: 'aqua', bold: false, seconds: 5 }
+  ],
+  read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; } },
+  write(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* not remembered */ } },
+  style() { return { ...this.BUILTIN[0], ...this.read('msg-style', {}) }; },
+  setStyle(s) { this.write('msg-style', s); },
+  custom() { const c = this.read('msg-presets', []); return Array.isArray(c) ? c : []; },
+  presets() { return [...this.BUILTIN, ...this.custom().map(p => ({ ...p, custom: true }))]; },
+  same(a, b) { return a.where === b.where && a.color === b.color && !!a.bold === !!b.bold && +a.seconds === +b.seconds; }
+};
+
 App.pages.dashboard = {
   chartTab: 'players',
   overview: { history: [], recent: [] },
@@ -9,6 +30,7 @@ App.pages.dashboard = {
   // `activity` and `recent` are independent full-width cards.
   SECTIONS: [
     { id: 'controls', title: 'Server controls' },
+    { id: 'announce', title: 'Message to players' },
     { id: 'connect',  title: 'How to connect' },
     { id: 'stats',    title: 'Stats' },
     { id: 'activity', title: 'Activity chart' },
@@ -26,9 +48,15 @@ App.pages.dashboard = {
             <button id="db-stop" class="btn-danger">${App.icon('stop', 14)} Stop</button>
             <button id="db-restart">${App.icon('restart', 14)} Restart</button>
           </div>
-          <div class="btn-row" style="margin-top:12px;flex-wrap:nowrap">
-            <input id="db-announce" maxlength="100" placeholder="Message on everyone's screen (not in chat)" style="flex:1;min-width:0">
-            <button id="db-announce-send">Show to all</button>
+        </div>`,
+      announce: `
+        <div class="card">
+          <h2>Message to players</h2>
+          <div class="announce-row">
+            <select id="db-announce-to" title="Who gets it"><option value="">Everyone</option></select>
+            <select id="db-msg-style" title="How it looks"></select>
+            <input id="db-announce" maxlength="100" placeholder="Type a message…" autocomplete="off">
+            <button id="db-announce-send" class="btn-primary">${App.icon('send', 14)} Send</button>
           </div>
         </div>`,
       connect: `
@@ -220,13 +248,15 @@ App.pages.dashboard = {
       const send = async () => {
         const message = annInput.value.trim();
         if (!message) return annInput.focus();
-        const r = await App.tryApi('/server/announce', { method: 'POST', body: { message } });
+        const to = document.getElementById('db-announce-to').value;
+        const r = await App.tryApi('/server/announce', { method: 'POST', body: { message, to, ...App.msg.style() } });
         if (!r) return;
         annInput.value = '';
-        App.toast(r.players ? `Shown to ${r.players} player${r.players === 1 ? '' : 's'}` : 'Sent — but nobody is online to see it');
+        App.toast(to ? `Shown to ${to}` : r.players ? `Shown to ${r.players} player${r.players === 1 ? '' : 's'}` : 'Sent — but nobody is online to see it');
       };
       annSend.onclick = send;
       annInput.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+      this.wireMsgStyle();
     }
 
     document.querySelectorAll('#db-connect [data-copy]').forEach(b =>
@@ -237,6 +267,115 @@ App.pages.dashboard = {
     document.querySelectorAll('#db-chart-tabs button').forEach(b => {
       b.onclick = () => { this.chartTab = b.dataset.ct; this.renderChart(); };
     });
+  },
+
+  wireMsgStyle() { this.paintMsg(); },
+
+  // Draw a message into a preview "screen" the way the game would place it.
+  paintPreview(pv, st, text) {
+    pv.textContent = (st.where === 'chat' ? '[Server] ' : '') + (text || 'Your message');
+    pv.className = `msg-pv msg-pv-${st.where}`;
+    pv.style.color = App.msg.COLORS[st.color];
+    pv.style.fontWeight = st.bold ? '700' : '400';
+  },
+
+  // The style dropdown: built-in and saved presets, plus "Customize…" which opens the
+  // style window. A style that matches no preset shows as "Custom style".
+  paintMsg() {
+    const sel = document.getElementById('db-msg-style');
+    if (!sel) return;
+    const st = App.msg.style();
+    const presets = App.msg.presets();
+    const at = presets.findIndex(p => App.msg.same(p, st));
+    sel.innerHTML = presets.map((p, i) => `<option value="${i}">${App.esc(p.name)}</option>`).join('') +
+      (at < 0 ? '<option value="custom">Custom style</option>' : '') +
+      '<option value="edit">Customize…</option>';
+    sel.value = at < 0 ? 'custom' : String(at);
+    sel.onchange = () => {
+      if (sel.value === 'edit') { this.paintMsg(); return this.openMsgCustomize(); }
+      if (sel.value !== 'custom') {
+        const { where, color, bold, seconds } = presets[+sel.value];
+        App.msg.setStyle({ where, color, bold, seconds });
+      }
+      this.paintMsg();
+    };
+  },
+
+  // Window for building a message style: live preview on top, options below, and
+  // the user's own saved presets.
+  openMsgCustomize() {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    const text = (document.getElementById('db-announce') || {}).value || '';
+    ov.innerHTML = `
+      <div class="modal" style="max-width:480px">
+        <div class="card-title-row"><h2 style="margin:0">Message style</h2><button class="btn-icon" id="mc-close" title="Close">${App.icon('x', 14)}</button></div>
+        <div class="msg-screen msg-screen-big"><span class="msg-pv" id="mc-pv"></span><span class="msg-hotbar"></span></div>
+        <div class="field"><label>Where it appears</label>
+          <div class="mc-where" id="mc-where">${Object.entries(App.msg.WHERE).map(([k, v]) => `<button type="button" class="msg-preset" data-where="${k}">${v}</button>`).join('')}</div>
+        </div>
+        <div class="field"><label>Colour</label>
+          <div class="msg-colors" id="mc-colors">${Object.entries(App.msg.COLORS).map(([k, v]) => `<button type="button" class="msg-color" data-color="${k}" title="${k.replace('_', ' ')}" style="background:${v}"></button>`).join('')}</div>
+        </div>
+        <div class="mc-row">
+          <div class="field" style="flex:1"><label>Stays for</label>
+            <select id="mc-secs"><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="20">20 seconds</option></select>
+          </div>
+          <label class="ntf-event mc-bold"><span class="switch"><input type="checkbox" id="mc-bold"><span class="track"></span></span><span>Bold</span></label>
+        </div>
+        <div class="field"><label>Your presets</label>
+          <div class="msg-presets" id="mc-mine"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input id="mc-name" maxlength="20" placeholder="Name this style to save it">
+            <button class="btn-sm" id="mc-save" style="flex-shrink:0">Save preset</button>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:6px"><button class="btn-primary" id="mc-done">Done</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+    const $ = (id) => ov.querySelector('#' + id);
+    const close = () => { ov.remove(); this.paintMsg(); };
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    $('mc-close').onclick = close;
+    $('mc-done').onclick = close;
+
+    const paint = () => {
+      const st = App.msg.style();
+      this.paintPreview($('mc-pv'), st, text.trim());
+      ov.querySelectorAll('[data-where]').forEach(b => b.classList.toggle('active', b.dataset.where === st.where));
+      ov.querySelectorAll('[data-color]').forEach(b => b.classList.toggle('active', b.dataset.color === st.color));
+      $('mc-secs').value = String([3, 5, 10, 20].includes(+st.seconds) ? st.seconds : 5);
+      $('mc-secs').disabled = st.where === 'actionbar' || st.where === 'chat'; // the game decides those
+      $('mc-bold').checked = !!st.bold;
+      const mine = App.msg.custom();
+      $('mc-mine').innerHTML = mine.length ? mine.map((p, i) => `
+        <button type="button" class="msg-preset${App.msg.same(p, st) ? ' active' : ''}" data-mine="${i}">
+          <span class="msg-dot" style="background:${App.msg.COLORS[p.color]}"></span>${App.esc(p.name)}<span class="msg-del" data-del="${i}" title="Delete preset">×</span>
+        </button>`).join('') : '<span class="muted" style="font-size:12px">None yet — set up a style above and save it.</span>';
+      ov.querySelectorAll('[data-mine]').forEach(b => {
+        b.onclick = (e) => {
+          const list = App.msg.custom();
+          if (e.target.dataset.del != null) App.msg.write('msg-presets', list.filter((_, i) => i !== +e.target.dataset.del));
+          else { const { where, color, bold, seconds } = list[+b.dataset.mine]; App.msg.setStyle({ where, color, bold, seconds }); }
+          paint();
+        };
+      });
+    };
+    const set = (patch) => { App.msg.setStyle({ ...App.msg.style(), ...patch }); paint(); };
+    ov.querySelectorAll('[data-where]').forEach(b => { b.onclick = () => set({ where: b.dataset.where }); });
+    ov.querySelectorAll('[data-color]').forEach(b => { b.onclick = () => set({ color: b.dataset.color }); });
+    $('mc-secs').onchange = (e) => set({ seconds: +e.target.value });
+    $('mc-bold').onchange = (e) => set({ bold: e.target.checked });
+    $('mc-save').onclick = () => {
+      const name = $('mc-name').value.trim();
+      if (!name) return $('mc-name').focus();
+      const { where, color, bold, seconds } = App.msg.style();
+      App.msg.write('msg-presets', [...App.msg.custom().filter(p => p.name !== name), { name, where, color, bold, seconds }].slice(-12));
+      $('mc-name').value = '';
+      App.toast(`Preset "${name}" saved`);
+      paint();
+    };
+    paint();
   },
 
   // Wire the edit-mode controls: Done, Reset, per-section up/down/hide, and drag.
@@ -381,7 +520,12 @@ App.pages.dashboard = {
     if (s.jarExists && s.eula !== 'accepted') {
       html += `<div class="notice"><span class="notice-text">The Minecraft EULA has not been accepted yet — the server won't start without it.</span><button id="db-eula" class="btn-primary btn-sm">Accept EULA</button></div>`;
     }
-    if (s.crashGaveUp) {
+    if (s.diagnosis) {
+      const d = s.diagnosis;
+      const act = d.fix ? `<button id="db-fix" class="btn-primary btn-sm">${App.esc(d.fix.label)}</button>`
+        : d.link ? `<a href="${App.esc(d.link.href)}" class="btn btn-sm">${App.esc(d.link.label)}</a>` : '';
+      html += `<div class="notice notice-danger"><span class="notice-text"><b>The server didn't start: ${App.esc(d.title)}</b><br>${App.esc(d.detail)}</span>${act}</div>`;
+    } else if (s.crashGaveUp) {
       html += `<div class="notice notice-danger"><span class="notice-text">The server kept crashing right after starting, so auto-restart stopped trying. Open the saved Console logs to see what went wrong.</span><a href="#console" class="btn-sm">Open Console</a></div>`;
     }
     box.innerHTML = html;
@@ -390,6 +534,15 @@ App.pages.dashboard = {
     const eulaBtn = document.getElementById('db-eula');
     if (eulaBtn) eulaBtn.onclick = async () => {
       if (await App.tryApi('/server/eula', { method: 'POST' }, 'EULA accepted')) this.checkSetup();
+    };
+    const fixBtn = document.getElementById('db-fix');
+    if (fixBtn && s.diagnosis.fix.action === 'install-mods') fixBtn.onclick = async () => {
+      fixBtn.disabled = true;
+      fixBtn.textContent = 'Installing…';
+      const r = await App.tryApi('/modrinth/install-missing', { method: 'POST', body: { ids: s.diagnosis.fix.ids } });
+      for (const f of (r && r.failed) || []) App.toast(f.error, true);
+      if (r && r.installed.length) App.toast(`Installed ${r.installed.map(i => i.id).join(', ')}${r.failed.length ? '' : ' — press Start'}`);
+      this.checkSetup();
     };
     // first run: open the wizard automatically when there's no server yet
     App.wizard.maybeAutoOpen(s);
@@ -423,7 +576,7 @@ App.pages.dashboard = {
     if (stop) stop.disabled = status === 'offline' || status === 'stopping';
     const restart = document.getElementById('db-restart');
     if (restart) restart.disabled = status !== 'online';
-    for (const id of ['db-announce', 'db-announce-send']) {
+    for (const id of ['db-announce', 'db-announce-to', 'db-msg-style', 'db-announce-send']) {
       const el = document.getElementById(id);
       if (el) el.disabled = status !== 'online';
     }
@@ -433,6 +586,12 @@ App.pages.dashboard = {
   onPlayers(players) {
     const el = document.getElementById('db-players');
     if (el) el.textContent = players.length;
+    const to = document.getElementById('db-announce-to');
+    if (to) {
+      const keep = to.value;
+      to.innerHTML = '<option value="">Everyone</option>' + players.map(p => `<option>${App.esc(p)}</option>`).join('');
+      if (players.includes(keep)) to.value = keep;
+    }
   },
 
   onStats(stats) {

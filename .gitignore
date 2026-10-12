@@ -25,6 +25,8 @@ console-logs/
 
 reports.json
 sessions.json
+# assistant conversations (can quote the console and config files)
+assistant-chats.json
 
 # playit.gg agent binary + its config
 playit/

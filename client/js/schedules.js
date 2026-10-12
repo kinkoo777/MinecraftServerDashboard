@@ -87,7 +87,7 @@ App.pages.schedules = {
           </div>
           <div class="field"><label>Only when empty</label>
             <label style="display:flex;align-items:center;gap:10px;padding:8px 0">
-              <span class="switch"><input type="checkbox" id="sc-empty"><span class="track" onclick="document.getElementById('sc-empty').click()"></span></span>
+              <span class="switch"><input type="checkbox" id="sc-empty"><span class="track"></span></span>
               <span class="muted" style="font-size:12px">skip if players online</span>
             </label>
           </div>

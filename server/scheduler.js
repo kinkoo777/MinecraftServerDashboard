@@ -237,7 +237,7 @@ async function run(s, now) {
     } else if (s.action === 'backup') {
       const r = await createBackup();
       mc.pushLog(`[dashboard] Scheduled backup complete: ${r.file}`);
-      require('./utils/notify').notifyAll(`💾 Scheduled world backup complete: \`${r.file}\``, 'Backup complete');
+      require('./utils/notify').notifyAll('backup', `💾 Scheduled world backup complete: \`${r.file}\``, 'Backup complete');
     } else if (s.action === 'command') {
       if (mc.status === 'online') mc.sendCommand(sanitizeCommand(s.command));
       else mc.pushLog('[dashboard] Skipped scheduled command: server is offline');

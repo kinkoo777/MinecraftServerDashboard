@@ -47,6 +47,8 @@ App.discover = {
       b.onclick = () => {
         this.state.tab = b.dataset.tab;
         this.state.category = '';
+        // a modpack brings its own Minecraft version, so don't narrow the list to the server's
+        this.state.gameVersion = this.state.tab === 'modpacks' ? '' : (this.ctx.mc || '');
         this.state.loader = this.state.tab === 'plugins'
           ? 'paper'
           : (this.ctx.modded ? this.ctx.type : 'fabric');
@@ -78,11 +80,17 @@ App.discover = {
   // MC version filter: server's own version + the project versions Modrinth knows.
   // Keep it simple: offer the server's version + "any"; more granular filtering can
   // use the details modal's version list.
-  fillGameVersions() {
+  // Modpacks can be for any version, so that tab lists the recent releases instead.
+  async fillGameVersions() {
     const sel = document.getElementById('disc-gv');
     const mine = this.ctx.mc;
+    const opt = (v, label) => `<option value="${App.esc(v)}"${this.state.gameVersion === v ? ' selected' : ''}>${App.esc(label || v)}</option>`;
+    sel.innerHTML = `<option value="">Any MC version</option>` + (mine ? opt(mine, `${mine} (your server)`) : '');
+    if (this.state.tab !== 'modpacks') return;
+    if (!this.mcVersions) this.mcVersions = ((await App.tryApi('/jars/versions')) || {}).vanilla || [];
+    if (!sel.isConnected || this.state.tab !== 'modpacks') return;
     sel.innerHTML = `<option value="">Any MC version</option>` +
-      (mine ? `<option value="${App.esc(mine)}"${this.state.gameVersion === mine ? ' selected' : ''}>${App.esc(mine)} (your server)</option>` : '');
+      this.mcVersions.map(v => opt(v, v === mine ? `${v} (your server)` : v)).join('');
   },
 
   async loadCategories() {

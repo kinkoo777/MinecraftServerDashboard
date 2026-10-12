@@ -27,7 +27,9 @@ const GLOBAL_DEFAULTS = {
   autoRestart: true,
   backupKeep: 10,
   discordWebhook: '',
-  ntfyTopic: ''
+  ntfyTopic: '',
+  ntfyIcon: '', // https address of a picture for phone notifications; empty = automatic (see utils/ntfy)
+  notifyEvents: {} // event -> false to mute it (see utils/notify EVENTS); missing = on
 };
 
 let store = null; // raw on-disk shape: { servers:[...], activeServer, ...globals, passwordHash, passwordSalt }

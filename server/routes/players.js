@@ -44,6 +44,32 @@ async function lookupUuid(name) {
   return null;
 }
 
+/* ---- Item list for the "give item" picker and command helper: every item id with
+   its English name, from the game's language file (cached for the session) ---- */
+let itemCache = null;
+const NOT_ITEMS = /^(air|cave_air|void_air|water|lava|fire|soul_fire|nether_portal|end_portal|end_gateway|moving_piston|piston_head|bubble_column|frosted_ice|tripwire|redstone_wire|powder_snow_cauldron|water_cauldron|lava_cauldron|.*wall_(torch|sign|hanging_sign|banner|head|skull|fan)|potted_.*|attached_.*_stem|.*_stem|.*_cake|cocoa|carrots|potatoes|beetroots|sweet_berry_bush|kelp_plant|.*_plant|tall_seagrass|bamboo_sapling|big_dripleaf_stem|cave_vines.*)$/;
+
+async function itemList() {
+  if (itemCache) return itemCache;
+  const r = await fetch('https://assets.mcasset.cloud/latest/assets/minecraft/lang/en_us.json');
+  if (!r.ok) throw Object.assign(new Error(`Could not load the item list (HTTP ${r.status})`), { status: 502 });
+  const lang = await r.json();
+  const byId = new Map();
+  for (const [key, name] of Object.entries(lang)) {
+    const m = /^(item|block)\.minecraft\.([a-z0-9_]+)$/.exec(key);
+    if (!m || typeof name !== 'string') continue;
+    if (m[1] === 'block' && (NOT_ITEMS.test(m[2]) || byId.has(m[2]))) continue;
+    byId.set(m[2], name); // an item entry wins over a block entry of the same id
+  }
+  itemCache = [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  return itemCache;
+}
+
+router.get('/items', async (req, res) => {
+  try { res.json(await itemList()); }
+  catch (e) { res.status(e.status || 502).json({ error: `Could not load the item list: ${e.message}` }); }
+});
+
 /* ---- Admin notes per player (keyed by lowercased name, stored per server) ---- */
 function notesFile() { return path.join(serverDir(), 'dashboard-notes.json'); }
 function readNotes() {

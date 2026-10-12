@@ -15,7 +15,7 @@ const GH_HEADERS = {
 // buildPreserveSet, because serverDir is user-configurable in multi-server setups).
 const PRESERVE = new Set([
   'node_modules', 'mc-server', 'backups', 'update-backups', 'config.json',
-  'schedules.json', 'console-logs', 'reports.json', 'sessions.json',
+  'schedules.json', 'schedule-presets.json', 'assistant-chats.json', 'console-logs', 'reports.json', 'sessions.json',
   'playit', 'cloudflare', 'java', '.git', '.claude-flow', '.swarm', '.remember',
   'ruvector.db', '.test-config.json', '.test-server', '.update-state.json'
 ]);

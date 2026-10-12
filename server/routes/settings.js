@@ -59,9 +59,9 @@ function configPatch(body) {
   return { patch };
 }
 
-// never expose password hash/salt/params or the 2FA secret to the client
+// never expose password hash/salt/params, the 2FA secret or the assistant's API key to the client
 function publicConfig(cfg) {
-  const { passwordHash, passwordSalt, passwordParams, totpSecret, totpPending, ...rest } = cfg || getConfig();
+  const { passwordHash, passwordSalt, passwordParams, totpSecret, totpPending, ai, ...rest } = cfg || getConfig();
   return rest;
 }
 
@@ -155,6 +155,52 @@ router.post('/ntfy-test', async (req, res) => {
   const ok = await ntfy.notify('👋 Test message from ChunkDeck', 'ChunkDeck');
   if (!ok) return res.status(502).json({ error: 'ntfy push failed — check the topic name' });
   res.json({ ok: true });
+});
+
+/* ---- Notifications: phone push (ntfy), Discord, and which events to send ---- */
+const { EVENTS } = require('../utils/notify');
+
+async function notificationState() {
+  const cfg = getConfig();
+  let qr = null;
+  if (cfg.ntfyTopic) {
+    try { qr = await require('qrcode').toDataURL(`https://ntfy.sh/${cfg.ntfyTopic}`, { margin: 1, width: 180 }); }
+    catch (e) { /* no QR — the topic name is shown too */ }
+  }
+  const events = {};
+  for (const k of Object.keys(EVENTS)) events[k] = (cfg.notifyEvents || {})[k] !== false;
+  return { ntfyTopic: cfg.ntfyTopic || '', ntfyIcon: cfg.ntfyIcon || '', iconInUse: ntfy.iconUrl(), discordWebhook: cfg.discordWebhook || '', events, labels: EVENTS, qr };
+}
+
+router.get('/notifications', async (req, res) => res.json(await notificationState()));
+
+router.put('/notifications', async (req, res) => {
+  const patch = {};
+  if (typeof req.body.ntfyTopic === 'string') {
+    patch.ntfyTopic = req.body.ntfyTopic.trim();
+    if (patch.ntfyTopic && !ntfy.TOPIC_RE.test(patch.ntfyTopic)) return res.status(400).json({ error: 'Topic: letters, numbers, - and _ only (max 64)' });
+  }
+  if (typeof req.body.ntfyIcon === 'string') {
+    patch.ntfyIcon = req.body.ntfyIcon.trim();
+    if (patch.ntfyIcon && !ntfy.ICON_URL_RE.test(patch.ntfyIcon)) return res.status(400).json({ error: 'The picture address must start with https://' });
+  }
+  if (typeof req.body.discordWebhook === 'string') {
+    patch.discordWebhook = req.body.discordWebhook.trim();
+    if (patch.discordWebhook && !URL_RE.test(patch.discordWebhook)) return res.status(400).json({ error: 'Discord webhook URL looks invalid (must start with https://discord.com/api/webhooks/)' });
+  }
+  if (req.body.events && typeof req.body.events === 'object') {
+    patch.notifyEvents = { ...(getConfig().notifyEvents || {}) };
+    for (const k of Object.keys(EVENTS)) if (typeof req.body.events[k] === 'boolean') patch.notifyEvents[k] = req.body.events[k];
+  }
+  saveConfig(patch);
+  res.json(await notificationState());
+});
+
+// One-click phone setup: invent a topic nobody can guess (anyone who knows a topic
+// name can read it, so it works like a password).
+router.post('/ntfy-setup', async (req, res) => {
+  if (!getConfig().ntfyTopic) saveConfig({ ntfyTopic: `chunkdeck-${require('crypto').randomBytes(8).toString('hex')}` });
+  res.json(await notificationState());
 });
 
 // server.properties presets — applied on top of the existing file

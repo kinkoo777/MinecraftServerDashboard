@@ -82,7 +82,8 @@ router.get('/status', (req, res) => {
     jarExists: !!resolveLaunch(serverDir(), cfg), // "a server is installed" — not necessarily a jar (Forge/NeoForge argfile)
     jarFile: cfg.jarFile,
     eula: eulaState(),
-    crashGaveUp: mc.crashGaveUp
+    crashGaveUp: mc.crashGaveUp,
+    diagnosis: mc.status === 'offline' ? mc.diagnosis : null
   });
 });
 
@@ -211,20 +212,40 @@ router.post('/command', (req, res) => {
   res.json({ ok: true });
 });
 
-// Show a message on every player's screen (a title, not a chat line).
+const ANNOUNCE_WHERE = ['title', 'subtitle', 'actionbar', 'chat'];
+const ANNOUNCE_COLORS = ['white', 'yellow', 'gold', 'red', 'green', 'aqua', 'light_purple', 'gray'];
+
+// Show a message on players' screens (a title, not a chat line): everyone, or just `to`.
 router.post('/announce', (req, res) => {
   if (mc.status !== 'online') return res.status(409).json({ error: 'Server is not online' });
   const text = String(req.body.message || '').replace(/[\x00-\x1f\x7f]/g, ' ').trim();
   if (!text) return res.status(400).json({ error: 'Type a message first' });
   if (text.length > 100) return res.status(400).json({ error: 'Message too long (max 100 characters)' });
   // a big title only fits a few words — longer text goes in the smaller subtitle line
-  const big = text.length <= 30;
-  const line = JSON.stringify({ text, color: 'yellow', bold: big });
-  mc.sendCommand('title @a times 10 100 20', { quiet: true }); // fade in, stay 5s, fade out (ticks)
-  mc.sendCommand(`title @a subtitle ${big ? '{"text":""}' : line}`, { quiet: true });
-  mc.sendCommand(`title @a title ${big ? line : '{"text":""}'}`, { quiet: true });
-  mc.pushLog(`[dashboard] Shown on screen to all players: ${text}`);
-  res.json({ ok: true, players: mc.players.size });
+  let target = '@a';
+  if (req.body.to) {
+    target = [...mc.players].find(p => p.toLowerCase() === String(req.body.to).toLowerCase());
+    if (!target) return res.status(409).json({ error: `${String(req.body.to).slice(0, 20)} is not online` });
+  }
+  // where: title (big, middle) | subtitle (smaller, middle) | actionbar (above the hotbar) | chat
+  let where = ANNOUNCE_WHERE.includes(req.body.where) ? req.body.where : 'title';
+  if (where === 'title' && text.length > 30) where = 'subtitle'; // a big title only fits a few words
+  const color = ANNOUNCE_COLORS.includes(req.body.color) ? req.body.color : 'yellow';
+  const bold = req.body.bold == null ? where === 'title' : !!req.body.bold;
+  const secs = Math.min(30, Math.max(1, Number(req.body.seconds) || 5));
+  const line = JSON.stringify({ text, color, bold });
+  const none = '{"text":""}';
+  if (where === 'chat') {
+    mc.sendCommand(`tellraw ${target} ${JSON.stringify(['', { text: '[Server] ', color: 'gray' }, { text, color, bold }])}`, { quiet: true });
+  } else if (where === 'actionbar') {
+    mc.sendCommand(`title ${target} actionbar ${line}`, { quiet: true }); // the game shows it for about 3s
+  } else {
+    mc.sendCommand(`title ${target} times 10 ${secs * 20} 20`, { quiet: true }); // fade in, stay, fade out (ticks)
+    mc.sendCommand(`title ${target} subtitle ${where === 'subtitle' ? line : none}`, { quiet: true });
+    mc.sendCommand(`title ${target} title ${where === 'title' ? line : none}`, { quiet: true });
+  }
+  mc.pushLog(`[dashboard] Message to ${target === '@a' ? 'all players' : target}: ${text}`);
+  res.json({ ok: true, players: target === '@a' ? mc.players.size : 1 });
 });
 
 const LOG_DIR = path.join(__dirname, '..', '..', 'console-logs');

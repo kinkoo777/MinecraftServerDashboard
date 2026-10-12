@@ -42,6 +42,8 @@ class MinecraftServer extends EventEmitter {
     this.listAskedAt = 0;     // when the last background `list` was sent, 0 once answered
     this.listMisses = 0;      // unanswered polls in a row; polling stops after 3
     this.bootFailTimer = null;
+    this.reachedOnline = false; // did this run ever finish starting?
+    this.diagnosis = null;      // why the last run failed, when the log makes that clear (utils/diagnose)
   }
 
   setStatus(s) {
@@ -103,6 +105,7 @@ class MinecraftServer extends EventEmitter {
     this.pushLog(line);
     if (this.status === 'starting' && DONE_RE.test(text)) {
       this.crashCount = 0; // a healthy boot wipes the crash-loop slate
+      this.reachedOnline = true;
       this.setStatus('online');
     }
     if (this.status === 'starting' && !this.bootFailTimer && BOOT_FAIL_RE.test(text)) {
@@ -171,6 +174,8 @@ class MinecraftServer extends EventEmitter {
     this.startedAt = Date.now();
     this.listAskedAt = 0;
     this.listMisses = 0;
+    this.reachedOnline = false;
+    this.diagnosis = null;
     if (type !== 'paper') {
       try {
         const copied = require('./utils/worldpaths').adoptPaperWorld();
@@ -201,7 +206,7 @@ class MinecraftServer extends EventEmitter {
       this.setStatus('offline');
     });
 
-    this.proc.on('exit', (code) => {
+    this.proc.on('exit', (code, signal) => {
       clearTimeout(this.stopTimer);
       clearTimeout(this.bootFailTimer);
       this.bootFailTimer = null;
@@ -216,20 +221,31 @@ class MinecraftServer extends EventEmitter {
       this.lastTps = null;
       this.lastTpsAt = 0;
       this.emit('players', []);
-      const crashed = !wasIntentional && code !== 0 && code != null;
-      this.pushLog(`[dashboard] Server process exited (code ${code ?? 'unknown'})`);
+      // killed from outside (out of memory, task manager…) counts as a crash too: there is no exit code then, only a signal
+      const crashed = !wasIntentional && (code == null ? !!signal : code !== 0);
+      this.pushLog(`[dashboard] Server process exited (${code != null ? `code ${code}` : `killed by ${signal || 'an unknown signal'}`})`);
+      // A run that crashed or never finished starting: say why, if the log makes it clear.
+      if (!wasIntentional && (crashed || !this.reachedOnline)) {
+        try {
+          const port = require('./utils/properties').readProperties(path.join(dir, 'server.properties'))['server-port'];
+          this.diagnosis = require('./utils/diagnose').diagnose(this.logBuffer, { mc: mcVer, maxRam: config.maxRam, port });
+        } catch (e) { this.diagnosis = null; }
+        if (this.diagnosis) this.pushLog(`[dashboard] Likely cause: ${this.diagnosis.title}. ${this.diagnosis.detail}`);
+      }
       const saved = this.saveConsoleLog(crashed ? 'crash' : 'stop');
       if (saved) this.pushLog(`[dashboard] Console log saved: ${saved}`);
       this.setStatus('offline');
 
       if (crashed) {
-        this.emit('crashed', code);
+        this.emit('crashed', code ?? signal, this.diagnosis);
         // Crash-loop guard: only quick, back-to-back crashes count. A run that
         // lasted >10min is treated as healthy, so its crash resets the slate
         // (crashCount) rather than counting toward the 3-strikes give-up below.
         if (ranForMs > 10 * 60000) this.crashCount = 0; // ran fine for a while: fresh slate
         const cfg = require('./config').getConfig();
-        if (cfg.autoRestart && this.crashCount < 3) {
+        if (cfg.autoRestart && this.diagnosis && !this.diagnosis.retry) {
+          this.pushLog('[dashboard] Not auto-restarting — it would fail the same way until that is fixed');
+        } else if (cfg.autoRestart && this.crashCount < 3) {
           this.crashCount++;
           this.pushLog(`[dashboard] Auto-restart in 5s (attempt ${this.crashCount}/3)`);
           // Store the handle so start()/stop() can cancel a pending restart.

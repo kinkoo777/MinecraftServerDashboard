@@ -103,7 +103,7 @@ App.wizard = {
         </div>
       </div>
       <label class="wiz-eula">
-        <span class="switch"><input type="checkbox" id="wiz-eula-ok" checked><span class="track" onclick="document.getElementById('wiz-eula-ok').click()"></span></span>
+        <span class="switch"><input type="checkbox" id="wiz-eula-ok" checked><span class="track"></span></span>
         <span>I agree to the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a> (required by Mojang to run a server).</span>
       </label>
       <button id="wiz-go" class="btn-primary wiz-go">${hasJar ? 'Apply & start' : 'Create my server'} →</button>

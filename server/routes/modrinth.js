@@ -2,55 +2,21 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { Readable } = require('stream');
-const { finished } = require('stream/promises');
 const { serverDir } = require('../config');
 const mrpack = require('../utils/mrpack');
 
+const { API, MOD_LOADERS, JAR_NAME_RE, mrFetch, dirFor, downloadVersion, installModById } = require('../utils/modrinth');
+
 const router = express.Router();
 
-const API = 'https://api.modrinth.com/v2';
 const LOADERS = ['paper', 'spigot', 'bukkit', 'fabric', 'forge', 'neoforge'];
-const MOD_LOADERS = ['fabric', 'forge', 'neoforge'];
 const SLUG_RE = /^[a-zA-Z0-9\-_]{1,64}$/;
 const VERSION_ID_RE = /^[a-zA-Z0-9]{8}$/; // Modrinth version ids are 8-char base62
-const JAR_NAME_RE = /^[\w.\-+ ]{1,200}\.jar$/i;
-
-const UA_HEADERS = { 'User-Agent': `chunkdeck/${require('../../package.json').version} (chunkdeck.dev)` };
-const mrFetch = (url, opts = {}) => fetch(url, { ...opts, headers: { ...UA_HEADERS, ...(opts.headers || {}) } });
 const SORTS = ['relevance', 'downloads', 'updated', 'newest'];
 const PROJECT_TYPES = ['plugin', 'mod', 'modpack'];
 const GAME_VERSION_RE = /^[\w.\-]{1,32}$/;
 const CATEGORY_RE = /^[a-z0-9\-_]{1,32}$/i;
 let categoryCache = { at: 0, data: null };
-
-function dirFor(loader) {
-  return path.join(serverDir(), MOD_LOADERS.includes(loader) ? 'mods' : 'plugins');
-}
-
-// Download a resolved Modrinth version's primary jar into destDir. Returns the
-// written filename. Enforces the same guards as before: safe filename + the
-// binary must come from Modrinth's own CDN, never an arbitrary URL in the response.
-async function downloadVersion(v, destDir) {
-  const file = (v.files || []).find(f => f.primary) || (v.files || [])[0];
-  if (!file) throw Object.assign(new Error('Version has no files'), { status: 404 });
-  const name = (file.filename || '').split(/[\\/]/).pop();
-  if (!JAR_NAME_RE.test(name)) {
-    throw Object.assign(new Error(`Unexpected file name from Modrinth: ${name}`), { status: 400 });
-  }
-  let host;
-  try { host = new URL(file.url).hostname; } catch (e) {
-    throw Object.assign(new Error('Invalid download URL from Modrinth'), { status: 400 });
-  }
-  if (!(host === 'modrinth.com' || host.endsWith('.modrinth.com'))) {
-    throw Object.assign(new Error(`Refusing download from untrusted host: ${host}`), { status: 400 });
-  }
-  fs.mkdirSync(destDir, { recursive: true });
-  const dl = await mrFetch(file.url);
-  if (!dl.ok) throw new Error(`Download failed (HTTP ${dl.status})`);
-  await finished(Readable.fromWeb(dl.body).pipe(fs.createWriteStream(path.join(destDir, name))));
-  return name;
-}
 
 router.get('/search', async (req, res) => {
   const q = String(req.query.q || '').slice(0, 100);
@@ -283,6 +249,20 @@ router.post('/install', async (req, res) => {
   } catch (e) {
     res.status(e.status || 502).json({ error: e.message });
   }
+});
+
+// "Install missing mods" fix offered by the crash explainer: `ids` are the mod ids
+// the server log said were missing.
+router.post('/install-missing', async (req, res) => {
+  const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(i => typeof i === 'string' && /^[\w.\-]{1,64}$/.test(i)).slice(0, 20) : [];
+  if (!ids.length) return res.status(400).json({ error: 'No mods given' });
+  const installed = [], failed = [];
+  for (const id of ids) {
+    try { installed.push(await installModById(id)); }
+    catch (e) { failed.push({ id, error: e.message }); }
+  }
+  if (!failed.length) require('../minecraft').diagnosis = null; // fixed — drop the dashboard's warning
+  res.json({ installed, failed });
 });
 
 router.post('/modpack/install', async (req, res) => {

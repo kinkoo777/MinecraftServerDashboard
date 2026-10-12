@@ -26,7 +26,8 @@ App.pages.console = {
       </div>
       <div id="con-log" class="console console-full"></div>
       <div class="console-input-row">
-        <input id="con-input" placeholder="Type a command (e.g. say Hello) — Enter to send, ↑/↓ for history" autocomplete="off">
+        <div id="con-help" class="cmd-help"></div>
+        <input id="con-input" placeholder="Type a command (e.g. say Hello) — Enter to send, Tab to complete, ↑/↓ for history" autocomplete="off">
         <button id="con-send" class="btn-primary">${App.icon('send', 14)} Send</button>
       </div>`;
 
@@ -61,16 +62,19 @@ App.pages.console = {
     };
 
     const input = document.getElementById('con-input');
+    const help = App.cmdHelp.mount(input, document.getElementById('con-help'));
     const send = async () => {
-      const command = input.value.trim();
+      const command = input.value.trim().replace(/^\//, ''); // the console takes commands without the slash
       if (!command) return;
       this.history.push(command);
       this.histIdx = this.history.length;
       input.value = '';
+      help.clear();
       await App.tryApi('/server/command', { method: 'POST', body: { command } });
     };
     document.getElementById('con-send').onclick = send;
     input.onkeydown = (e) => {
+      if (help.key(e)) return;
       if (e.key === 'Enter') send();
       else if (e.key === 'ArrowUp') {
         if (this.histIdx > 0) { this.histIdx--; input.value = this.history[this.histIdx]; }

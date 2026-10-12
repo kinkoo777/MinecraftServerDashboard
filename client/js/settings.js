@@ -109,27 +109,17 @@ App.pages.settings = {
             <div class="field"><label>Backups to keep</label><input type="number" id="cfg-backupKeep" min="0" max="1000"><div class="hint">oldest deleted first; 0 = unlimited</div></div>
             <div class="field"><label>Auto-restart on crash</label>
               <label style="display:flex;align-items:center;gap:10px;padding:8px 0">
-                <span class="switch"><input type="checkbox" id="cfg-autoRestart"><span class="track" onclick="document.getElementById('cfg-autoRestart').click()"></span></span>
+                <span class="switch"><input type="checkbox" id="cfg-autoRestart"><span class="track"></span></span>
                 <span class="muted" style="font-size:12px">up to 3 tries</span>
               </label>
             </div>
             <div class="field" style="grid-column:1/-1"><label>Extra JVM arguments</label><input id="cfg-jvmArgs" placeholder="-XX:+UseG1GC …"></div>
-            <div class="field" style="grid-column:1/-1">
-              <label>Discord webhook <span class="muted" style="font-weight:400">— start/stop/crash, joins, backups</span></label>
-              <div style="display:flex;gap:8px">
-                <input id="cfg-discordWebhook" placeholder="https://discord.com/api/webhooks/… (empty = off)">
-                <button id="cfg-discord-test" class="btn-sm" style="flex-shrink:0">Test</button>
-              </div>
-            </div>
-            <div class="field" style="grid-column:1/-1">
-              <label>ntfy.sh topic <span class="muted" style="font-weight:400">— free phone push notifications</span></label>
-              <div style="display:flex;gap:8px">
-                <input id="cfg-ntfyTopic" placeholder="my-mc-server-a1b2 (empty = off)">
-                <button id="cfg-ntfy-test" class="btn-sm" style="flex-shrink:0">Test</button>
-              </div>
-            </div>
           </div>
           <button id="cfg-save" class="btn-primary">Save launch settings</button>
+        </div>
+        <div class="card" id="ntf-card">
+          <h2>Notifications</h2>
+          <div id="ntf-body"><div class="empty">Loading…</div></div>
         </div>
       </div>
       <div class="stab-panel" data-panel="properties">
@@ -227,7 +217,7 @@ App.pages.settings = {
 
     const cfg = await App.tryApi('/settings/config');
     if (cfg) {
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook', 'ntfyTopic']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs']) {
         document.getElementById(`cfg-${k}`).value = cfg[k] || '';
       }
       document.getElementById('cfg-backupKeep').value = cfg.backupKeep ?? 10;
@@ -241,6 +231,7 @@ App.pages.settings = {
     this.initAppUpdates();
     this.init2fa();
     this.initCloudflare();
+    this.initNotifications();
 
     // Unsaved-changes tracking: Launch settings, server.properties and MOTD are all
     // edited in-place and only persisted on an explicit Save click. Warn before the
@@ -271,17 +262,13 @@ App.pages.settings = {
 
     document.getElementById('cfg-save').onclick = async () => {
       const body = {};
-      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs', 'discordWebhook', 'ntfyTopic']) {
+      for (const k of ['jarFile', 'javaPath', 'minRam', 'maxRam', 'jvmArgs']) {
         body[k] = document.getElementById(`cfg-${k}`).value;
       }
       body.backupKeep = Number(document.getElementById('cfg-backupKeep').value);
       body.autoRestart = document.getElementById('cfg-autoRestart').checked;
       if (await App.tryApi('/settings/config', { method: 'PUT', body }, 'Launch settings saved')) this.cfgDirty = false;
     };
-    document.getElementById('cfg-discord-test').onclick = () =>
-      App.tryApi('/settings/discord-test', { method: 'POST' }, 'Test message sent — check Discord');
-    document.getElementById('cfg-ntfy-test').onclick = () =>
-      App.tryApi('/settings/ntfy-test', { method: 'POST' }, 'Test push sent — check the ntfy app');
 
     document.getElementById('srv-add').onclick = async () => {
       const name = document.getElementById('srv-new-name').value.trim();
@@ -901,6 +888,81 @@ App.pages.settings = {
       }
     }
     box.innerHTML = html || `<span class="muted">No MOTD set</span>`;
+  },
+
+  // Notifications card: phone push (ntfy), Discord, and which events are sent.
+  async initNotifications(state) {
+    const box = document.getElementById('ntf-body');
+    if (!box) return;
+    const n = state || await App.tryApi('/settings/notifications');
+    if (!n || !box.isConnected) return;
+    const save = async (body, msg) => {
+      const r = await App.tryApi('/settings/notifications', { method: 'PUT', body }, msg);
+      if (r) this.initNotifications(r);
+    };
+    box.innerHTML = `
+      <div class="ntf-block">
+        <div class="ntf-title">${App.icon('send', 15)} Phone <span class="chip ${n.ntfyTopic ? 'chip-green' : ''}">${n.ntfyTopic ? 'On' : 'Off'}</span></div>
+        ${n.ntfyTopic ? `
+        <div class="ntf-phone">
+          ${n.qr ? `<img src="${n.qr}" alt="QR code" class="ntf-qr">` : ''}
+          <ol class="ntf-steps">
+            <li>Install the free <b>ntfy</b> app on your phone (<a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>).</li>
+            <li>In the app press <b>+</b> and enter this topic${n.qr ? ' — or scan the QR code with your camera' : ''}:<br><code id="ntf-topic">${App.esc(n.ntfyTopic)}</code> <button class="btn-sm" id="ntf-copy">Copy</button></li>
+            <li>Press <b>Send test</b> — your phone should buzz.</li>
+          </ol>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary btn-sm" id="ntf-test">Send test</button>
+          <button class="btn-sm" id="ntf-off">Turn off</button>
+        </div>
+        <p class="hint muted" style="margin-top:8px">Anyone who knows the topic name can read these notifications, so keep it to yourself.</p>
+        <div class="ntf-icon">
+          <img src="${App.esc(n.iconInUse)}" alt="" referrerpolicy="no-referrer">
+          <div style="flex:1;min-width:0">
+            <label class="muted" style="font-size:12px">Notification picture <span style="font-weight:400">— shown by the Android app; iPhones don't show one</span></label>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <input id="ntf-icon" placeholder="Automatic — or paste an https:// link to a PNG/JPG" value="${App.esc(n.ntfyIcon)}">
+              <button id="ntf-icon-save" class="btn-sm" style="flex-shrink:0">Save</button>
+            </div>
+          </div>
+        </div>`
+        : `
+        <p class="muted" style="margin-bottom:10px">Get a push on your phone when the server crashes, starts, or someone joins. Free, no account — it uses the ntfy app.</p>
+        <div class="btn-row">
+          <button class="btn-primary btn-sm" id="ntf-setup">Set up phone notifications</button>
+          <input id="ntf-own" placeholder="…or type your own ntfy topic" style="flex:1;min-width:160px">
+          <button class="btn-sm" id="ntf-own-save">Use</button>
+        </div>`}
+      </div>
+      <div class="ntf-block">
+        <div class="ntf-title">Discord <span class="chip ${n.discordWebhook ? 'chip-green' : ''}">${n.discordWebhook ? 'On' : 'Off'}</span></div>
+        <div style="display:flex;gap:8px">
+          <input id="ntf-discord" placeholder="Webhook URL: https://discord.com/api/webhooks/… (empty = off)" value="${App.esc(n.discordWebhook)}">
+          <button id="ntf-discord-save" class="btn-sm" style="flex-shrink:0">Save</button>
+          <button id="ntf-discord-test" class="btn-sm" style="flex-shrink:0" ${n.discordWebhook ? '' : 'disabled'}>Test</button>
+        </div>
+      </div>
+      <div class="ntf-block">
+        <div class="ntf-title">Tell me about</div>
+        <div class="ntf-events">${Object.entries(n.labels).map(([k, label]) => `
+          <label class="ntf-event">
+            <span class="switch"><input type="checkbox" data-ev="${k}" ${n.events[k] ? 'checked' : ''}><span class="track"></span></span>
+            <span>${App.esc(label)}</span>
+          </label>`).join('')}</div>
+      </div>`;
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on('ntf-setup', async () => { const r = await App.tryApi('/settings/ntfy-setup', { method: 'POST' }); if (r) this.initNotifications(r); });
+    on('ntf-own-save', () => { const v = document.getElementById('ntf-own').value.trim(); if (v) save({ ntfyTopic: v }); });
+    on('ntf-off', () => { if (confirm('Turn off phone notifications?')) save({ ntfyTopic: '' }, 'Phone notifications off'); });
+    on('ntf-test', () => App.tryApi('/settings/ntfy-test', { method: 'POST' }, 'Test sent — check your phone'));
+    on('ntf-icon-save', () => save({ ntfyIcon: document.getElementById('ntf-icon').value }, 'Notification picture saved'));
+    on('ntf-copy', () => { navigator.clipboard?.writeText(n.ntfyTopic); App.toast('Topic copied'); });
+    on('ntf-discord-save', () => save({ discordWebhook: document.getElementById('ntf-discord').value }, 'Discord saved'));
+    on('ntf-discord-test', () => App.tryApi('/settings/discord-test', { method: 'POST' }, 'Test message sent — check Discord'));
+    box.querySelectorAll('[data-ev]').forEach(cb => {
+      cb.onchange = () => save({ events: { [cb.dataset.ev]: cb.checked } });
+    });
   },
 
   async initCloudflare() {

@@ -143,6 +143,20 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.3.0
+- **Crash explainer** — when the server fails to start, the dashboard says why in plain words (missing mod, mod for the wrong Minecraft version, port in use, out of memory, world in use, client-only mod…) and offers a fix where it can: **Install missing mods** downloads them from Modrinth. Auto-restart no longer retries a start that can't succeed
+- **Cleaner player window** — the essentials on top, with Manage, Inventory, Statistics and Admin notes as fold-out sections that remember whether you left them open
+- **Message a single player** — the on-screen message can go to everyone or to one player, from the Dashboard's new **Message to players** card or from the player window
+- **Assistant** — a chat page where an AI model operates the dashboard for you ("who's online?", "back up the world", "why did it crash?", "make it day"). It checks status and the console, starts/stops the server, runs commands, manages players, sends messages, makes and restores backups, manages schedules, edits config files, changes server settings, and installs plugins, mods, modpacks or different server software — asking before anything that changes your server (with an "always allow" for the harmless kinds). Answers are written out live, chats are kept, a floating button opens it from any page, and it can look into crashes and lag by itself and notify you. Works with OpenRouter (one-click sign-in, includes free models), Groq, Google Gemini, DeepSeek, Claude, OpenAI, local models (Ollama, LM Studio) or any OpenAI-compatible service
+- **Compact message card** — who, style and text on one row; styles are picked from a dropdown
+- **Crashes from outside** — a server killed by the system (out of memory, task manager) now counts as a crash, so auto-restart and notifications react to it
+- **Message styles** — choose where a message appears (big or small in the middle, above the hotbar, or in chat), its colour and how long it stays; ready-made presets plus your own, built in a small window with a live preview
+- **Notifications card** — Settings has a guided phone setup (ntfy app, QR code, test button) next to Discord, and switches for which events you hear about (start/stop, crashes, players, backups, daily report)
+- **Give item picker** — search items by name and pick from a grid with pictures instead of typing ids
+- **Console helper** — while typing a command the console shows what it expects and offers completions for commands, players, items and fixed choices; Tab fills one in
+- **Inventory icons** — blocks, beds, chests, heads, spawn eggs and other items that used to show as text now have pictures
+- **Modpack list** — Forge/NeoForge/Fabric modpacks are no longer limited to your server's Minecraft version (a modpack brings its own); pick a version in the filter if you want one
+
 ### v1.2.1
 - **On-screen messages** — type a message on the Dashboard and press **Show to all**: it appears in the middle of every player's screen (a title, not a chat line)
 
@@ -164,6 +178,8 @@ See [GitHub Releases](https://github.com/kinkoo777/MinecraftServerDashboard/rele
 - **Server downloader & update checker** — install Paper, Vanilla, Fabric, NeoForge or Forge in a click; get told when a newer build exists
 - **Content hub** — browse, filter and search Modrinth for plugins, mods and modpacks with project details (description, gallery, versions) and one-click install, including full **modpack** installs that set up the loader server, mods and overrides together
 - **Self-updating dashboard** — one-click in-place updates from GitHub Releases, keeping your world, config and backups intact
+- **Crash explainer** — plain-language reason when the server won't start, with one-click fixes such as installing missing mods
+- **Assistant** — tell an AI model what you want in plain words and it operates the dashboard, asking before it changes anything; bring your own model (Claude, OpenAI, free tiers, or a local one)
 - **Players** — online / whitelist / ops / banned lists, an **inventory viewer** with real item icons, playtime/deaths/kills **stats**, a **leaderboard**, admin **notes**, and actions: op, whitelist, ban, kick, heal, feed, kill, gamemode, teleport, give items (whitelist/op/ban editing works even while the server is stopped)
 - **Settings** — Java/RAM options, full `server.properties` editor with typed controls and presets, config export/import
 - **Backups** — one-click zip backups with retention, restore, download

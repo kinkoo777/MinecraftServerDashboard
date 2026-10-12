@@ -20,12 +20,18 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   next();
 });
+// This Minecraft server's icon (or the dashboard's when it has none). Deliberately
+// open without login: phones fetch it as the picture for push notifications.
+app.get('/server-icon.png', (req, res) => {
+  const own = path.join(serverDir(), 'server-icon.png');
+  res.sendFile(require('fs').existsSync(own) ? own : path.join(__dirname, '..', 'client', 'icon.png'));
+});
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
 // Auth: /api/auth is open (it is the login door); everything else under /api needs a session
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', (req, res, next) => {
-  if (auth.authed(req)) return next();
+  if (auth.authed(req) || require('./ai').isInternal(req)) return next(); // the assistant's own tool calls
   res.status(401).json({ error: 'Unauthorized', setup: auth.isSetup() });
 });
 
@@ -41,6 +47,7 @@ app.use('/api/modrinth', require('./routes/modrinth'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/tunnel', require('./routes/tunnel'));
 app.use('/api/cloudflare', require('./routes/cloudflare'));
+app.use('/api/ai', require('./routes/ai'));
 
 // Uniform JSON errors for thrown route errors
 app.use((err, req, res, next) => {
@@ -74,20 +81,29 @@ const cf = require('./cloudflare');
 cf.on('log', (line) => broadcast('cf-log', line));
 cf.on('update', () => broadcast('cf-update', { status: cf.status, url: cf.url, installed: cf.installed() }));
 
-// Discord notifications
+// Notifications (Discord + phone push)
 mc.on('status', (status) => {
-  if (status === 'online') notify('✅ **Server is online**', 'Server online');
-  else if (status === 'offline') notify('⬛ Server stopped', 'Server stopped');
+  if (status === 'online') notify('status', '✅ **Server is online**', 'Server online');
+  else if (status === 'offline') notify('status', '⬛ Server stopped', 'Server stopped');
 });
-mc.on('crashed', (code) => notify(`💥 **Server crashed** (exit code ${code}) — check the saved console log`, '⚠ Server crashed'));
-mc.on('gaveup', () => notify('🛑 **Auto-restart gave up** after 3 quick crashes — the server is staying off until you start it. Check the saved console logs.', '🛑 Server keeps crashing'));
-mc.on('join', (name) => notify(`▶ **${name}** joined the game`, 'Player joined'));
-mc.on('leave', (name) => notify(`◀ **${name}** left the game`, 'Player left'));
+// `code` is the exit code, or the signal name when the process was killed from outside
+const how = (code) => (typeof code === 'number' ? `exit code ${code}` : `killed by ${code}`);
+mc.on('crashed', (code, why) => notify('crash', `💥 **Server crashed** (${how(code)}) — ${why ? `likely cause: ${why.title}` : 'check the saved console log'}`, 'Server crashed', { urgent: true }));
+mc.on('gaveup', () => notify('crash', '🛑 **Auto-restart gave up** after 3 quick crashes — the server is staying off until you start it. Check the saved console logs.', 'Server keeps crashing', { urgent: true }));
+mc.on('join', (name) => notify('players', `▶ **${name}** joined the game`, 'Player joined'));
+mc.on('leave', (name) => notify('players', `◀ **${name}** left the game`, 'Player left'));
+
+// Assistant watch: when switched on, it looks into a crash by itself and reports what it found
+const assistant = require('./ai');
+const explain = (kind, what, title) => assistant.watch(kind, what)
+  .then((text) => { if (text) notify('assistant', `🤖 **Assistant:** ${text}`, title); })
+  .catch(() => {});
+mc.on('crashed', (code, why) => explain('crash', `The Minecraft server just crashed (${how(code)}).${why ? ` The dashboard's guess: ${why.title}.` : ''}`, 'Assistant: crash check'));
 
 // Daily report aggregation
 mc.on('crashed', () => reports.event('crash'));
 mc.on('join', () => reports.event('join'));
-reports.onRollover((r) => notify(
+reports.onRollover((r) => notify('report',
   `📊 **Daily report — ${r.date}**\n` +
   `Peak players: **${r.peakPlayers}** · Unique: **${r.uniquePlayers.length}** · Uptime: **${Math.floor(r.uptimeMinutes / 60)}h ${r.uptimeMinutes % 60}m**\n` +
   `Avg TPS: **${r.avgTps ?? 'n/a'}** · Peak RAM: **${r.peakMemMB} MB** · Crashes: **${r.crashes}** · Backups: **${r.backups}**`,
@@ -108,6 +124,7 @@ wss.on('connection', (ws, req) => {
 // Sample stats every 2s: always record history, broadcast only when clients are connected
 const pidusage = require('pidusage');
 const history = require('./history');
+let lagSince = 0;
 setInterval(async () => {
   let stats = { cpu: 0, memory: 0, uptime: 0, online: false, tps: null };
   if (mc.pid) {
@@ -118,6 +135,14 @@ setInterval(async () => {
     // TPS is fresh if a tick-query answer arrived in the last 3 minutes
     stats.tps = (mc.lastTpsAt && Date.now() - mc.lastTpsAt < 180000) ? mc.lastTps : null;
   }
+  // lasting lag (under 12 TPS for 3 minutes) is worth a look too
+  if (stats.tps != null && stats.tps < 12) {
+    lagSince = lagSince || Date.now();
+    if (Date.now() - lagSince > 180000) {
+      lagSince = Date.now();
+      explain('lag', `The Minecraft server has been lagging for several minutes (${stats.tps} of 20 ticks per second, ${mc.players.size} players online).`, 'Assistant: lag check');
+    }
+  } else if (stats.tps != null) lagSince = 0;
   history.record(stats, mc.players.size);
   reports.record(stats, [...mc.players]);
   if (wss.clients.size > 0) broadcast('stats', stats);
