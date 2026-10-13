@@ -5,11 +5,24 @@ App.ai = {
   cfg: null,
   convoId: null,
   log: [],        // { who: 'you' | 'ai' | 'tool' | 'error', text, ok }
-  pending: null,  // { text, canAlways } — an action waiting for Allow / Deny
+  pending: null,  // { text, canAlways, detail } — an action waiting for Allow / Deny
   busy: false,
   typing: '',     // the answer as it is being written
   host: null,     // element the chat is currently drawn in
   IDEAS: ['How is the server doing?', 'Who is online right now?', 'Make a backup of the world', 'Why did the server fail to start?', 'Restart the server every night at 4:00'],
+  // suggestions that fit the page the floating panel was opened on
+  PAGE_IDEAS: {
+    dashboard: ['How is the server doing?', 'Why did the server crash?', 'Is anything out of date?', 'How can my friends join?'],
+    history: ['When was the server busiest this week?', 'Who played the most?', 'Did it crash in the last few days?'],
+    console: ['Explain the last errors in the console', 'What happened in the last 10 minutes?', 'Search the old logs for errors'],
+    players: ['Who is online right now?', 'Who played the most?', 'Who was kicked or banned recently?'],
+    settings: ['Is the RAM setting right for this computer?', 'Set this server up for survival with friends', 'Undo the last change'],
+    world: ['Make a backup of the world', 'How much disk space is left?', 'Back up the world every night at 3:30'],
+    tunnel: ['How can my friends join?', 'Why can\'t my friend connect?'],
+    files: ['Which file has the spawn settings?', 'What changed in the config files recently?'],
+    plugins: ['Which plugins or mods are out of date?', 'Find a plugin for land claims', 'What is installed on this server?'],
+    schedules: ['Restart the server every night at 4:00', 'What runs automatically right now?', 'Back up the world every 6 hours']
+  },
   PAGES: { dashboard: 'Dashboard', history: 'History', console: 'Console', players: 'Players', settings: 'Settings', world: 'World', tunnel: 'Play Online', files: 'Files', plugins: 'Content', schedules: 'Schedules' },
 
   async load() {
@@ -91,11 +104,19 @@ App.ai = {
       .replace(/\n/g, '<br>');
   },
 
+  // what exactly an action would change: a list of steps, or old/new lines
+  detail(d) {
+    if (!d) return '';
+    if (d.kind === 'list') return `<ol class="ai-steps">${(d.items || []).map(i => `<li>${App.esc(i)}</li>`).join('')}</ol>`;
+    if (d.kind !== 'diff' || !(d.lines || []).length) return '';
+    return `${d.note ? `<div class="muted" style="font-size:12px;margin-top:6px">${App.esc(d.note)}</div>` : ''}<pre class="ai-diff">${d.lines.map(l => `<span class="${l.t === '+' ? 'add' : l.t === '-' ? 'del' : l.t === '…' ? 'gap' : ''}">${l.t === '…' ? `⋯ ${App.esc(l.s)}` : `${l.t} ${App.esc(l.s)}`}</span>`).join('')}</pre>`;
+  },
+
   paintLog() {
     const box = this.host && this.host.querySelector('.ai-log');
     if (!box) return;
     if (!this.log.length && !this.busy) {
-      box.innerHTML = `<div class="ai-empty"><p class="muted">Try one of these:</p>${this.IDEAS.map(i => `<button class="ai-idea">${App.esc(i)}</button>`).join('')}</div>`;
+      box.innerHTML = `<div class="ai-empty"><p class="muted">Try one of these:</p>${(this.PAGE_IDEAS[App.currentName] || this.IDEAS).map(i => `<button class="ai-idea">${App.esc(i)}</button>`).join('')}</div>`;
       box.querySelectorAll('.ai-idea').forEach(b => { b.onclick = () => this.send(b.textContent); });
       return;
     }
@@ -106,7 +127,7 @@ App.ai = {
     }).join('') +
       (this.pending ? `
         <div class="ai-confirm">
-          <div><span class="muted">The assistant wants to:</span><br><b>${App.esc(this.pending.text)}</b></div>
+          <div class="ai-confirm-what"><span class="muted">The assistant wants to:</span><br><b>${App.esc(this.pending.text)}</b>${this.detail(this.pending.detail)}</div>
           <div class="btn-row">
             <button class="btn-primary btn-sm ai-allow">Allow</button>
             ${this.pending.canAlways ? '<button class="btn-sm ai-always" title="Don\'t ask again for this kind of action">Always allow</button>' : ''}
@@ -137,7 +158,7 @@ App.ai = {
         if (live) { live.innerHTML = this.md(this.typing); const box = live.parentNode; box.scrollTop = box.scrollHeight; return; }
       } else if (ev.type === 'text') { this.typing = ''; this.log.push({ who: 'ai', text: ev.text }); }
       else if (ev.type === 'tool') { this.typing = ''; this.log.push({ who: 'tool', text: ev.text, ok: ev.ok }); }
-      else if (ev.type === 'pending') this.pending = { text: ev.text, canAlways: ev.canAlways };
+      else if (ev.type === 'pending') this.pending = { text: ev.text, canAlways: ev.canAlways, detail: ev.detail };
       else if (ev.type === 'model') { this.cfg.model = ev.model; if (ev.provider) this.cfg.provider = ev.provider; if (this.onChange) this.onChange(); }
       else if (ev.type === 'error') { this.typing = ''; this.pending = null; this.log.push({ who: 'error', text: ev.error }); }
       this.paintLog();
@@ -223,9 +244,22 @@ App.ai = {
         <p class="hint muted">Set up several free services (each has a green dot once it has a key and a model). When one hits its limit mid-chat, the assistant carries on with the next.</p>
         <label class="ntf-event" style="margin:10px 0 4px">
           <span class="switch"><input type="checkbox" id="as-watch" ${c.watch ? 'checked' : ''}><span class="track"></span></span>
-          <span>Look into crashes and lag by itself and notify me</span>
+          <span>Look into problems by itself and notify me</span>
         </label>
-        <p class="hint muted">It only looks (status and console), never changes anything, and sends what it found to your phone or Discord. This uses the model without you asking — on free models it can hit their limits.</p>
+        <p class="hint muted">Crashes, lasting lag, a failed backup, a nearly full disk, or a player who keeps getting disconnected. It only looks, never changes anything, and sends what it found to your phone or Discord. This uses the model without you asking — on free models it can hit their limits.</p>
+        <label class="ntf-event" style="margin:10px 0 4px">
+          <span class="switch"><input type="checkbox" id="as-daily" ${c.daily.on ? 'checked' : ''}><span class="track"></span></span>
+          <span>Send me a daily summary at <input type="time" id="as-daily-time" value="${App.esc(c.daily.time)}" style="width:auto;display:inline-block;padding:2px 6px;margin:0 4px"></span>
+        </label>
+        <p class="hint muted">Once a day it looks at the last 24 hours (who played, crashes, backups, updates, disk space) and sends a short notification. <a href="#" id="as-daily-now" class="text-link">Send one now</a></p>
+        <label class="ntf-event" style="margin:10px 0 4px">
+          <span class="switch"><input type="checkbox" id="as-ingame" ${c.ingame.on ? 'checked' : ''}><span class="track"></span></span>
+          <span>Let me ask it from inside Minecraft by typing <code>!ai</code> in chat</span>
+        </label>
+        <div class="field" style="margin:4px 0 0"><input id="as-owners" placeholder="Your Minecraft player name" value="${App.esc(c.ingame.owners.join(', '))}" autocomplete="off"></div>
+        <p class="hint muted">Only this player gets an answer (privately); everyone else is ignored. It asks "!ai yes / !ai no" before changing anything. On a server that doesn't verify names (offline mode) it can only look.</p>
+        ${c.memory.length ? `<div class="field" style="margin-top:12px"><label>What it remembers</label>
+          <div class="msg-presets">${c.memory.map(n => `<button type="button" class="msg-preset" data-forget="${App.esc(n.id)}">${App.esc(n.text)}<span class="msg-del" title="Forget">×</span></button>`).join('')}</div></div>` : ''}
         ${c.trusted.length ? `<div class="field" style="margin-top:12px"><label>Allowed without asking</label>
           <div class="msg-presets">${c.trusted.map(t => `<button type="button" class="msg-preset" data-untrust="${App.esc(t.key)}">${App.esc(t.label)}<span class="msg-del" title="Ask again">×</span></button>`).join('')}</div></div>` : ''}
         <p class="hint muted" style="margin-top:10px">Your messages and what the assistant looks up (console lines, player names, settings) are sent to the service you choose. A local model keeps everything on this computer.</p>
@@ -242,6 +276,16 @@ App.ai = {
         if (r) { this.cfg = r; b.remove(); }
       };
     });
+    ov.querySelectorAll('[data-forget]').forEach(b => {
+      b.onclick = async () => {
+        const r = await App.tryApi('/ai/config', { method: 'PUT', body: { forgetMemory: b.dataset.forget } });
+        if (r) { this.cfg = r; b.remove(); }
+      };
+    });
+    $('as-daily-now').onclick = async (e) => {
+      e.preventDefault();
+      if (await App.tryApi('/ai/daily-now', { method: 'POST' })) App.toast('Working on it — the summary arrives as a notification in a minute');
+    };
     $('as-confirm').onchange = () => { $('as-confirm-warn').style.display = $('as-confirm').checked ? 'none' : ''; };
 
     // The model is chosen from a real dropdown once the service's list is loaded;
@@ -311,7 +355,7 @@ App.ai = {
     $('as-save').onclick = async () => {
       const r = await App.tryApi('/ai/config', {
         method: 'PUT',
-        body: { provider, baseUrl: $('as-url').value, model: $('as-model').value, apiKey: $('as-key').value, confirm: $('as-confirm').checked, watch: $('as-watch').checked, rotate: $('as-rotate').checked }
+        body: { provider, baseUrl: $('as-url').value, model: $('as-model').value, apiKey: $('as-key').value, confirm: $('as-confirm').checked, watch: $('as-watch').checked, rotate: $('as-rotate').checked, daily: { on: $('as-daily').checked, time: $('as-daily-time').value }, ingame: { on: $('as-ingame').checked, owners: $('as-owners').value } }
       }, 'Assistant settings saved');
       if (!r) return;
       this.cfg = r;

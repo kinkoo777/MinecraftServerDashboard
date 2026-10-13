@@ -257,6 +257,7 @@ async function run(s, now) {
     }
   } catch (e) {
     mc.pushLog(`[dashboard] Scheduled task failed: ${e.message}`);
+    if (s.action === 'backup') require('./ai').noticed('backup', `A scheduled world backup just failed: ${e.message}.`);
   }
 }
 

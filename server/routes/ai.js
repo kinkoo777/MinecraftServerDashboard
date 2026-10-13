@@ -50,6 +50,9 @@ router.post('/confirm', (req, res) => {
   stream(res, (emit) => ai.confirm(b.id, b.allow === true, b.always === true, emit));
 });
 
+// "Send one now" for the daily summary: runs in the background, the result arrives as a notification
+router.post('/daily-now', (req, res) => { ai.dailySummary(true).catch(() => {}); res.json({ ok: true }); });
+
 router.get('/chats', (req, res) => res.json(ai.listChats()));
 router.get('/chats/:id', (req, res) => { try { res.json(ai.getChat(req.params.id)); } catch (e) { fail(res, e); } });
 router.delete('/chats/:id', (req, res) => { ai.deleteChat(req.params.id); res.json({ ok: true }); });

@@ -143,6 +143,18 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.3.3
+- **Assistant: twice as many tools** — it can now read and search saved logs and crash reports, check for updates, see how players connect, look at the computer's memory and disk, list and remove plugins and mods, search and manage config files, change dashboard settings, and more (57 tools)
+- **Assistant memory** — it keeps short notes you tell it and knows them in every chat; see and delete them in the assistant settings
+- **Undo** — changes it makes to files and settings can be put back ("undo the last change")
+- **See the change before you approve** — the approval card shows the old and new lines
+- **One approval for a big job** — it shows the whole plan once; dangerous steps still ask one by one
+- **Daily summary** — a short notification once a day about the last 24 hours
+- **Ask it from inside Minecraft** — type `!ai` in game chat (only your own player name is answered)
+- **Watches more by itself** — failed backups, a nearly full disk, and players who keep getting disconnected
+- **Suggestions that fit the page** in the floating assistant
+- **Fixed:** dropdown arrows sat too close to the edge
+
 ### v1.3.1
 - **Free models that switch by themselves** — with OpenRouter the assistant now uses **All free models (automatic)** by default: each message goes to a free model that is available, so a busy or refused model no longer stops the chat
 - **Several AI services ready at once** — every service you set up is remembered (green dot in the settings), and with **Switch to another service** on, the assistant moves to the next one when a free limit runs out
