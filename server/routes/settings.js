@@ -61,7 +61,7 @@ function configPatch(body) {
 
 // never expose password hash/salt/params, the 2FA secret or the assistant's API key to the client
 function publicConfig(cfg) {
-  const { passwordHash, passwordSalt, passwordParams, totpSecret, totpPending, ai, ...rest } = cfg || getConfig();
+  const { passwordHash, passwordSalt, passwordParams, totpSecret, totpPending, ai, freellmapi, omniroute, ...rest } = cfg || getConfig();
   return rest;
 }
 

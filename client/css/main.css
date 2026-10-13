@@ -823,7 +823,7 @@ body.light .slot.filled { border-color: #b9c0cc; }
 @keyframes ai-dot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
 .ai-empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .ai-idea { border-radius: 999px; font-size: 13px; }
-.ai-input-row { display: flex; gap: 10px; align-items: flex-end; }
+.ai-input-row { display: flex; gap: 10px; align-items: center; }
 .ai-input-row textarea { flex: 1; resize: none; min-height: 40px; max-height: 160px; line-height: 1.4; }
 .as-providers { display: flex; flex-wrap: wrap; gap: 6px; }
 

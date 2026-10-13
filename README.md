@@ -143,6 +143,14 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
+### v1.3.1
+- **Free models that switch by themselves** — with OpenRouter the assistant now uses **All free models (automatic)** by default: each message goes to a free model that is available, so a busy or refused model no longer stops the chat
+- **Several AI services ready at once** — every service you set up is remembered (green dot in the settings), and with **Switch to another service** on, the assistant moves to the next one when a free limit runs out
+- **More free services** — Cerebras, Mistral and NVIDIA join the list
+- **Model picker** — the model is chosen from a real dropdown that loads the service's models by itself
+- **Fixed:** switching to another AI service could lose the key of the one in use
+- **Fixed:** the Send button in the assistant sits level with the message box
+
 ### v1.3.0
 - **Crash explainer** — when the server fails to start, the dashboard says why in plain words (missing mod, mod for the wrong Minecraft version, port in use, out of memory, world in use, client-only mod…) and offers a fix where it can: **Install missing mods** downloads them from Modrinth. Auto-restart no longer retries a start that can't succeed
 - **Cleaner player window** — the essentials on top, with Manage, Inventory, Statistics and Admin notes as fold-out sections that remember whether you left them open

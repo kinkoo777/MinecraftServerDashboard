@@ -59,7 +59,7 @@ App.ai = {
           ${App.icon('spark', 34)}
           <h2>An assistant that can run your server</h2>
           <p class="muted">Ask in plain words — "who's online?", "back up the world", "why did it crash?", "make it day" — and it does it for you. It asks before anything that changes your server.</p>
-          <p class="muted">It needs an AI model. Free: sign in with OpenRouter and use one of its free models, or use Groq or Gemini's free tier. Or connect DeepSeek, Claude, OpenAI, or a model on this computer (Ollama, LM Studio).</p>
+          <p class="muted">It needs an AI model. Free: sign in with OpenRouter and it uses all of its free models automatically, or use Groq or Gemini's free tier. Or connect DeepSeek, Claude, OpenAI, or a model on this computer (Ollama, LM Studio).</p>
           <button class="btn-primary ai-setup">Set up the assistant</button>
         </div>`;
       el.querySelector('.ai-setup').onclick = () => this.openSettings();
@@ -138,7 +138,7 @@ App.ai = {
       } else if (ev.type === 'text') { this.typing = ''; this.log.push({ who: 'ai', text: ev.text }); }
       else if (ev.type === 'tool') { this.typing = ''; this.log.push({ who: 'tool', text: ev.text, ok: ev.ok }); }
       else if (ev.type === 'pending') this.pending = { text: ev.text, canAlways: ev.canAlways };
-      else if (ev.type === 'model') this.cfg.model = ev.model;
+      else if (ev.type === 'model') { this.cfg.model = ev.model; if (ev.provider) this.cfg.provider = ev.provider; if (this.onChange) this.onChange(); }
       else if (ev.type === 'error') { this.typing = ''; this.pending = null; this.log.push({ who: 'error', text: ev.error }); }
       this.paintLog();
     };
@@ -193,7 +193,7 @@ App.ai = {
       <div class="modal" style="max-width:560px">
         <div class="card-title-row"><h2 style="margin:0">Assistant settings</h2><button class="btn-icon" id="as-close" title="Close">${App.icon('x', 14)}</button></div>
         <div class="field"><label>AI service</label>
-          <div class="as-providers" id="as-providers">${Object.entries(c.providers).map(([k, p]) => `<button type="button" class="msg-preset" data-p="${k}">${App.esc(p.label)}</button>`).join('')}</div>
+          <div class="as-providers" id="as-providers">${Object.entries(c.providers).map(([k, p]) => `<button type="button" class="msg-preset" data-p="${k}" title="${c.saved[k] && c.saved[k].ready ? 'Set up' : ''}">${c.saved[k] && c.saved[k].ready ? '<span class="msg-dot" style="background:var(--accent)"></span>' : ''}${App.esc(p.label)}</button>`).join('')}</div>
           <div class="hint" id="as-note"></div>
         </div>
         <div class="field" id="as-url-field"><label>Base URL</label><input id="as-url" placeholder="https://…/v1"></div>
@@ -204,10 +204,10 @@ App.ai = {
         <div class="field" id="as-key-field"><label>API key <a id="as-key-link" target="_blank" rel="noopener" class="text-link" style="font-weight:400">Get one</a></label>
           <input id="as-key" type="password" autocomplete="off" placeholder="">
         </div>
-        <div class="field"><label>Model</label>
+        <div class="field" id="as-model-field"><label>Model</label>
           <div style="display:flex;gap:8px">
-            <input id="as-model" list="as-models" placeholder="Pick or type a model name" autocomplete="off">
-            <datalist id="as-models"></datalist>
+            <select id="as-pick" style="display:none"></select>
+            <input id="as-model" placeholder="Model name" autocomplete="off">
             <button class="btn-sm" id="as-load" style="flex-shrink:0">Load list</button>
           </div>
         </div>
@@ -216,6 +216,11 @@ App.ai = {
           <span>Ask me before it changes anything <span class="muted">(recommended)</span></span>
         </label>
         <p class="hint muted" id="as-confirm-warn" style="display:none;color:var(--amber)">With this off the assistant can stop the server, ban players or run any command without asking — including if something a player typed in chat tricks it.</p>
+        <label class="ntf-event" style="margin:10px 0 4px">
+          <span class="switch"><input type="checkbox" id="as-rotate" ${c.rotate ? 'checked' : ''}><span class="track"></span></span>
+          <span>When a service runs out, switch to another one I've set up</span>
+        </label>
+        <p class="hint muted">Set up several free services (each has a green dot once it has a key and a model). When one hits its limit mid-chat, the assistant carries on with the next.</p>
         <label class="ntf-event" style="margin:10px 0 4px">
           <span class="switch"><input type="checkbox" id="as-watch" ${c.watch ? 'checked' : ''}><span class="track"></span></span>
           <span>Look into crashes and lag by itself and notify me</span>
@@ -239,6 +244,35 @@ App.ai = {
     });
     $('as-confirm').onchange = () => { $('as-confirm-warn').style.display = $('as-confirm').checked ? 'none' : ''; };
 
+    // The model is chosen from a real dropdown once the service's list is loaded;
+    // until then (or on "Type a name…") it is a plain text box.
+    const showList = (list) => {
+      const sel = $('as-pick'), input = $('as-model');
+      if (!list || !list.length) { sel.style.display = 'none'; input.style.display = ''; return; }
+      const cur = input.value.trim();
+      const has = list.some(m => m.id === cur);
+      sel.innerHTML = (cur && !has ? `<option value="${App.esc(cur)}">${App.esc(cur)}</option>` : '') +
+        list.map(m => `<option value="${App.esc(m.id)}">${App.esc(m.name || m.id)}</option>`).join('') +
+        '<option value="__type">Type a model name…</option>';
+      sel.value = cur || list[0].id;
+      if (!cur) input.value = list[0].id;
+      sel.style.display = ''; input.style.display = 'none';
+    };
+    let loadSeq = 0;
+    const loadList = async (quiet) => {
+      const mine = ++loadSeq, forProvider = provider;
+      const btn = $('as-load');
+      btn.disabled = true; btn.textContent = 'Loading…';
+      let list = null;
+      try { list = await App.api('/ai/models', { method: 'POST', body: { provider, baseUrl: $('as-url').value, apiKey: $('as-key').value } }); }
+      catch (e) { if (!quiet) App.toast(e.message, true); }
+      if (!ov.isConnected || mine !== loadSeq || forProvider !== provider) return;
+      btn.disabled = false; btn.textContent = 'Load list';
+      if (!list) return;
+      if (!list.length && !quiet) App.toast('The service listed no models');
+      showList(list);
+    };
+
     const pick = (k, keepValues) => {
       provider = k;
       const p = c.providers[k];
@@ -250,12 +284,14 @@ App.ai = {
       $('as-key-link').style.display = p.keyUrl ? '' : 'none';
       if (p.keyUrl) $('as-key-link').href = p.keyUrl;
       const same = k === c.provider;
-      $('as-key').placeholder = same && c.hasKey ? 'Saved — leave empty to keep it' : (p.keyOptional ? 'Optional' : 'Paste your key');
+      const kept = same ? { model: c.model, baseUrl: c.baseUrl, hasKey: c.hasKey } : (c.saved[k] || {});
+      $('as-key').placeholder = kept.hasKey ? 'Saved — leave empty to keep it' : (p.keyOptional ? 'Optional' : 'Paste your key');
       if (!keepValues) {
-        $('as-url').value = same ? c.baseUrl : (p.baseUrl || '');
-        $('as-model').value = same ? c.model : (p.model || '');
+        $('as-url').value = kept.baseUrl || p.baseUrl || '';
+        $('as-model').value = kept.model || p.model || '';
         $('as-key').value = '';
-        $('as-models').innerHTML = '';
+        showList(null);
+        if (kept.hasKey || !p.key) loadList(true); // the service is ready: fetch its models straight away
       }
     };
     ov.querySelectorAll('[data-p]').forEach(b => { b.onclick = () => pick(b.dataset.p); });
@@ -266,21 +302,16 @@ App.ai = {
       if (r) location.href = r.url;
     };
 
-    $('as-load').onclick = async () => {
-      $('as-load').disabled = true; $('as-load').textContent = 'Loading…';
-      const list = await App.tryApi('/ai/models', { method: 'POST', body: { provider, baseUrl: $('as-url').value, apiKey: $('as-key').value } });
-      $('as-load').disabled = false; $('as-load').textContent = 'Load list';
-      if (!list) return;
-      $('as-models').innerHTML = list.map(m => `<option value="${App.esc(m.id)}">${App.esc(m.name || m.id)}</option>`).join('');
-      App.toast(list.length ? `${list.length} models — pick one in the Model box` : 'The service listed no models');
-      if (!$('as-model').value && list.length === 1) $('as-model').value = list[0].id;
-      $('as-model').focus();
+    $('as-load').onclick = () => loadList(false);
+    $('as-pick').onchange = () => {
+      if ($('as-pick').value === '__type') { showList(null); $('as-model').focus(); }
+      else $('as-model').value = $('as-pick').value;
     };
 
     $('as-save').onclick = async () => {
       const r = await App.tryApi('/ai/config', {
         method: 'PUT',
-        body: { provider, baseUrl: $('as-url').value, model: $('as-model').value, apiKey: $('as-key').value, confirm: $('as-confirm').checked, watch: $('as-watch').checked }
+        body: { provider, baseUrl: $('as-url').value, model: $('as-model').value, apiKey: $('as-key').value, confirm: $('as-confirm').checked, watch: $('as-watch').checked, rotate: $('as-rotate').checked }
       }, 'Assistant settings saved');
       if (!r) return;
       this.cfg = r;

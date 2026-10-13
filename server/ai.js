@@ -15,9 +15,12 @@ const mc = require('./minecraft');
    OpenAI-style /chat/completions API they all speak. */
 
 const PROVIDERS = {
-  openrouter: { label: 'OpenRouter', kind: 'openai', key: true, oauth: true, baseUrl: 'https://openrouter.ai/api/v1', keyUrl: 'https://openrouter.ai/keys', note: 'Sign in once and pick from hundreds of models — the ones ending in ":free" cost nothing.' },
+  openrouter: { label: 'OpenRouter', kind: 'openai', key: true, oauth: true, baseUrl: 'https://openrouter.ai/api/v1', model: 'openrouter/free', keyUrl: 'https://openrouter.ai/keys', note: 'Sign in once. The default "openrouter/free" uses all of OpenRouter\'s free models automatically, picking one that works for each message — or choose any of hundreds of models yourself.' },
   groq: { label: 'Groq', kind: 'openai', key: true, baseUrl: 'https://api.groq.com/openai/v1', keyUrl: 'https://console.groq.com/keys', note: 'Has a free tier. Very fast.' },
   gemini: { label: 'Google Gemini', kind: 'openai', key: true, baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', keyUrl: 'https://aistudio.google.com/apikey', note: 'Has a free tier.' },
+  cerebras: { label: 'Cerebras', kind: 'openai', key: true, baseUrl: 'https://api.cerebras.ai/v1', keyUrl: 'https://cloud.cerebras.ai', note: 'Has a free tier. Very fast.' },
+  mistral: { label: 'Mistral', kind: 'openai', key: true, baseUrl: 'https://api.mistral.ai/v1', keyUrl: 'https://console.mistral.ai/api-keys', note: 'Has a free tier.' },
+  nvidia: { label: 'NVIDIA', kind: 'openai', key: true, baseUrl: 'https://integrate.api.nvidia.com/v1', keyUrl: 'https://build.nvidia.com', note: 'Free credits for many open models.' },
   deepseek: { label: 'DeepSeek', kind: 'openai', key: true, baseUrl: 'https://api.deepseek.com/v1', keyUrl: 'https://platform.deepseek.com/api_keys', note: 'DeepSeek API key (pay as you go, inexpensive).' },
   anthropic: { label: 'Claude', kind: 'anthropic', key: true, model: 'claude-opus-5-5', keyUrl: 'https://platform.claude.com/settings/keys', note: 'Anthropic API key (pay as you go).' },
   openai: { label: 'OpenAI', kind: 'openai', key: true, baseUrl: 'https://api.openai.com/v1', keyUrl: 'https://platform.openai.com/api-keys', note: 'OpenAI API key (pay as you go).' },
@@ -27,18 +30,26 @@ const PROVIDERS = {
 };
 
 // Claude models that take the refusal-fallback parameter
+// OpenRouter's own router over every free model: each request goes to a free model
+// that is available and supports what the request needs (tools), so there is no
+// single model to be refused or rate-limited.
+const FREE_ROUTER = 'openrouter/free';
+
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
 
 function settings(override = {}) {
   const saved = getConfig().ai || {};
   const provider = PROVIDERS[override.provider || saved.provider] ? (override.provider || saved.provider) : null;
   const p = provider ? PROVIDERS[provider] : null;
-  const sameProvider = !override.provider || override.provider === saved.provider;
+  // the service in use keeps its values at the top level; every service that was
+  // set up is also remembered under `saved`, so several can be kept ready
+  const own = (!override.provider || override.provider === saved.provider) ? saved : ((saved.saved || {})[provider] || {});
   return {
     provider, kind: p && p.kind,
-    baseUrl: String(override.baseUrl ?? (sameProvider ? saved.baseUrl : '') ?? '').trim().replace(/\/+$/, '') || (p && p.baseUrl) || '',
-    model: String(override.model ?? (sameProvider ? saved.model : '') ?? '').trim() || (p && p.model) || '',
-    apiKey: override.apiKey || (sameProvider ? saved.apiKey : '') || '',
+    baseUrl: String((override.baseUrl || own.baseUrl) ?? '').trim().replace(/\/+$/, '') || (p && p.baseUrl) || '',
+    model: String(override.model ?? own.model ?? '').trim() || (p && p.model) || '',
+    apiKey: override.apiKey || own.apiKey || '',
+    rotate: saved.rotate === true,
     confirm: saved.confirm !== false,
     watch: saved.watch === true,
     trusted: Array.isArray(saved.trusted) ? saved.trusted : []
@@ -48,17 +59,21 @@ function settings(override = {}) {
 function publicSettings() {
   const s = settings();
   return {
-    provider: s.provider, baseUrl: s.baseUrl, model: s.model, hasKey: !!s.apiKey, confirm: s.confirm, watch: s.watch,
+    provider: s.provider, baseUrl: s.baseUrl, model: s.model, hasKey: !!s.apiKey, confirm: s.confirm, watch: s.watch, rotate: s.rotate,
+    // services that are set up (never their keys)
+    saved: Object.fromEntries(Object.entries((getConfig().ai || {}).saved || {}).filter(([id]) => PROVIDERS[id]).map(([id, v]) => [id, { model: v.model || '', baseUrl: v.baseUrl || '', hasKey: !!v.apiKey, ready: usable(id, v) }])),
     trusted: s.trusted.map(k => ({ key: k, label: trustLabel(k) })), providers: PROVIDERS
   };
 }
 
 function saveSettings(body) {
-  const cur = getConfig().ai || {};
+  // remember() first: the service in use must be in the set-up list before anything
+  // changes, or switching away from it would lose its key
+  const cur = remember(getConfig().ai || {});
   const next = { ...cur };
   if (body.provider != null) {
     if (!PROVIDERS[body.provider]) throw Object.assign(new Error('Unknown provider'), { status: 400 });
-    if (body.provider !== cur.provider) { next.apiKey = ''; next.baseUrl = ''; next.model = ''; }
+    if (body.provider !== cur.provider) { const was = (cur.saved || {})[body.provider] || {}; next.apiKey = was.apiKey || ''; next.baseUrl = was.baseUrl || ''; next.model = was.model || ''; }
     next.provider = body.provider;
   }
   if (typeof body.baseUrl === 'string') {
@@ -71,9 +86,33 @@ function saveSettings(body) {
   if (body.clearKey === true) next.apiKey = '';
   if (typeof body.confirm === 'boolean') next.confirm = body.confirm;
   if (typeof body.watch === 'boolean') next.watch = body.watch;
+  if (typeof body.rotate === 'boolean') next.rotate = body.rotate;
   if (typeof body.untrust === 'string') next.trusted = (next.trusted || []).filter(k => k !== body.untrust);
-  saveConfig({ ai: next });
+  if (body.forget && PROVIDERS[body.forget] && body.forget !== next.provider) { next.saved = { ...(next.saved || {}) }; delete next.saved[body.forget]; }
+  saveConfig({ ai: remember(next) });
   return publicSettings();
+}
+
+// keep the service in use mirrored in the list of set-up services
+function remember(ai) {
+  if (!ai.provider) return ai;
+  return { ...ai, saved: { ...(ai.saved || {}), [ai.provider]: { apiKey: ai.apiKey || '', baseUrl: ai.baseUrl || '', model: ai.model || '' } } };
+}
+
+// Can this set-up service take over a conversation? (key where needed, a model, same message format)
+function usable(id, v) {
+  const p = PROVIDERS[id];
+  if (!p || p.kind !== 'openai' || !v) return false;
+  const model = v.model || p.model;
+  const url = v.baseUrl || p.baseUrl;
+  return !!model && !!url && (!p.key || p.keyOptional || !!v.apiKey);
+}
+
+// Change the model and/or service in use (used by the automatic switching).
+function switchTo(provider, model) {
+  const cur = getConfig().ai || {};
+  const was = provider === cur.provider ? cur : ((cur.saved || {})[provider] || {});
+  saveConfig({ ai: remember({ ...cur, provider, apiKey: was.apiKey || '', baseUrl: was.baseUrl || '', model: model || was.model || PROVIDERS[provider].model || '' }) });
 }
 
 /* ---- the dashboard's own API, called in-process over loopback ---- */
@@ -383,7 +422,8 @@ async function openaiRequest(s, path, body) {
   // 403 is usually about the model, not the key (not available to this account, region, or kind of app)
   if (r.status === 403) throw Object.assign(new Error(`The AI service refused this model${detail}. Pick a different model in the assistant settings.`), { modelRefused: true });
   if (r.status === 404) throw Object.assign(new Error(`The model "${s.model}" is not available${detail}. Pick a different model in the assistant settings.`), { modelRefused: true });
-  if (r.status === 429) throw Object.assign(new Error(`This model is busy or its free quota is used up${detail}. Try again in a moment or pick another model.`), { rateLimited: true });
+  // 429 rate limit, 402 out of credit, 503 overloaded: this service can't answer right now, another one might
+  if (r.status === 429 || r.status === 402 || r.status === 503) throw Object.assign(new Error(`${PROVIDERS[s.provider].label} is busy or its free quota is used up${detail}. Try again in a moment, or set up another service in the assistant settings.`), { rateLimited: true });
   throw new Error(`The AI service returned an error (${r.status})${detail}`);
 }
 
@@ -469,8 +509,9 @@ async function listModels(override) {
     const raw = data.data || data.models || [];
     // free models that can use tools first (OpenRouter marks them with ":free")
     const free = (m) => (/:free$/.test(String(m.id)) && (m.supported_parameters || ['tools']).includes('tools') ? 0 : 1);
-    return raw.filter(m => m.id || m.name).sort((a, b) => free(a) - free(b) || String(a.id || a.name).localeCompare(String(b.id || b.name)))
-      .map(m => ({ id: String(m.id || m.name).replace(/^models\//, ''), name: m.id || m.name }));
+    const first = (m) => (m.id === FREE_ROUTER ? 0 : 1); // "all free models" on top
+    return raw.filter(m => m.id || m.name).sort((a, b) => first(a) - first(b) || free(a) - free(b) || String(a.id || a.name).localeCompare(String(b.id || b.name)))
+      .map(m => ({ id: String(m.id || m.name).replace(/^models\//, ''), name: m.id === FREE_ROUTER ? 'All free models (automatic)' : (m.id || m.name) }));
   } catch (e) {
     throw Object.assign(new Error(friendlyError(e, s)), { status: 502 });
   }
@@ -542,8 +583,9 @@ async function oauthFinish(code, state) {
   } catch (e) { throw Object.assign(new Error('Could not reach OpenRouter to finish signing in'), { status: 502 }); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.key) throw Object.assign(new Error('OpenRouter did not accept the sign-in — try again'), { status: 502 });
-  const keepModel = (getConfig().ai || {}).provider === 'openrouter' && (getConfig().ai || {}).model;
-  return saveSettings({ provider: 'openrouter', apiKey: data.key, model: keepModel || await freeOpenRouterModel(data.key) });
+  const ai = getConfig().ai || {};
+  const keepModel = ai.provider === 'openrouter' && ai.model;
+  return saveSettings({ provider: 'openrouter', apiKey: data.key, model: keepModel || FREE_ROUTER });
 }
 
 /* ---- conversations ----
@@ -654,17 +696,28 @@ async function advance(c, emit) {
     for (;;) {
       try { out = await (s.kind === 'anthropic' ? anthropicTurn : openaiTurn)(s, c.messages, tools, (d) => emit({ type: 'delta', text: d })); break; }
       catch (e) {
-        // A free OpenRouter model that is refused or busy: move to one that answers
-        // and repeat this step, instead of leaving the user stuck.
-        if (!(e.modelRefused || e.rateLimited) || s.provider !== 'openrouter' || !/:free$/.test(s.model) || tried.size >= 2) throw e;
-        tried.add(s.model);
-        const model = await freeOpenRouterModel(s.apiKey, tried);
-        if (!model) throw e;
-        const was = s.model;
-        saveConfig({ ai: { ...(getConfig().ai || {}), model } });
-        s = settings(); c.model = model;
-        say({ type: 'tool', ok: true, text: `Switched to the free model ${model} — ${was} ${e.rateLimited ? 'is busy right now' : "isn't available to this app"}` });
-        emit({ type: 'model', model });
+        // This model or service can't answer (refused, rate-limited, quota used up):
+        // repeat this step on another one instead of leaving the user stuck.
+        if (!(e.modelRefused || e.rateLimited) || s.kind !== 'openai' || tried.size >= 5) throw e;
+        tried.add(`${s.provider}:${s.model}`);
+        const was = s;
+        const freeOR = s.provider === 'openrouter' && (s.model === FREE_ROUTER || /:free$/.test(s.model));
+        const others = Object.entries((getConfig().ai || {}).saved || {})
+          .filter(([id, v]) => id !== s.provider && usable(id, v) && ![...tried].some(t => t.startsWith(`${id}:`)));
+        let why = e.rateLimited ? 'has run out for now' : "isn't available to this app";
+        if (freeOR && !tried.has(`openrouter:${FREE_ROUTER}`)) {
+          switchTo('openrouter', FREE_ROUTER); // 1. every free OpenRouter model at once
+        } else if (s.rotate && e.rateLimited && others.length) {
+          switchTo(others[0][0]); // 2. another service the owner set up
+        } else if (freeOR) {
+          const model = await freeOpenRouterModel(s.apiKey, new Set([...tried].map(t => t.slice(t.indexOf(':') + 1)))); // 3. a single free model that answers right now
+          if (!model) throw e;
+          switchTo('openrouter', model);
+        } else throw e;
+        s = settings(); c.model = s.model;
+        const now = s.provider !== was.provider ? `${PROVIDERS[s.provider].label} (${s.model})` : (s.model === FREE_ROUTER ? 'all free models (automatic)' : `the free model ${s.model}`);
+        say({ type: 'tool', ok: true, text: `Switched to ${now} — ${s.provider !== was.provider ? PROVIDERS[was.provider].label : was.model} ${why}` });
+        emit({ type: 'model', model: s.model, provider: s.provider });
       }
     }
     if (out.text) say({ type: 'text', text: out.text });

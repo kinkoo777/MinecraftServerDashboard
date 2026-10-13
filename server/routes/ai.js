@@ -25,6 +25,7 @@ router.post('/oauth/finish', async (req, res) => {
   try { res.json(await ai.oauthFinish((req.body || {}).code, (req.body || {}).state)); } catch (e) { fail(res, e); }
 });
 
+
 // Chat answers are streamed: one JSON object per line as things happen
 // (id, delta, text, tool, pending, model, then done or error).
 function stream(res, run) {
