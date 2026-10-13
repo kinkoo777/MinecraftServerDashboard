@@ -143,7 +143,7 @@ Your data is never touched: your world (`mc-server/`), backups, `config.json`, s
 
 ## 📋 Changelog
 
-### v1.3.3
+### v1.3.2
 - **Assistant: twice as many tools** — it can now read and search saved logs and crash reports, check for updates, see how players connect, look at the computer's memory and disk, list and remove plugins and mods, search and manage config files, change dashboard settings, and more (57 tools)
 - **Assistant memory** — it keeps short notes you tell it and knows them in every chat; see and delete them in the assistant settings
 - **Undo** — changes it makes to files and settings can be put back ("undo the last change")
